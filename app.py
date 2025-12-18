@@ -1,69 +1,48 @@
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
+import os
 
 app = Flask(__name__)
 
+@app.route("/", methods=["GET"])
+def home():
+    return "Arachis WhatsApp bot is running"
+
 @app.route("/webhook", methods=["POST"])
-def arachis_bot():
-    msg = request.values.get("Body", "").strip().lower()
+def whatsapp_webhook():
+    incoming_msg = request.values.get('Body', '').lower()
+
     resp = MessagingResponse()
+    msg = resp.message()
 
-    if msg in ["hi", "hello", "start", "menu"]:
-        resp.message(
-            "👋 *Tinokugamuchirai ku ARACHIS ONLINE TRAINING*\n\n"
-            "Tinodzidzisa:\n"
-            "🧴 Detergent Making\n"
-            "🥤 Concentrate Drinks\n\n"
-            "Pindura nenhamba:\n"
-            "1️⃣ About Training\n"
-            "2️⃣ Free Training\n"
-            "3️⃣ Paid Training\n"
-            "4️⃣ Payment Info\n"
-            "5️⃣ Taura neAdmin"
+    if "detergent" in incoming_msg:
+        msg.body(
+            "🧼 *Arachis Training*\n"
+            "Tinodzidzisa kugadzira:\n"
+            "- Dishwash\n"
+            "- Foam bath\n"
+            "- Pine gel\n\n"
+            "Nyora *JOIN* kuti ubatane."
         )
-
-    elif msg == "1":
-        resp.message(
-            "ARACHIS Online Training inodzidzisa ma detergents "
-            "nemaconcentrate drinks kubva pakutanga kusvika pakutengesa."
+    elif "join" in incoming_msg:
+        msg.body(
+            "✅ Wakugamuchirwa!\n"
+            "Trainee handbook ichatumirwa.\n"
+            "Bhadhara kuti uwane full training."
         )
-
-    elif msg == "2":
-        resp.message(
-            "🎁 *FREE TRAINING*\n"
-            "Join group pano:\n"
-            "https://chat.whatsapp.com/EUKSnlpG33vDEa34Vhx9Lz"
-        )
-
-    elif msg == "3":
-        resp.message(
-            "💼 *PAID TRAINING*\n"
-            "✔ Full formulas\n"
-            "✔ Step-by-step lessons\n"
-            "✔ Student handbook (PDF)\n"
-            "✔ Certificate"
-        )
-
-    elif msg == "4":
-        resp.message(
-            "💰 *PAYMENT INFO*\n"
-            "EcoCash / OneMoney\n"
-            "Send proof after payment."
-        )
-
-    elif msg == "5":
-        resp.message(
-            "📞 Taura neAdmin pano:\n"
-            "+263773208904"
-        )
-
     else:
-        resp.message(
-            "Handina kunyatsonzwisisa.\n"
-            "Reply *START* kuti uone menu."
+        msg.body(
+            "👋 Makadii!\n"
+            "Ndiri *Arachis WhatsApp Bot*\n\n"
+            "Nyora:\n"
+            "• *DETERGENT*\n"
+            "• *JOIN*"
         )
 
     return str(resp)
 
 if __name__ == "__main__":
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
+
