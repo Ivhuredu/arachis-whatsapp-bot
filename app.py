@@ -21,8 +21,7 @@ def main_menu():
         "4️⃣ Free Lessons\n"
         "5️⃣ Join Full Training\n"
         "6️⃣ Bata Trainer"
-        "Nyora *LESSON* (Detergents)\n"
-"🥤 Nyora *DRINK* (Concentrates)\n"
+        
 
 
     )
@@ -225,11 +224,6 @@ def whatsapp_webhook():
         current_day = user_lessons.get(user, 0) + 1
         user_lessons[user] = current_day
         msg.body(lesson_content(current_day))
-            elif incoming_msg == "drink":
-        user = request.values.get("From")
-        current_day = user_drink_lessons.get(user, 0) + 1
-        user_drink_lessons[user] = current_day
-        msg.body(drink_lesson_content(current_day))
 
 
     # DEFAULT RESPONSE
@@ -241,6 +235,7 @@ def whatsapp_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
