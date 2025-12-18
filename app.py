@@ -2,6 +2,7 @@ from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 import os
 user_lessons = {}
+user_drink_lessons = {}
 
 app = Flask(__name__)
 
@@ -12,6 +13,7 @@ def main_menu():
         "🧼 Detergents\n"
         "🥤 Concentrate Drinks\n"
         "📦 Packaging & Business\n\n"
+    
         "Sarudza nhamba 👇🏽\n\n"
         "1️⃣ Detergent Training\n"
         "2️⃣ Concentrate Drinks Training\n"
@@ -19,6 +21,9 @@ def main_menu():
         "4️⃣ Free Lessons\n"
         "5️⃣ Join Full Training\n"
         "6️⃣ Bata Trainer"
+        📘 Nyora *LESSON* kuti uwane ma free lesson e(Detergents)
+🥤 Nyora *DRINK* kuti uwane ma free lesson e(Concentrates)
+
     )
 def lesson_content(day):
     lessons = {
@@ -71,6 +76,51 @@ def lesson_content(day):
         )
     }
     return lessons.get(day, "🎉 Free lessons dzapera. Nyora *JOIN*.")
+def drink_lesson_content(day):
+    lessons = {
+        1: (
+            "🥤 *DRINK LESSON 1: INTRODUCTION*\n\n"
+            "Concentrate drinks anogadzirwa kuti asanganiswe nemvura.\n"
+            "Akanakira bhizinesi nekuti anogara nguva refu.\n\n"
+            "Mangwana nyora *DRINK* kuti uenderere mberi."
+        ),
+        2: (
+            "🥤 *DRINK LESSON 2: INGREDIENTS*\n\n"
+            "Zvinodiwa:\n"
+            "• Water\n"
+            "• Flavour (Orange/Raspberry)\n"
+            "• Sugar\n"
+            "• Citric Acid\n"
+            "• Preservative\n\n"
+            "Mangwana nyora *DRINK*."
+        ),
+        3: (
+            "🥤 *DRINK LESSON 3: MIXING*\n\n"
+            "Sanganisa:\n"
+            "1️⃣ Mvura + shuga\n"
+            "2️⃣ Wedzera flavour\n"
+            "3️⃣ Wedzera citric acid\n"
+            "4️⃣ Preservative\n\n"
+            "Mix kusvika yanyungudika.\n\n"
+            "Mangwana nyora *DRINK*."
+        ),
+        4: (
+            "🥤 *DRINK LESSON 4: BOTTLING*\n\n"
+            "✔ Shandisa mabhodhoro akachena\n"
+            "✔ Vhara zvakanaka\n"
+            "✔ Isa label\n\n"
+            "Mangwana nyora *DRINK*."
+        ),
+        5: (
+            "🥤 *DRINK LESSON 5: BUSINESS*\n\n"
+            "✔ Tanga ne2–5 litres\n"
+            "✔ Tengesa kumusha\n"
+            "✔ Ita ma promotions\n\n"
+            "🎉 Makorokoto! Wapedza free drink lessons.\n"
+            "Nyora *JOIN* kuti uwane full formulas."
+        )
+    }
+    return lessons.get(day, "🎉 Free drink lessons dzapera. Nyora *JOIN*.")
 
 @app.route("/", methods=["GET"])
 def home():
@@ -174,6 +224,12 @@ def whatsapp_webhook():
         current_day = user_lessons.get(user, 0) + 1
         user_lessons[user] = current_day
         msg.body(lesson_content(current_day))
+            elif incoming_msg == "drink":
+        user = request.values.get("From")
+        current_day = user_drink_lessons.get(user, 0) + 1
+        user_drink_lessons[user] = current_day
+        msg.body(drink_lesson_content(current_day))
+
 
     # DEFAULT RESPONSE
     else:
@@ -184,4 +240,5 @@ def whatsapp_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
