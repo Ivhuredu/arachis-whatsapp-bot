@@ -1,6 +1,7 @@
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 import os
+user_lessons = {}
 
 app = Flask(__name__)
 
@@ -19,6 +20,57 @@ def main_menu():
         "5️⃣ Join Full Training\n"
         "6️⃣ Bata Trainer"
     )
+def lesson_content(day):
+    lessons = {
+        1: (
+            "📘 *LESSON 1: INTRODUCTION & SAFETY*\n\n"
+            "Detergent making ibhizinesi rakanaka.\n"
+            "Asi chengetedzo yakakosha:\n"
+            "✔ Pfeka magirovhosi\n"
+            "✔ Usasanganisa makemikari zvisiri izvo\n"
+            "✔ Shanda munzvimbo ine mweya\n\n"
+            "Mangwana nyora *LESSON* kuti uenderere mberi."
+        ),
+        2: (
+            "📘 *LESSON 2: DISHWASH*\n\n"
+            "Zvinodiwa:\n"
+            "• Mvura\n"
+            "• SLES\n"
+            "• Salt (thickener)\n"
+            "• Fragrance\n\n"
+            "Mix zvishoma nezvishoma kusvika yaita gobvu.\n\n"
+            "Mangwana nyora *LESSON*."
+        ),
+        3: (
+            "📘 *LESSON 3: FOAM BATH*\n\n"
+            "Zvinodiwa:\n"
+            "• SLES\n"
+            "• CDE\n"
+            "• Glycerine\n"
+            "• Salt\n\n"
+            "Inoshandiswa kugeza muviri.\n\n"
+            "Mangwana nyora *LESSON*."
+        ),
+        4: (
+            "📘 *LESSON 4: PINE GEL*\n\n"
+            "Zvinodiwa:\n"
+            "• Pine oil\n"
+            "• Surfactant\n"
+            "• Dye\n"
+            "• Water\n\n"
+            "Inoshandiswa kuchenesa pasi, toilet.\n\n"
+            "Mangwana nyora *LESSON*."
+        ),
+        5: (
+            "📘 *LESSON 5: PACKAGING & BUSINESS*\n\n"
+            "✔ Shandisa mabhodhoro akachena\n"
+            "✔ Isa label rine zita & contact\n"
+            "✔ Tanga nemusika wemuno\n\n"
+            "🎉 Makorokoto! Wapedza free lessons.\n"
+            "Nyora *JOIN* kuti uwane full formulas."
+        )
+    }
+    return lessons.get(day, "🎉 Free lessons dzapera. Nyora *JOIN*.")
 
 @app.route("/", methods=["GET"])
 def home():
@@ -117,6 +169,11 @@ def whatsapp_webhook():
             "Zita: Beloved Nkomo\n\n"
             "Tumira proof pano mushure mekubhadhara."
         )
+    elif incoming_msg == "lesson":
+        user = request.values.get("From")
+        current_day = user_lessons.get(user, 0) + 1
+        user_lessons[user] = current_day
+        msg.body(lesson_content(current_day))
 
     # DEFAULT RESPONSE
     else:
@@ -127,3 +184,4 @@ def whatsapp_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
