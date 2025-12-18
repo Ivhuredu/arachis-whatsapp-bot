@@ -21,8 +21,8 @@ def main_menu():
         "4️⃣ Free Lessons\n"
         "5️⃣ Join Full Training\n"
         "6️⃣ Bata Trainer"
-        📘 Nyora *LESSON* kuti uwane ma free lesson e(Detergents)
-🥤 Nyora *DRINK* kuti uwane ma free lesson e(Concentrates)
+        📘 Nyora *LESSON* (Detergents)
+🥤 Nyora *DRINK* (Concentrates)
 
     )
 def lesson_content(day):
@@ -240,5 +240,6 @@ def whatsapp_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
