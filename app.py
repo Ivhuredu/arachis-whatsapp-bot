@@ -73,18 +73,14 @@ def lesson_content(day):
             "✔ Tanga nemusika wemuno\n\n"
             "🎉 Makorokoto! Wapedza free lessons.\n"
             "Nyora *JOIN* kuti uwane full formulas."
-        )
-    }
-    return lessons.get(day, "🎉 Free lessons dzapera. Nyora *JOIN*.")
-def drink_lesson_content(day):
-    lessons = {
-        1: (
+            
+             6: (
             "🥤 *DRINK LESSON 1: INTRODUCTION*\n\n"
             "Concentrate drinks anogadzirwa kuti asanganiswe nemvura.\n"
             "Akanakira bhizinesi nekuti anogara nguva refu.\n\n"
             "Mangwana nyora *DRINK* kuti uenderere mberi."
         ),
-        2: (
+        7: (
             "🥤 *DRINK LESSON 2: INGREDIENTS*\n\n"
             "Zvinodiwa:\n"
             "• Water\n"
@@ -94,7 +90,7 @@ def drink_lesson_content(day):
             "• Preservative\n\n"
             "Mangwana nyora *DRINK*."
         ),
-        3: (
+        8: (
             "🥤 *DRINK LESSON 3: MIXING*\n\n"
             "Sanganisa:\n"
             "1️⃣ Mvura + shuga\n"
@@ -104,14 +100,14 @@ def drink_lesson_content(day):
             "Mix kusvika yanyungudika.\n\n"
             "Mangwana nyora *DRINK*."
         ),
-        4: (
+        9: (
             "🥤 *DRINK LESSON 4: BOTTLING*\n\n"
             "✔ Shandisa mabhodhoro akachena\n"
             "✔ Vhara zvakanaka\n"
             "✔ Isa label\n\n"
             "Mangwana nyora *DRINK*."
         ),
-        5: (
+        10: (
             "🥤 *DRINK LESSON 5: BUSINESS*\n\n"
             "✔ Tanga ne2–5 litres\n"
             "✔ Tengesa kumusha\n"
@@ -120,6 +116,12 @@ def drink_lesson_content(day):
             "Nyora *JOIN* kuti uwane full formulas."
         )
     }
+        )
+    }
+    return lessons.get(day, "🎉 Free lessons dzapera. Nyora *JOIN*.")
+def drink_lesson_content(day):
+    lessons = {
+       
     return lessons.get(day, "🎉 Free drink lessons dzapera. Nyora *JOIN*.")
 
 @app.route("/", methods=["GET"])
@@ -225,7 +227,6 @@ def whatsapp_webhook():
         user_lessons[user] = current_day
         msg.body(lesson_content(current_day))
 
-
     # DEFAULT RESPONSE
     else:
         msg.body(main_menu())
@@ -235,6 +236,7 @@ def whatsapp_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
