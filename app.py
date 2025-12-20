@@ -1,5 +1,3 @@
-
-
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 import sqlite3
@@ -8,7 +6,7 @@ import os
 app = Flask(__name__)
 
 # =========================
-# DATABASE SETUP (SQLite)
+# DATABASE SETUP
 # =========================
 
 def get_db():
@@ -24,6 +22,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         phone TEXT UNIQUE,
         is_paid INTEGER DEFAULT 0,
+        payment_status TEXT DEFAULT 'none',
         detergent_lesson INTEGER DEFAULT 0,
         drink_lesson INTEGER DEFAULT 0,
         state TEXT DEFAULT 'main'
@@ -64,6 +63,13 @@ def mark_paid(phone):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("UPDATE users SET is_paid=1 WHERE phone=?", (phone,))
+    conn.commit()
+    conn.close()
+
+def set_payment_status(phone, status):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET payment_status=? WHERE phone=?", (status, phone))
     conn.commit()
     conn.close()
 
@@ -175,6 +181,28 @@ def webhook():
         return str(resp)
 
     # =========================
+    # PAY FLOW
+    # =========================
+    if incoming == "pay":
+        set_payment_status(phone, "waiting_proof")
+        msg.body(
+            "💳 *ECOCASH PAYMENT*\n\n"
+            "Amount: $5\n"
+            "Number: 0773 208904\n"
+            "Name: Beloved Nkomo\n\n"
+            "📸 Tumira payment proof pano."
+        )
+        return str(resp)
+
+    if user["payment_status"] == "waiting_proof":
+        set_payment_status(phone, "pending_approval")
+        msg.body(
+            "✅ Proof yatambirwa.\n"
+            "Mirira kusimbiswa nemudzidzisi ⏳"
+        )
+        return str(resp)
+
+    # =========================
     # MAIN MENU
     # =========================
     if user["state"] == "main":
@@ -188,13 +216,13 @@ def webhook():
             msg.body("🥤 Drinks\n1️⃣ Free\n2️⃣ Paid")
 
         elif incoming == "3":
-            msg.body("💵 Mari: $5\nEcoCash: 0773 208904\nNyora PAY")
+            msg.body("💵 Mari: $5\nNyora PAY kuti ubhadhare")
 
         elif incoming == "4":
             msg.body(free_detergent())
 
         elif incoming in ["5", "join"]:
-            msg.body("Bhadhara $5 wobva watumira proof pano.")
+            msg.body("Nyora PAY kuti utange kubhadhara")
 
         elif incoming == "6":
             msg.body("📞 Trainer: 0773 208904")
@@ -244,12 +272,13 @@ def webhook():
         msg.body(lesson if lesson else "🎉 Wapedza drink lessons")
 
     # =========================
-    # ADMIN – MARK PAID
+    # ADMIN APPROVAL
     # =========================
     elif incoming.startswith("addpaid") and phone == "whatsapp:+263773208904":
         number = incoming.replace("addpaid", "").strip()
         mark_paid(number)
-        msg.body(f"✅ {number} now PAID")
+        set_payment_status(number, "approved")
+        msg.body(f"✅ {number} APPROVED")
 
     else:
         msg.body("Nyora MENU")
@@ -263,6 +292,8 @@ def webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
+
 
 
 
