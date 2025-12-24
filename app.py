@@ -1,9 +1,40 @@
-from flask import Flask, request
-from twilio.twiml.messaging_response import MessagingResponse
+from flask import Flask, request, jsonify
+import requests
 import sqlite3
 import os
 
 app = Flask(__name__)
+
+# =========================
+# WHATSAPP CLOUD API CONFIG
+# =========================
+
+VERIFY_TOKEN = "arachis-arachisbot-2025"
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID")
+
+
+# =========================
+# SEND MESSAGE FUNCTION
+# =========================
+
+def send_message(phone, text):
+    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "messaging_product": "whatsapp",
+        "to": phone.replace("whatsapp:", "").replace("+", ""),
+        "type": "text",
+        "text": {"body": text}
+    }
+
+    requests.post(url, headers=headers, json=data)
+
 
 # =========================
 # DATABASE SETUP
@@ -32,6 +63,7 @@ def init_db():
     conn.close()
 
 init_db()
+
 
 # =========================
 # USER HELPERS
@@ -73,6 +105,7 @@ def set_payment_status(phone, status):
     conn.commit()
     conn.close()
 
+
 # =========================
 # MENUS & CONTENT
 # =========================
@@ -105,6 +138,7 @@ def free_drink():
         "Nyora *JOIN* kuti uwane full formulas."
     )
 
+
 # =========================
 # LESSON LOGIC
 # =========================
@@ -132,6 +166,7 @@ def next_detergent_lesson(user):
 
     return lessons[day]
 
+
 def next_drink_lesson(user):
     day = user["drink_lesson"] + 1
     lessons = {
@@ -155,135 +190,145 @@ def next_drink_lesson(user):
 
     return lessons[day]
 
+
 # =========================
-# ROUTES
+# HEALTH CHECK
 # =========================
 
 @app.route("/", methods=["GET"])
 def home():
     return "Arachis WhatsApp Bot Running"
 
+
+# =========================
+# WEBHOOK VERIFICATION (GET)
+# =========================
+
+@app.route("/webhook", methods=["GET"])
+def verify_webhook():
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
+
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        return challenge, 200
+
+    return "Verification failed", 403
+
+
+# =========================
+# WEBHOOK MESSAGES (POST)
+# =========================
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    incoming = request.values.get("Body", "").strip().lower()
-    phone = request.values.get("From")
 
-    resp = MessagingResponse()
-    msg = resp.message()
+    data = request.get_json()
+
+    try:
+        message = data["entry"][0]["changes"][0]["value"]["messages"][0]
+        phone = message["from"]
+        incoming = message["text"]["body"].strip().lower()
+
+    except Exception:
+        return jsonify({"status": "ignored"}), 200
 
     create_user(phone)
     user = get_user(phone)
 
-    # RESET
+    # RESET / MENU
     if incoming in ["menu", "start", "hi", "hello", "makadini"]:
         set_state(phone, "main")
-        msg.body(main_menu())
-        return str(resp)
+        send_message(phone, main_menu())
+        return jsonify({"status": "ok"}), 200
 
-    # =========================
-    # PAY FLOW
-    # =========================
+    # PAYMENT FLOW
     if incoming == "pay":
         set_payment_status(phone, "waiting_proof")
-        msg.body(
-            "💳 *ECOCASH PAYMENT*\n\n"
-            "Amount: $5\n"
-            "Number: 0773 208904\n"
-            "Name: Beloved Nkomo\n\n"
-            "📸 Tumira payment proof pano."
+        send_message(
+            phone,
+            "💳 *ECOCASH PAYMENT*\n\nAmount: $5\nNumber: 0773 208904\nName: Beloved Nkomo\n\n📸 Tumira payment proof pano."
         )
-        return str(resp)
+        return jsonify({"status": "ok"}), 200
 
     if user["payment_status"] == "waiting_proof":
         set_payment_status(phone, "pending_approval")
-        msg.body(
-            "✅ Proof yatambirwa.\n"
-            "Mirira kusimbiswa nemudzidzisi ⏳"
-        )
-        return str(resp)
+        send_message(phone, "✅ Proof yatambirwa.\nMirira kusimbiswa ⏳")
+        return jsonify({"status": "ok"}), 200
 
-    # =========================
-    # MAIN MENU
-    # =========================
+    # MAIN MENU HANDLING
     if user["state"] == "main":
 
         if incoming == "1":
             set_state(phone, "detergent_menu")
-            msg.body("🧼 Detergents\n1️⃣ Free\n2️⃣ Paid")
+            send_message(phone, "🧼 Detergents\n1️⃣ Free\n2️⃣ Paid")
 
         elif incoming == "2":
             set_state(phone, "drink_menu")
-            msg.body("🥤 Drinks\n1️⃣ Free\n2️⃣ Paid")
+            send_message(phone, "🥤 Drinks\n1️⃣ Free\n2️⃣ Paid")
 
         elif incoming == "3":
-            msg.body("💵 Mari: $5\nNyora PAY kuti ubhadhare")
+            send_message(phone, "💵 Mari: $5\nNyora PAY kuti ubhadhare")
 
         elif incoming == "4":
-            msg.body(free_detergent())
+            send_message(phone, free_detergent())
 
         elif incoming in ["5", "join"]:
-            msg.body("Nyora PAY kuti utange kubhadhara")
+            send_message(phone, "Nyora PAY kuti utange kubhadhara")
 
         elif incoming == "6":
-            msg.body("📞 Trainer: 0773 208904")
+            send_message(phone, "📞 Trainer: 0773 208904")
 
         else:
-            msg.body("Nyora MENU")
+            send_message(phone, "Nyora MENU")
 
-    # =========================
     # DETERGENT MENU
-    # =========================
     elif user["state"] == "detergent_menu":
 
         if incoming == "1":
-            msg.body(free_detergent())
+            send_message(phone, free_detergent())
 
         elif incoming == "2":
             if user["is_paid"] == 1:
                 set_state(phone, "detergent_lessons")
-                msg.body("Nyora LESSON kuti utange")
+                send_message(phone, "Nyora LESSON kuti utange")
             else:
-                msg.body("🔒 Bhadhara kuti uwane full access")
+                send_message(phone, "🔒 Bhadhara kuti uwane full access")
 
-    # =========================
     # DRINK MENU
-    # =========================
     elif user["state"] == "drink_menu":
 
         if incoming == "1":
-            msg.body(free_drink())
+            send_message(phone, free_drink())
 
         elif incoming == "2":
             if user["is_paid"] == 1:
                 set_state(phone, "drink_lessons")
-                msg.body("Nyora DRINK kuti utange")
+                send_message(phone, "Nyora DRINK kuti utange")
             else:
-                msg.body("🔒 Bhadhara kuti uwane full access")
+                send_message(phone, "🔒 Bhadhara kuti uwane full access")
 
-    # =========================
     # LESSON STATES
-    # =========================
     elif user["state"] == "detergent_lessons" and incoming == "lesson":
         lesson = next_detergent_lesson(user)
-        msg.body(lesson if lesson else "🎉 Wapedza detergent lessons")
+        send_message(phone, lesson if lesson else "🎉 Wapedza detergent lessons")
 
     elif user["state"] == "drink_lessons" and incoming == "drink":
         lesson = next_drink_lesson(user)
-        msg.body(lesson if lesson else "🎉 Wapedza drink lessons")
+        send_message(phone, lesson if lesson else "🎉 Wapedza drink lessons")
 
-    # =========================
     # ADMIN APPROVAL
-    # =========================
-    elif incoming.startswith("addpaid") and phone == "whatsapp:+263773208904":
+    elif incoming.startswith("addpaid") and phone.endswith("263773208904"):
         number = incoming.replace("addpaid", "").strip()
         mark_paid(number)
         set_payment_status(number, "approved")
-        msg.body(f"✅ {number} APPROVED")
+        send_message(phone, f"✅ {number} APPROVED")
 
     else:
-        msg.body("Nyora MENU")
+        send_message(phone, "Nyora MENU")
 
-    return str(resp)
+    return jsonify({"status": "ok"}), 200
+
 
 # =========================
 # RUN
@@ -292,6 +337,7 @@ def webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
