@@ -1,128 +1,229 @@
-from fastapi import FastAPI, Request
+from flask import Flask, request, jsonify
 import requests
+import sqlite3
+import os
 
-app = FastAPI()
+app = Flask(__name__)
 
-# 🔐 Hard-coded token (NO Render env needed)
 VERIFY_TOKEN = "arachis-arachisbot-2025"
+WHATSAPP_TOKEN = "PASTE_YOUR_USER_ACCESS_TOKEN_HERE"
+WHATSAPP_PHONE_ID = "PASTE_YOUR_PHONE_NUMBER_ID_HERE"
 
-# ⚠️ Replace these two with your actual values when ready
-WHATSAPP_TOKEN = "YOUR_WHATSAPP_ACCESS_TOKEN"
-WHATSAPP_PHONE_ID = "YOUR_PHONE_NUMBER_ID"
+# =========================
+# DATABASE
+# =========================
+def get_db():
+    conn = sqlite3.connect("users.db")
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT UNIQUE,
+        is_paid INTEGER DEFAULT 0,
+        payment_status TEXT DEFAULT 'none',
+        detergent_lesson INTEGER DEFAULT 0,
+        drink_lesson INTEGER DEFAULT 0,
+        state TEXT DEFAULT 'main'
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
 
 
 # =========================
-#  WEBHOOK VERIFICATION
+# HELPERS
 # =========================
-@app.get("/")
-async def verify_webhook(request: Request):
-    params = request.query_params
-
-    mode = params.get("hub.mode")
-    challenge = params.get("hub.challenge")
-    token = params.get("hub.verify_token")
-
-    if mode == "subscribe" and token == VERIFY_TOKEN:
-        return int(challenge)
-
-    return {"status": "verification failed"}
-
-
-# =========================
-#  RECEIVE MESSAGES
-# =========================
-@app.post("/")
-async def whatsapp_webhook(request: Request):
-    data = await request.json()
-
-    try:
-        entry = data["entry"][0]["changes"][0]["value"]
-        messages = entry.get("messages", [])
-
-        if not messages:
-            return {"status": "no message"}
-
-        msg = messages[0]
-        from_number = msg["from"]
-
-        if "text" in msg:
-            user_message = msg["text"]["body"].strip().lower()
-        else:
-            user_message = ""
-
-        # ======================
-        #  SIMPLE MENU RESPONSE
-        # ======================
-        if user_message in ["hi", "menu", "hello", "start"]:
-            reply = (
-                "*Welcome to Arachis Brands Training Bot*\n\n"
-                "Reply with a number:\n"
-                "1️⃣ Detergents Training\n"
-                "2️⃣ Concentrate Drinks Training\n"
-                "3️⃣ Pricing & Business Support\n"
-                "4️⃣ Join Premium Paid Lessons"
-            )
-
-        elif user_message == "1":
-            reply = (
-                "*🧴 Detergents Training Modules*\n"
-                "- Dishwash\n"
-                "- Foam Bath\n"
-                "- Pine Gel\n"
-                "- Thick Bleach\n\n"
-                "Reply *PAID* to unlock full lessons."
-            )
-
-        elif user_message == "2":
-            reply = (
-                "*🥤 Concentrate Drink Training*\n"
-                "- Orange\n"
-                "- Raspberry\n"
-                "- Pineapple\n\n"
-                "Reply *PAID* to unlock full lessons."
-            )
-
-        elif user_message == "4" or user_message == "paid":
-            reply = (
-                "*💰 Premium Paid Lessons*\n"
-                "Includes full recipes, costing, scaling & business training.\n\n"
-                "Reply *JOIN* to enroll."
-            )
-
-        else:
-            reply = (
-                "Send *menu* to see options.\n"
-                "Or reply with a number 1–4."
-            )
-
-        send_whatsapp_message(from_number, reply)
-
-    except Exception as e:
-        print("Error handling message:", e)
-
-    return {"status": "message processed"}
-
-
-# =========================
-#  SEND MESSAGE FUNCTION
-# =========================
-def send_whatsapp_message(to, message):
-
+def send_message(phone, text):
     url = f"https://graph.facebook.com/v19.0/{WHATSAPP_PHONE_ID}/messages"
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "text",
+        "text": {"body": text}
+    }
 
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json"
     }
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "text",
-        "text": {"body": message}
-    }
+    requests.post(url, json=payload, headers=headers)
 
-    requests.post(url, headers=headers, json=payload)
+
+def get_user(phone):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE phone=?", (phone,))
+    user = cur.fetchone()
+    conn.close()
+    return user
+
+
+def create_user(phone):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("INSERT OR IGNORE INTO users (phone) VALUES (?)", (phone,))
+    conn.commit()
+    conn.close()
+
+
+def set_state(phone, state):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET state=? WHERE phone=?", (state, phone))
+    conn.commit()
+    conn.close()
+
+
+def mark_paid(phone):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET is_paid=1 WHERE phone=?", (phone,))
+    conn.commit()
+    conn.close()
+
+
+def set_payment_status(phone, status):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET payment_status=? WHERE phone=?", (status, phone))
+    conn.commit()
+    conn.close()
+
+
+# =========================
+# MENUS
+# =========================
+def main_menu():
+    return (
+        "👋 *ARACHIS ONLINE TRAINING*\n\n"
+        "Sarudza 👇🏽\n"
+        "1️⃣ Detergents\n"
+        "2️⃣ Concentrate Drinks\n"
+        "3️⃣ Mitengo & Kubhadhara\n"
+        "4️⃣ Free Lesson\n"
+        "5️⃣ Join Full Training\n"
+        "6️⃣ Bata Trainer"
+    )
+
+
+def free_detergent():
+    return (
+        "🧼 *FREE LESSON*\n\n"
+        "Dishwash inogadzirwa ne:\n"
+        "• Water\n• SLES\n• Salt\n• Fragrance\n\n"
+        "Nyora *JOIN* kuti uwane full formulas."
+    )
+
+
+def free_drink():
+    return (
+        "🥤 *FREE DRINK LESSON*\n\n"
+        "Concentrate drinks anosanganiswa nemvura.\n"
+        "Akanakira bhizinesi.\n\n"
+        "Nyora *JOIN* kuti uwane full formulas."
+    )
+
+
+# =========================
+# WHATSAPP WEBHOOK VERIFY
+# =========================
+@app.route("/webhook", methods=["GET"])
+def verify_webhook():
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
+
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        return challenge, 200
+
+    return "Verification failed", 403
+
+
+# =========================
+# WHATSAPP MESSAGE HANDLER
+# =========================
+@app.route("/webhook", methods=["POST"])
+def webhook():
+
+    data = request.json
+
+    try:
+        message = data["entry"][0]["changes"][0]["value"]["messages"][0]
+        phone = message["from"]
+        incoming = message["text"]["body"].strip().lower()
+    except:
+        return jsonify({"status": "ignored"}), 200
+
+    create_user(phone)
+    user = get_user(phone)
+
+    # Reset
+    if incoming in ["menu", "start", "hi", "hello", "makadini"]:
+        set_state(phone, "main")
+        send_message(phone, main_menu())
+        return jsonify({"status": "ok"})
+
+    # Payment
+    if incoming == "pay":
+        set_payment_status(phone, "waiting_proof")
+        send_message(
+            phone,
+            "💳 *ECOCASH PAYMENT*\n\nAmount: $5\nNumber: 0773 208904\nName: Beloved Nkomo\n\n📸 Tumira proof pano."
+        )
+        return jsonify({"status": "ok"})
+
+    if user["payment_status"] == "waiting_proof":
+        set_payment_status(phone, "pending_approval")
+        send_message(phone, "✅ Proof yatambirwa. Mirira kusimbiswa ⏳")
+        return jsonify({"status": "ok"})
+
+    # Main Menu Logic
+    if user["state"] == "main":
+
+        if incoming == "1":
+            set_state(phone, "detergent_menu")
+            send_message(phone, "🧼 Detergents\n1️⃣ Free\n2️⃣ Paid")
+
+        elif incoming == "2":
+            set_state(phone, "drink_menu")
+            send_message(phone, "🥤 Drinks\n1️⃣ Free\n2️⃣ Paid")
+
+        elif incoming == "3":
+            send_message(phone, "💵 Mari: $5\nNyora PAY kuti ubhadhare")
+
+        elif incoming == "4":
+            send_message(phone, free_detergent())
+
+        elif incoming in ["5", "join"]:
+            send_message(phone, "Nyora PAY kuti utange kubhadhara")
+
+        elif incoming == "6":
+            send_message(phone, "📞 Trainer: 0773 208904")
+
+        else:
+            send_message(phone, "Nyora MENU")
+
+    return jsonify({"status": "ok"})
+
+
+@app.route("/", methods=["GET"])
+def home():
+    return "Arachis WhatsApp Cloud Bot Running"
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
 
 
