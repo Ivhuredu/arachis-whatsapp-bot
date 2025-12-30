@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 from twilio.rest import Client
 import sqlite3
@@ -40,7 +41,6 @@ def init_db():
     """)
     conn.commit()
     conn.close()
-
 
 init_db()
 
@@ -132,15 +132,20 @@ def free_drink():
 
 
 # =========================
-# TWILIO WEBHOOK (NO VERIFY STEP)
+# HEALTH CHECK
 # =========================
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    @app.route("/ping", methods=["GET"])
+@app.route("/ping", methods=["GET"])
 def ping():
     return "OK", 200
 
 
+# =========================
+# TWILIO WEBHOOK
+# =========================
+@app.route("/webhook", methods=["POST"])
+def webhook():
+
+    # numbers from Twilio come like whatsapp:+2637xxxx
     phone = request.form.get("From", "").replace("whatsapp:", "")
     incoming = request.form.get("Body", "").strip().lower()
 
@@ -161,7 +166,11 @@ def ping():
         set_payment_status(phone, "waiting_proof")
         send_message(
             phone,
-            "💳 *ECOCASH PAYMENT*\n\nAmount: $5\nNumber: 0773 208904\nName: Beloved Nkomo\n\n📸 Tumira proof pano."
+            "💳 *ECOCASH PAYMENT*\n\n"
+            "Amount: $5\n"
+            "Number: 0773 208904\n"
+            "Name: Beloved Nkomo\n\n"
+            "📸 Tumira proof pano."
         )
         return jsonify({"status": "ok"})
 
@@ -206,6 +215,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
