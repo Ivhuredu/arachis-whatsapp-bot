@@ -9,9 +9,10 @@ app = Flask(__name__)
 # =========================
 # TWILIO CONFIG
 # =========================
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")  # e.g whatsapp:+14155238886
+TWILIO_ACCOUNT_SID = os.getenv("AC15ba4e65e4d435d3cc06b847509e7085")
+TWILIO_AUTH_TOKEN = os.getenv("81f0091b8de6a2043013b570935dacd6")
+TWILIO_WHATSAPP_NUMBER = os.getenv("whatsapp:+14155238886
+")  # e.g whatsapp:+14155238886
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -215,6 +216,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
