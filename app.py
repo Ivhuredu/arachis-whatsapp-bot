@@ -136,6 +136,10 @@ def free_drink():
 # =========================
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    @app.route("/ping", methods=["GET"])
+def ping():
+    return "OK", 200
+
 
     phone = request.form.get("From", "").replace("whatsapp:", "")
     incoming = request.form.get("Body", "").strip().lower()
@@ -202,6 +206,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
