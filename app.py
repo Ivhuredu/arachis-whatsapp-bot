@@ -1,13 +1,19 @@
 from flask import Flask, request, jsonify
-import requests
+from twilio.rest import Client
 import sqlite3
 import os
 
 app = Flask(__name__)
 
-VERIFY_TOKEN = "arachis-arachisbot-2025"
-WHATSAPP_TOKEN = "PASTE_YOUR_USER_ACCESS_TOKEN_HERE"
-WHATSAPP_PHONE_ID = "PASTE_YOUR_PHONE_NUMBER_ID_HERE"
+# =========================
+# TWILIO CONFIG
+# =========================
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")  # e.g whatsapp:+14155238886
+
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
 
 # =========================
 # DATABASE
@@ -16,6 +22,7 @@ def get_db():
     conn = sqlite3.connect("users.db")
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_db():
     conn = get_db()
@@ -34,6 +41,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 init_db()
 
 
@@ -41,21 +49,11 @@ init_db()
 # HELPERS
 # =========================
 def send_message(phone, text):
-    url = f"https://graph.facebook.com/v19.0/{WHATSAPP_PHONE_ID}/messages"
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": phone,
-        "type": "text",
-        "text": {"body": text}
-    }
-
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
-    requests.post(url, json=payload, headers=headers)
+    client.messages.create(
+        from_=TWILIO_WHATSAPP_NUMBER,
+        to=f"whatsapp:{phone}",
+        body=text
+    )
 
 
 def get_user(phone):
@@ -134,33 +132,15 @@ def free_drink():
 
 
 # =========================
-# WHATSAPP WEBHOOK VERIFY
-# =========================
-@app.route("/webhook", methods=["GET"])
-def verify_webhook():
-    mode = request.args.get("hub.mode")
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
-
-    if mode == "subscribe" and token == VERIFY_TOKEN:
-        return challenge, 200
-
-    return "Verification failed", 403
-
-
-# =========================
-# WHATSAPP MESSAGE HANDLER
+# TWILIO WEBHOOK (NO VERIFY STEP)
 # =========================
 @app.route("/webhook", methods=["POST"])
 def webhook():
 
-    data = request.json
+    phone = request.form.get("From", "").replace("whatsapp:", "")
+    incoming = request.form.get("Body", "").strip().lower()
 
-    try:
-        message = data["entry"][0]["changes"][0]["value"]["messages"][0]
-        phone = message["from"]
-        incoming = message["text"]["body"].strip().lower()
-    except:
+    if not phone or not incoming:
         return jsonify({"status": "ignored"}), 200
 
     create_user(phone)
@@ -217,11 +197,13 @@ def webhook():
 
 @app.route("/", methods=["GET"])
 def home():
-    return "Arachis WhatsApp Cloud Bot Running"
+    return "Arachis WhatsApp Bot (Twilio) Running"
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
 
 
