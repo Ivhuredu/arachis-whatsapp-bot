@@ -1,5 +1,3 @@
-
-
 from flask import Flask, request, jsonify
 from twilio.rest import Client
 import sqlite3, os
@@ -152,6 +150,43 @@ def free_drink():
 
 
 # =========================
+# AI FAQ MODULE
+# =========================
+def ai_faq_reply(msg):
+    msg = msg.lower()
+
+    # Greetings
+    if msg in ["hello", "hi", "hie", "makadini", "mhoroi"]:
+        return "👋 Mhoro — tinokugamuchirai ku *Arachis Training Bot*.\nNyora *MENU* kuti uone zviripo."
+
+    # Pricing
+    if "price" in msg or "cost" in msg or "fee" in msg or "how much" in msg:
+        return "💵 *Course Price*\n\nFull training inodhura *$5 once-off*.\nNyora *PAY* kana uchida kubhadhara."
+
+    # Duration
+    if "how long" in msg or "duration" in msg or "time" in msg:
+        return "⏳ Training ine *lifetime access* — hauperi kuwana ma lessons."
+
+    # Location
+    if "where are you" in msg or "location" in msg or "based" in msg:
+        return "📍 Tiri ku *Zimbabwe* — training inoitwa online paWhatsApp."
+
+    # Certificate
+    if "certificate" in msg:
+        return "🎓 Ehe — unogona kuwana *Certificate of Completion* mushure mekupedza course."
+
+    # Refund
+    if "refund" in msg or "money back" in msg:
+        return "💬 Kana usina kugutsikana, taura nesu — tinoongorora nyaya yacho case-by-case."
+
+    # Thanks
+    if msg in ["thanks", "thank you", "tatenda", "maita"]:
+        return "🙏 Tatenda nemubvunzo wenyu!"
+
+    return None
+
+
+# =========================
 # HEALTH CHECK
 # =========================
 @app.route("/ping")
@@ -176,6 +211,14 @@ def webhook():
 
     if not user:
         set_state(phone, "main")
+
+    # =========================
+    # AI FAQ auto-response
+    # =========================
+    faq = ai_faq_reply(incoming)
+    if faq:
+        send_message(phone, faq)
+        return jsonify({"status": "ok"})
 
     # =========================
     # ADMIN PAYMENT APPROVAL
@@ -345,6 +388,8 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
 
 
