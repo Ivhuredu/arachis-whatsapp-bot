@@ -1,4 +1,5 @@
 
+
 from flask import Flask, request, jsonify
 from twilio.rest import Client
 import sqlite3, os
@@ -40,6 +41,28 @@ def init_db():
 init_db()
 
 
+# ensure paid field exists
+def ensure_paid_column():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("PRAGMA table_info(users)")
+    cols = [row["name"] for row in c.fetchall()]
+    if "is_paid" not in cols:
+        c.execute("ALTER TABLE users ADD COLUMN is_paid INTEGER DEFAULT 0")
+        conn.commit()
+    conn.close()
+
+ensure_paid_column()
+
+
+def mark_paid(phone):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("UPDATE users SET is_paid=1 WHERE phone=?", (phone,))
+    conn.commit()
+    conn.close()
+
+
 # =========================
 # HELPERS
 # =========================
@@ -62,6 +85,7 @@ def get_user(phone):
     conn.close()
     return user
 
+
 def create_user(phone):
     conn = get_db()
     c = conn.cursor()
@@ -69,12 +93,14 @@ def create_user(phone):
     conn.commit()
     conn.close()
 
+
 def set_state(phone, state):
     conn = get_db()
     c = conn.cursor()
     c.execute("UPDATE users SET state=? WHERE phone=?", (state, phone))
     conn.commit()
     conn.close()
+
 
 def set_payment_status(phone, status):
     conn = get_db()
@@ -148,17 +174,35 @@ def webhook():
     create_user(phone)
     user = get_user(phone)
 
-    # fallback safety
     if not user:
         set_state(phone, "main")
 
+    # =========================
+    # ADMIN PAYMENT APPROVAL
+    # =========================
+    if incoming.startswith("approve "):
+        target = incoming.replace("approve ", "").strip()
+        mark_paid(target)
+        set_payment_status(target, "approved")
+        send_message(
+            target,
+            "🎉 *Payment Approved!*\n\n"
+            "You now have FULL ACCESS to all lessons."
+        )
+        send_message(phone, "👍 User approved")
+        return jsonify({"status": "ok"})
+
+    # =========================
     # RESET / MAIN
+    # =========================
     if incoming in ["menu", "start", "hi", "hello", "makadini"]:
         set_state(phone, "main")
         send_message(phone, main_menu())
         return jsonify({"status": "ok"})
 
+    # =========================
     # PAYMENT FLOW
+    # =========================
     if incoming == "pay":
         set_payment_status(phone, "waiting_proof")
         send_message(
@@ -173,11 +217,16 @@ def webhook():
 
     if user["payment_status"] == "waiting_proof":
         set_payment_status(phone, "pending_approval")
-        send_message(phone, "✅ Proof yatambirwa. Mirira kusimbiswa ⏳")
+        send_message(
+            phone,
+            "✅ Proof yatambirwa.\n"
+            "Admin achakuudza kuti aona payment munguva pfupi ⏳"
+        )
         return jsonify({"status": "ok"})
 
-
-    # ========== MAIN MENU ==========
+    # =========================
+    # MAIN MENU
+    # =========================
     if user["state"] == "main":
 
         if incoming == "1":
@@ -205,7 +254,8 @@ def webhook():
                 phone,
                 "💵 *MITENGO*\n\n"
                 "Full training: $5 once off.\n"
-                "👉 Nyora *PAY* kuti ubhadhare."
+                "👉 Kana wakatobhadhara unowana lesson dzese automatically.\n"
+                "Nyora MENU kudzokera kumusoro."
             )
             return jsonify({"status": "ok"})
 
@@ -225,7 +275,9 @@ def webhook():
         return jsonify({"status": "ok"})
 
 
-    # ========== DETERGENTS SUB MENU ==========
+    # =========================
+    # DETERGENTS SUB MENU
+    # =========================
     if user["state"] == "detergent_menu":
 
         if incoming == "1":
@@ -233,19 +285,28 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "2":
-            send_message(
-                phone,
-                "🧼 *Full Detergent Course*\n"
-                "✔ Dishwash\n✔ Foam bath\n✔ Thick bleach\n✔ Pine gel\n\n"
-                "👉 Nyora *PAY* kuti ubhadhare."
-            )
+            if user["is_paid"]:
+                send_message(
+                    phone,
+                    "🧼 *Full Detergent Course*\n"
+                    "✔ Dishwash\n✔ Foam bath\n✔ Thick bleach\n✔ Pine gel\n\n"
+                    "Nyora MENU kudzokera kumusoro."
+                )
+            else:
+                send_message(
+                    phone,
+                    "🔒 Lesson iyi ndeye *Paid Members Only*\n\n"
+                    "Fee: $5\nNyora *PAY* kuti ubhadhare."
+                )
             return jsonify({"status": "ok"})
 
         send_message(phone, "Sarudza 1 kana 2 kana nyora MENU")
         return jsonify({"status": "ok"})
 
 
-    # ========== DRINKS SUB MENU ==========
+    # =========================
+    # DRINKS SUB MENU
+    # =========================
     if user["state"] == "drink_menu":
 
         if incoming == "1":
@@ -253,12 +314,19 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "2":
-            send_message(
-                phone,
-                "🥤 *Full Drinks Course*\n"
-                "✔ Drink Concentrates\n✔ Soft Drinks\n✔ Mawuyu Drink\n\n"
-                "👉 Nyora *PAY* kuti ubhadhare."
-            )
+            if user["is_paid"]:
+                send_message(
+                    phone,
+                    "🥤 *Full Drinks Course*\n"
+                    "✔ Drink Concentrates\n✔ Soft Drinks\n✔ Mawuyu Drink\n\n"
+                    "Nyora MENU kudzokera kumusoro."
+                )
+            else:
+                send_message(
+                    phone,
+                    "🔒 Lesson iyi ndeye *Paid Members Only*\n\n"
+                    "Fee: $5\nNyora *PAY* kuti ubhadhare."
+                )
             return jsonify({"status": "ok"})
 
         send_message(phone, "Sarudza 1 kana 2 kana nyora MENU")
