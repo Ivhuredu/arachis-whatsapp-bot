@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 from twilio.rest import Client
 import sqlite3, os
@@ -5,7 +6,7 @@ import sqlite3, os
 app = Flask(__name__)
 
 # =========================
-# TWILIO CONFIG (from Render ENV)
+# TWILIO CONFIG
 # =========================
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
@@ -43,11 +44,15 @@ init_db()
 # HELPERS
 # =========================
 def send_message(phone, text):
-    client.messages.create(
-        from_=TWILIO_WHATSAPP_NUMBER,
-        to=f"whatsapp:{phone}",
-        body=text
-    )
+    try:
+        client.messages.create(
+            from_=TWILIO_WHATSAPP_NUMBER,
+            to=f"whatsapp:{phone}",
+            body=text
+        )
+    except Exception as e:
+        print("SEND ERROR:", e)
+
 
 def get_user(phone):
     conn = get_db()
@@ -84,28 +89,39 @@ def set_payment_status(phone, status):
 # =========================
 def main_menu():
     return (
-        "👋 *ARACHIS ONLINE TRAINING*\n\n"
-        "Sarudza 👇🏽\n"
+        "👋 *TINOKUGAMUCHIRAI KU ARACHIS ONLINE TRAINING*\n\n"
+        "Sarudza zvauri kuda 👇🏽\n"
         "1️⃣ Detergents\n"
         "2️⃣ Concentrate Drinks\n"
         "3️⃣ Mitengo & Kubhadhara\n"
         "4️⃣ Free Lesson\n"
         "5️⃣ Join Full Training\n"
-        "6️⃣ Bata Trainer"
+        "6️⃣ Taura na Trainer"
     )
+
 
 def free_detergent():
     return (
-        "🧼 *FREE DETERGENT LESSON*\n"
-        "Dishwash formula basics...\n\n"
-        "Nyora *JOIN* kuti uwane full formulas."
+        "🧼 *FREE DETERGENT LESSON*\n\n"
+        "Dishwash formula basics\n\n"
+        "Kuti ugadzire Dishwash panodiwa:\n"
+        "✔ SLES\n✔ Salt\n✔ Dye\n✔ Perfume\n✔ Mvura\n\n"
+        "⚠ Chengetedzo:\n"
+        "Pfeka gloves, mask uye apron paunenge uchishanda.\n\n"
+        "Nyora *JOIN* kuti uwane maformula akazara."
     )
+
 
 def free_drink():
     return (
-        "🥤 *FREE DRINK LESSON*\n"
-        "Concentrate drinks basics...\n\n"
-        "Nyora *JOIN* kuti uwane full formulas."
+        "🥤 *FREE DRINK LESSON*\n\n"
+        "Concentrate drinks basics\n\n"
+        "Madrinks anogadzirwa anosanganisira:\n"
+        "✔ Raspberry\n✔ Lemon & Lime\n✔ Orange\n✔ Blackberry\n\n"
+        "Zvinodiwa:\n"
+        "✔ Citric Acid\n✔ Color\n✔ Flavour\n✔ Sugar\n✔ Mvura\n\n"
+        "⚠ Gara wakapfeka gloves, mask ne apron — mishonga inogona kukuvadza.\n\n"
+        "Nyora *JOIN* kuti uwane maformula akazara."
     )
 
 
@@ -131,6 +147,10 @@ def webhook():
 
     create_user(phone)
     user = get_user(phone)
+
+    # fallback safety
+    if not user:
+        set_state(phone, "main")
 
     # RESET / MAIN
     if incoming in ["menu", "start", "hi", "hello", "makadini"]:
@@ -236,7 +256,7 @@ def webhook():
             send_message(
                 phone,
                 "🥤 *Full Drinks Course*\n"
-                "✔ Freezits\n✔ Cordials\n✔ Maheu base\n\n"
+                "✔ Drink Concentrates\n✔ Soft Drinks\n✔ Mawuyu Drink\n\n"
                 "👉 Nyora *PAY* kuti ubhadhare."
             )
             return jsonify({"status": "ok"})
@@ -257,6 +277,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
