@@ -1,328 +1,293 @@
 from flask import Flask, request, jsonify
 from twilio.rest import Client
-import sqlite3
-import os
+import sqlite3, os
 
 app = Flask(__name__)
 
 # =========================
 # TWILIO CONFIG
 # =========================
-ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
-AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP = os.environ.get("TWILIO_WHATSAPP_NUMBER")
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
 
-client = Client(ACCOUNT_SID, AUTH_TOKEN)
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 # =========================
 # DATABASE
 # =========================
-def db():
-    return sqlite3.connect("bot.db", check_same_thread=False)
+def get_db():
+    conn = sqlite3.connect("users.db")
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def init_db():
-    con = db()
-    cur = con.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            phone TEXT PRIMARY KEY,
-            state TEXT,
-            is_paid INTEGER DEFAULT 0,
-            payment_status TEXT
-        )
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT UNIQUE,
+        state TEXT DEFAULT 'main',
+        payment_status TEXT DEFAULT 'none',
+        is_paid INTEGER DEFAULT 0
+    )
     """)
-    con.commit()
+    conn.commit()
+    conn.close()
 
 init_db()
 
-def create_user(phone):
-    con = db()
-    cur = con.cursor()
-    cur.execute(
-        "INSERT OR IGNORE INTO users (phone, state, is_paid, payment_status) VALUES (?, 'main', 0, '')",
-        (phone,)
-    )
-    con.commit()
+# =========================
+# HELPERS
+# =========================
+def send_message(phone, text):
+    try:
+        client.messages.create(
+            from_=TWILIO_WHATSAPP_NUMBER,
+            to=f"whatsapp:{phone}",
+            body=text
+        )
+    except Exception as e:
+        print("SEND ERROR:", e)
 
 def get_user(phone):
-    con = db()
-    cur = con.cursor()
-    cur.execute("SELECT phone, state, is_paid, payment_status FROM users WHERE phone=?", (phone,))
-    row = cur.fetchone()
-    return {
-        "phone": row[0],
-        "state": row[1],
-        "is_paid": bool(row[2]),
-        "payment_status": row[3]
-    }
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT * FROM users WHERE phone=?", (phone,))
+    user = c.fetchone()
+    conn.close()
+    return user
+
+def create_user(phone):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("INSERT OR IGNORE INTO users (phone) VALUES (?)", (phone,))
+    conn.commit()
+    conn.close()
 
 def set_state(phone, state):
-    con = db()
-    con.execute("UPDATE users SET state=? WHERE phone=?", (state, phone))
-    con.commit()
-
-def mark_paid(phone):
-    con = db()
-    con.execute("UPDATE users SET is_paid=1, payment_status='' WHERE phone=?", (phone,))
-    con.commit()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("UPDATE users SET state=? WHERE phone=?", (state, phone))
+    conn.commit()
+    conn.close()
 
 def set_payment_status(phone, status):
-    con = db()
-    con.execute("UPDATE users SET payment_status=? WHERE phone=?", (status, phone))
-    con.commit()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("UPDATE users SET payment_status=? WHERE phone=?", (status, phone))
+    conn.commit()
+    conn.close()
 
-# =========================
-# MESSAGING
-# =========================
-def send_message(to, body):
-    client.messages.create(
-        from_=TWILIO_WHATSAPP,
-        to=f"whatsapp:{to}",
-        body=body
+def mark_paid(phone):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE users SET is_paid=1, payment_status='approved' WHERE phone=?",
+        (phone,)
     )
+    conn.commit()
+    conn.close()
 
 # =========================
 # MENUS
 # =========================
 def main_menu():
     return (
-        "👋 *ARACHIS ONLINE TRAINING*\n\n"
-        "1️⃣ Detergents lessons\n"
-        "2️⃣ Drinks lessons\n"
-        "3️⃣ Prices\n"
-        "4️⃣ Free detergent lesson\n"
-        "5️⃣ Join full course\n"
-        "6️⃣ Contact trainer\n"
-        "7️⃣ Paid lessons\n\n"
-        "Reply with number"
+        "👋 *TINOKUGAMUCHIRAI KU ARACHIS ONLINE TRAINING*\n\n"
+        "1️⃣ Detergents\n"
+        "2️⃣ Concentrate Drinks\n"
+        "3️⃣ Mitengo & Kubhadhara\n"
+        "4️⃣ Free Lesson\n"
+        "5️⃣ Join Full Training\n"
+        "6️⃣ Taura na Trainer"
     )
 
+# =========================
+# FREE LESSONS
+# =========================
 def free_detergent():
     return (
-        "*FREE DISHWASH LESSON*\n\n"
-        "Ingredients:\n"
-        "• SLES\n• Salt\n• Colour\n• Perfume\n\n"
-        "Steps:\n"
-        "1. Mix SLES + water\n"
-        "2. Add salt slowly\n"
-        "3. Add colour & perfume\n\n"
-        "For full course nyora *PAY*"
+        "🧼 *FREE DETERGENT LESSON*\n\n"
+        "Dishwash basics\n"
+        "✔ SLES\n✔ Salt\n✔ Dye\n✔ Perfume\n✔ Mvura\n\n"
+        "⚠ Pfeka magloves, mask & apron\n\n"
+        "Nyora *JOIN* kuti uwane maformula akazara."
     )
 
 def free_drink():
     return (
-        "*FREE DRINK LESSON*\n\n"
-        "You will learn how to make a simple cordial base.\n\n"
-        "For full recipes nyora *PAY*"
+        "🥤 *FREE DRINK LESSON*\n\n"
+        "✔ Raspberry\n✔ Lemon\n✔ Orange\n\n"
+        "Zvinodiwa: Citric acid, flavour, sugar, mvura\n\n"
+        "Nyora *JOIN* kuti uwane zvidzidzo zvese."
     )
 
 # =========================
-# PAID LESSON CONTENT
+# FULL PAID LESSON (MODULES)
 # =========================
-PAID_LESSONS = {
-    "intro": """*ARACHIS ONLINE TRAINING – INTRODUCTION*
+def full_detergent_course():
+    return (
+        "🎓 *ARACHIS ONLINE TRAINING – FULL COURSE*\n\n"
+        "MODULE 1: SAFETY & SETUP\n"
+        "✔ Buckets eplastic\n✔ Measuring scale\n✔ Gloves, goggles, mask\n"
+        "✔ Ventilation yakakwana\n\n"
+        "MODULE 2: DISHWASH (20L)\n"
+        "SLES 1.5kg\nSulphonic 1L\nCaustic soda 3 tbsp\n"
+        "Soda ash 3 tbsp\nSalt 500g\nBermacol 3 tbsp\n"
+        "Amido 100ml\nPerfume 33ml\nDye 20g\n"
+        "Mvura 17.5L\n\n"
+        "MODULE 3: THICK BLEACH\n"
+        "SLES 1.2kg\nHypochlorite 3kg\nCaustic soda 300g\n"
+        "Mvura 15L\n\n"
+        "MODULE 4: FOAM BATH\n"
+        "SLES 2kg\nCDE 500ml\nGlycerin 500ml\n"
+        "Salt 1 cup\nDye 20g\nFormalin 10ml\nPerfume\nAmido\n\n"
+        "📞 Unogona kubvunza mibvunzo chero nguva pano."
+    )
 
-You will learn to make:
-• Dishwash
-• Foam Bath
-• Thick Bleach
-• Pine Gel
-• Toilet Cleaner
-• Fabric Softener
-• Petroleum Jelly
-• Drinks & Cordials
-
-Study at your own pace.
-Ask questions anytime.
-""",
-
-    "safety": """*MODULE 1: SAFETY & REQUIREMENTS*
-
-Equipment:
-• Buckets
-• Measuring scale
-• Mixing stick
-• Gloves & goggles
-
-Safety:
-• Work in ventilated area
-• Avoid skin & eyes
-• Keep chemicals away from children
-""",
-
-    "dishwash": """*MODULE 2: DISHWASH (20L)*
-
-Ingredients:
-• SLES – 1.5kg
-• Sulphonic acid – 1L
-• Caustic soda – 3 tbsp
-• Soda ash – 3 tbsp
-• Salt – 500g
-• Bermacol – 3 tbsp
-• Amido – 100ml
-• Dye & perfume
-• Water – 17.5L
-
-Steps:
-1. Add water
-2. Add SLES
-3. Add sulphonic acid
-4. Neutralize
-5. Thicken
-6. Add perfume
-""",
-
-    "bleach": """*MODULE 3: THICK BLEACH*
-
-Ingredients:
-• Hypochlorite
-• Caustic soda
-• Water
-
-Steps:
-• Mix carefully
-• Avoid metal containers
-""",
-
-    "foam": """*MODULE 4: FOAM BATH*
-
-Ingredients:
-• SLES
-• CDE
-• Glycerin
-• Salt
-• Perfume
-
-Steps:
-• Mix slowly
-• Thicken with salt
-"""
-}
+def full_drinks_course():
+    return (
+        "🥤 *FULL DRINKS TRAINING*\n\n"
+        "✔ Cordials\n✔ Concentrates\n✔ Mawuyu drink\n\n"
+        "Zvinodiwa:\n"
+        "Citric acid\nFlavour\nColour\nSugar\nPreservatives\n\n"
+        "📦 Packaging & storage guidance\n"
+        "📞 Support iripo paWhatsApp"
+    )
 
 # =========================
-# AI FAQ (SAFE)
+# AI FAQ (TEXT ONLY)
 # =========================
-def ai_faq_reply(text):
-    faqs = {
-        "sles": "SLES is a foaming agent used in detergents.",
-        "profit": "You can make 3–5x profit if priced correctly."
-    }
-    for k in faqs:
-        if k in text:
-            return faqs[k]
+def ai_faq_reply(msg):
+    if msg.isdigit():
+        return None
+
+    if "price" in msg or "marii" in msg:
+        return "💵 Full course inoita *$10 once-off*. Nyora *PAY* kuti ubhadhare."
+
+    if "certificate" in msg:
+        return "🎓 Certificate inopihwa mushure mekupedza course."
+
+    if "location" in msg or "kupi" in msg:
+        return "📍 Training ndeye online paWhatsApp — unodzidza chero kwauri."
+
     return None
+
+# =========================
+# HEALTH CHECK
+# =========================
+@app.route("/ping")
+def ping():
+    return "OK", 200
 
 # =========================
 # WEBHOOK
 # =========================
 @app.route("/webhook", methods=["POST"])
 def webhook():
-
     phone = request.form.get("From", "").replace("whatsapp:", "")
     incoming = request.form.get("Body", "").strip().lower()
 
     if not phone or not incoming:
-        return jsonify({"status": "ignored"})
+        return jsonify({"status": "ignored"}), 200
 
     create_user(phone)
     user = get_user(phone)
 
-    # ---------- RESET ----------
+    # AI FAQ (text only)
+    faq = ai_faq_reply(incoming)
+    if faq:
+        send_message(phone, faq)
+        return jsonify({"status": "ok"})
+
+    # ADMIN APPROVAL
+    if incoming.startswith("approve "):
+        target = incoming.replace("approve ", "").strip()
+        mark_paid(target)
+        send_message(target, "🎉 Payment approved. Full access granted.")
+        return jsonify({"status": "ok"})
+
+    # RESET
     if incoming in ["menu", "start", "hi", "hello"]:
         set_state(phone, "main")
         send_message(phone, main_menu())
         return jsonify({"status": "ok"})
 
-    # ---------- PAYMENT ----------
+    # PAY
     if incoming == "pay":
         set_payment_status(phone, "waiting_proof")
-        send_message(phone, "💳 Pay $5 to 0773 208904\nSend proof here")
+        send_message(
+            phone,
+            "💳 *ECOCASH PAYMENT*\nAmount: $10\nNumber: 0773 208904\n"
+            "Name: Beloved Nkomo\n📸 Tumira proof pano."
+        )
         return jsonify({"status": "ok"})
 
     if user["payment_status"] == "waiting_proof":
-        set_payment_status(phone, "pending")
-        send_message(phone, "✅ Proof received. Await approval.")
+        set_payment_status(phone, "pending_approval")
+        send_message(phone, "✅ Proof yatambirwa. Mirira approval.")
         return jsonify({"status": "ok"})
 
-    # ---------- ADMIN APPROVAL ----------
-    if incoming.startswith("approve "):
-        raw = incoming.replace("approve ", "").strip()
-        if raw.startswith("0"):
-            target = "+263" + raw[1:]
-        else:
-            target = raw
-        mark_paid(target)
-        send_message(target, "🎉 Payment approved! Nyora MENU")
-        send_message(phone, "✅ Approved successfully")
-        return jsonify({"status": "ok"})
-
-    # ---------- AI FAQ (NOT NUMBERS) ----------
-    if not incoming.isdigit():
-        faq = ai_faq_reply(incoming)
-        if faq:
-            send_message(phone, faq)
-            return jsonify({"status": "ok"})
-
-    # ---------- MAIN MENU ----------
+    # MAIN MENU
     if user["state"] == "main":
         if incoming == "1":
             set_state(phone, "detergent_menu")
-            send_message(phone, "1️⃣ Free\n2️⃣ Paid")
-        elif incoming == "2":
-            set_state(phone, "drink_menu")
-            send_message(phone, "1️⃣ Free\n2️⃣ Paid")
-        elif incoming == "3":
-            send_message(phone, "💵 Full course $5\nNyora PAY")
-        elif incoming == "4":
-            send_message(phone, free_detergent())
-        elif incoming == "5":
-            send_message(phone, "Nyora PAY to join")
-        elif incoming == "6":
-            send_message(phone, "📞 0773 208904")
-        elif incoming == "7":
-            if user["is_paid"]:
-                set_state(phone, "paid_lessons")
-                send_message(phone, "1️⃣ Intro\n2️⃣ Safety\n3️⃣ Dishwash\n4️⃣ Bleach\n5️⃣ Foam bath")
-            else:
-                send_message(phone, "🔒 Paid only. Nyora PAY")
-        else:
-            send_message(phone, "Nyora MENU")
-        return jsonify({"status": "ok"})
+            send_message(phone, "1️⃣ Free lesson\n2️⃣ Paid full course")
+            return jsonify({"status": "ok"})
 
-    # ---------- SUB MENUS ----------
+        if incoming == "2":
+            set_state(phone, "drink_menu")
+            send_message(phone, "1️⃣ Free lesson\n2️⃣ Paid full course")
+            return jsonify({"status": "ok"})
+
+        if incoming == "3":
+            send_message(phone, "💵 Full training: *$10 once-off*")
+            return jsonify({"status": "ok"})
+
+        if incoming == "4":
+            send_message(phone, free_detergent())
+            return jsonify({"status": "ok"})
+
+        if incoming == "5":
+            send_message(phone, "Nyora *PAY* kuti ubhadhare")
+            return jsonify({"status": "ok"})
+
+        if incoming == "6":
+            send_message(phone, "📞 Trainer: 0773 208904")
+            return jsonify({"status": "ok"})
+
+    # SUB MENUS
     if user["state"] == "detergent_menu":
         if incoming == "1":
             send_message(phone, free_detergent())
         elif incoming == "2":
-            send_message(phone, "Nyora PAY")
+            send_message(phone, full_detergent_course() if user["is_paid"] else "🔒 Nyora PAY")
         return jsonify({"status": "ok"})
 
     if user["state"] == "drink_menu":
         if incoming == "1":
             send_message(phone, free_drink())
         elif incoming == "2":
-            send_message(phone, "Nyora PAY")
-        return jsonify({"status": "ok"})
-
-    # ---------- PAID LESSONS ----------
-    if user["state"] == "paid_lessons":
-        if not user["is_paid"]:
-            send_message(phone, "Access denied")
-            return jsonify({"status": "ok"})
-
-        lessons = {
-            "1": PAID_LESSONS["intro"],
-            "2": PAID_LESSONS["safety"],
-            "3": PAID_LESSONS["dishwash"],
-            "4": PAID_LESSONS["bleach"],
-            "5": PAID_LESSONS["foam"]
-        }
-
-        send_message(phone, lessons.get(incoming, "Sarudza 1–5"))
+            send_message(phone, full_drinks_course() if user["is_paid"] else "🔒 Nyora PAY")
         return jsonify({"status": "ok"})
 
     send_message(phone, "Nyora MENU")
     return jsonify({"status": "ok"})
+
+# =========================
+# HOME + PORT (RENDER FIX)
+# =========================
+@app.route("/")
+def home():
+    return "Arachis WhatsApp Bot Running"
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
+
 
 
 
