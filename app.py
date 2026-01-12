@@ -1,5 +1,6 @@
 
 from flask import Flask, request, jsonify
+from flask import send_from_directory
 from twilio.rest import Client
 import sqlite3, os
 
@@ -157,6 +158,11 @@ def webhook():
 
     create_user(phone)
     user = get_user(phone)
+    
+@app.route("/lessons/<filename>")
+def serve_lesson(filename):
+    return send_from_directory("lessons", filename)
+
 
     # -------------------------
     # SYSTEM COMMANDS (skip AI)
@@ -270,6 +276,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
