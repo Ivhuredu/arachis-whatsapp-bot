@@ -1,3 +1,5 @@
+
+
 from flask import Flask, request, jsonify
 from twilio.rest import Client
 import sqlite3, os
@@ -5,11 +7,13 @@ import sqlite3, os
 app = Flask(__name__)
 
 # =========================
-# TWILIO CONFIG
+# CONFIG
 # =========================
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
+
+ADMIN_NUMBER = "263773208904"  # admin WhatsApp number (no prefix)
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -52,25 +56,19 @@ def mark_paid(phone):
 # HELPERS
 # =========================
 def send_message(phone, text):
-    try:
-        client.messages.create(
-            from_=TWILIO_WHATSAPP_NUMBER,
-            to=f"whatsapp:{phone}",
-            body=text
-        )
-    except Exception as e:
-        print("SEND ERROR:", e)
+    client.messages.create(
+        from_=TWILIO_WHATSAPP_NUMBER,
+        to=f"whatsapp:{phone}",
+        body=text
+    )
 
 def send_pdf(phone, pdf_url, caption):
-    try:
-        client.messages.create(
-            from_=TWILIO_WHATSAPP_NUMBER,
-            to=f"whatsapp:{phone}",
-            body=caption,
-            media_url=[pdf_url]
-        )
-    except Exception as e:
-        print("PDF SEND ERROR:", e)
+    client.messages.create(
+        from_=TWILIO_WHATSAPP_NUMBER,
+        to=f"whatsapp:{phone}",
+        body=caption,
+        media_url=[pdf_url]
+    )
 
 def get_user(phone):
     conn = get_db()
@@ -115,22 +113,16 @@ def main_menu():
         "6️⃣ Taura na Trainer"
     )
 
-def free_detergent():
+def free_lesson():
     return (
-        "🧼 *FREE DETERGENT LESSON*\n\n"
+        "🎁 *FREE LESSON*\n\n"
         "Dishwash basics:\n"
         "✔ SLES\n✔ Salt\n✔ Dye\n✔ Perfume\n✔ Mvura\n\n"
         "⚠ Pfeka magloves, mask ne apron."
     )
 
-def free_drink():
-    return (
-        "🥤 *FREE DRINK LESSON*\n\n"
-        "✔ Citric Acid\n✔ Colour\n✔ Flavour\n✔ Sugar\n✔ Mvura"
-    )
-
 # =========================
-# AI FAQ
+# AI FAQ (RETAINS YOUR FAQ)
 # =========================
 def ai_faq_reply(msg):
     if any(k in msg for k in ["price", "cost", "fee", "marii"]):
@@ -154,90 +146,136 @@ def webhook():
     create_user(phone)
     user = get_user(phone)
 
-    # AI FAQ (ignore menu commands)
-    if incoming not in ["1","2","3","4","5","6","pay","menu","join","start"]:
-        faq = ai_faq_reply(incoming)
-        if faq:
-            send_message(phone, faq)
-            return jsonify({"status": "ok"})
-
-    # ADMIN APPROVAL
-    if incoming.startswith("approve "):
-        target = incoming.replace("approve ", "").strip()
-        mark_paid(target)
-        send_message(target, "🎉 *Payment Approved!*\nYou now have full access.")
+    # -------------------------
+    # AI FAQ
+    # -------------------------
+    faq = ai_faq_reply(incoming)
+    if faq and incoming not in ["1","2","3","4","5","6","menu","pay","join","admin"]:
+        send_message(phone, faq)
         return jsonify({"status": "ok"})
 
-    # RESET
+    # -------------------------
+    # ADMIN DASHBOARD
+    # -------------------------
+    if incoming == "admin" and phone == ADMIN_NUMBER:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM users")
+        total = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM users WHERE is_paid=1")
+        paid = c.fetchone()[0]
+        conn.close()
+
+        send_message(
+            phone,
+            f"📊 *ADMIN DASHBOARD*\n\n"
+            f"👥 Users: {total}\n"
+            f"💰 Paid: {paid}"
+        )
+        return jsonify({"status": "ok"})
+
+    if incoming.startswith("approve ") and phone == ADMIN_NUMBER:
+        target = incoming.replace("approve ", "").strip()
+        mark_paid(target)
+        send_message(target, "🎉 Payment Approved!\nYou now have full access.")
+        send_message(phone, f"✅ Approved: {target}")
+        return jsonify({"status": "ok"})
+
+    # -------------------------
+    # GLOBAL COMMANDS
+    # -------------------------
     if incoming in ["menu", "start"]:
         set_state(phone, "main")
         send_message(phone, main_menu())
         return jsonify({"status": "ok"})
 
-    # PAYMENT
     if incoming == "pay":
         set_payment_status(phone, "waiting_proof")
         send_message(phone, "💳 Pay $10 to 0773 208904\nSend proof here.")
         return jsonify({"status": "ok"})
 
-    # =========================
-    # MAIN MENU HANDLER (FIXED)
-    # =========================
+    # -------------------------
+    # MAIN MENU
+    # -------------------------
     if user["state"] == "main":
 
         if incoming == "1":
             set_state(phone, "detergent_menu")
-            send_message(phone, "🧼 1️⃣ Free lesson\n2️⃣ Paid lessons")
+            send_message(
+                phone,
+                "🧼 *DETERGENTS – PAID LESSONS*\n\n"
+                "1️⃣ Dishwash\n"
+                "2️⃣ Thick Bleach\n"
+                "3️⃣ Foam Bath\n"
+                "4️⃣ Pine Gel\n\n"
+                "Nyora *MENU* kudzokera kumusoro"
+            )
             return jsonify({"status": "ok"})
 
         if incoming == "2":
-            send_message(phone, "🥤 Concentrate drinks coming soon.")
+            send_message(phone, "🥤 Concentrate Drinks module coming soon.")
             return jsonify({"status": "ok"})
 
         if incoming == "3":
-            send_message(phone, "💵 Full training: $10 once-off")
+            send_message(phone, "💵 Full training: $10 once-off\nNyora *PAY*")
             return jsonify({"status": "ok"})
 
         if incoming == "4":
-            send_message(phone, free_detergent())
+            send_message(phone, free_lesson())
             return jsonify({"status": "ok"})
 
         if incoming == "5":
-            send_message(phone, "👉 Nyora *PAY* kuti ubhadhare")
+            send_message(phone, "📝 Join full training — Nyora *PAY*")
             return jsonify({"status": "ok"})
 
         if incoming == "6":
             send_message(phone, "📞 Trainer: 0773 208904")
             return jsonify({"status": "ok"})
 
-    # =========================
-    # DETERGENT MENU
-    # =========================
+    # -------------------------
+    # DETERGENT MENU (STEP A)
+    # -------------------------
     if user["state"] == "detergent_menu":
 
+        if not user["is_paid"]:
+            send_message(
+                phone,
+                "🔒 *Paid Members Only*\n\n"
+                "Full detergent course: $10\n"
+                "Nyora *PAY* kuti ubhadhare."
+            )
+            return jsonify({"status": "ok"})
+
         if incoming == "1":
-            send_message(phone, free_detergent())
+            send_pdf(
+                phone,
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf",
+                "🧼 MODULE: DISHWASH"
+            )
             return jsonify({"status": "ok"})
 
         if incoming == "2":
-            if user["is_paid"]:
-                send_pdf(
-                    phone,
-                    "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf",
-                    "🧼 *MODULE 2: DISHWASH*"
-                )
-                send_pdf(
-                    phone,
-                    "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf",
-                    "🧴 *MODULE 3: THICK BLEACH*"
-                )
-            else:
-                send_message(phone, "🔒 Paid only — Nyora *PAY*")
+            send_pdf(
+                phone,
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf",
+                "🧴 MODULE: THICK BLEACH"
+            )
+            return jsonify({"status": "ok"})
+
+        if incoming == "3":
+            send_message(phone, "📘 Foam Bath PDF coming soon.")
+            return jsonify({"status": "ok"})
+
+        if incoming == "4":
+            send_message(phone, "📘 Pine Gel PDF coming soon.")
             return jsonify({"status": "ok"})
 
     send_message(phone, "Nyora *MENU*")
     return jsonify({"status": "ok"})
 
+# =========================
+# HEALTH CHECK
+# =========================
 @app.route("/")
 def home():
     return "Arachis WhatsApp Bot Running"
