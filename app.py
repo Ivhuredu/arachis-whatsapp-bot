@@ -1,5 +1,3 @@
-
-
 from flask import Flask, request, jsonify
 from twilio.rest import Client
 import sqlite3, os
@@ -122,7 +120,7 @@ def free_lesson():
     )
 
 # =========================
-# AI FAQ (RETAINS YOUR FAQ)
+# AI FAQ (UNCHANGED)
 # =========================
 def ai_faq_reply(msg):
     if any(k in msg for k in ["price", "cost", "fee", "marii"]):
@@ -146,17 +144,13 @@ def webhook():
     create_user(phone)
     user = get_user(phone)
 
-    # -------------------------
     # AI FAQ
-    # -------------------------
     faq = ai_faq_reply(incoming)
     if faq and incoming not in ["1","2","3","4","5","6","menu","pay","join","admin"]:
         send_message(phone, faq)
         return jsonify({"status": "ok"})
 
-    # -------------------------
-    # ADMIN DASHBOARD
-    # -------------------------
+    # ADMIN VIA WHATSAPP (UNCHANGED)
     if incoming == "admin" and phone == ADMIN_NUMBER:
         conn = get_db()
         c = conn.cursor()
@@ -181,9 +175,6 @@ def webhook():
         send_message(phone, f"✅ Approved: {target}")
         return jsonify({"status": "ok"})
 
-    # -------------------------
-    # GLOBAL COMMANDS
-    # -------------------------
     if incoming in ["menu", "start"]:
         set_state(phone, "main")
         send_message(phone, main_menu())
@@ -194,9 +185,6 @@ def webhook():
         send_message(phone, "💳 Pay $10 to 0773 208904\nSend proof here.")
         return jsonify({"status": "ok"})
 
-    # -------------------------
-    # MAIN MENU
-    # -------------------------
     if user["state"] == "main":
 
         if incoming == "1":
@@ -232,9 +220,6 @@ def webhook():
             send_message(phone, "📞 Trainer: 0773 208904")
             return jsonify({"status": "ok"})
 
-    # -------------------------
-    # DETERGENT MENU (STEP A)
-    # -------------------------
     if user["state"] == "detergent_menu":
 
         if not user["is_paid"]:
@@ -274,6 +259,39 @@ def webhook():
     return jsonify({"status": "ok"})
 
 # =========================
+# ADMIN WEB DASHBOARD (NEW)
+# =========================
+@app.route("/admin")
+def admin_dashboard():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT phone, is_paid, payment_status FROM users")
+    users = c.fetchall()
+    conn.close()
+
+    html = "<h2>Arachis Admin Dashboard</h2>"
+    html += "<table border='1' cellpadding='6'>"
+    html += "<tr><th>Phone</th><th>Paid</th><th>Status</th><th>Action</th></tr>"
+
+    for u in users:
+        html += f"""
+        <tr>
+            <td>{u['phone']}</td>
+            <td>{u['is_paid']}</td>
+            <td>{u['payment_status']}</td>
+            <td><a href="/admin/approve/{u['phone']}">Approve</a></td>
+        </tr>
+        """
+
+    html += "</table>"
+    return html
+
+@app.route("/admin/approve/<phone>")
+def admin_approve(phone):
+    mark_paid(phone)
+    return f"User {phone} approved.<br><a href='/admin'>Back</a>"
+
+# =========================
 # HEALTH CHECK
 # =========================
 @app.route("/")
@@ -282,6 +300,8 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
 
 
