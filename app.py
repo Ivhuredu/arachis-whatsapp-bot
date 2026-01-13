@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from twilio.rest import Client
 import sqlite3, os
@@ -155,48 +154,86 @@ def webhook():
     create_user(phone)
     user = get_user(phone)
 
-    # AI FAQ
-    faq = ai_faq_reply(incoming)
-    if faq and incoming not in ["1","2","3","4","5","6","pay","menu","join"]:
-        send_message(phone, faq)
-        return jsonify({"status": "ok"})
+    # AI FAQ (ignore menu commands)
+    if incoming not in ["1","2","3","4","5","6","pay","menu","join","start"]:
+        faq = ai_faq_reply(incoming)
+        if faq:
+            send_message(phone, faq)
+            return jsonify({"status": "ok"})
 
-    # Admin approve
+    # ADMIN APPROVAL
     if incoming.startswith("approve "):
         target = incoming.replace("approve ", "").strip()
         mark_paid(target)
-        send_message(target, "🎉 Payment Approved!")
+        send_message(target, "🎉 *Payment Approved!*\nYou now have full access.")
         return jsonify({"status": "ok"})
 
+    # RESET
     if incoming in ["menu", "start"]:
         set_state(phone, "main")
         send_message(phone, main_menu())
         return jsonify({"status": "ok"})
 
+    # PAYMENT
     if incoming == "pay":
         set_payment_status(phone, "waiting_proof")
         send_message(phone, "💳 Pay $10 to 0773 208904\nSend proof here.")
         return jsonify({"status": "ok"})
 
+    # =========================
+    # MAIN MENU HANDLER (FIXED)
+    # =========================
     if user["state"] == "main":
+
         if incoming == "1":
             set_state(phone, "detergent_menu")
-            send_message(phone, "1️⃣ Free lesson\n2️⃣ Paid full course")
+            send_message(phone, "🧼 1️⃣ Free lesson\n2️⃣ Paid lessons")
             return jsonify({"status": "ok"})
 
+        if incoming == "2":
+            send_message(phone, "🥤 Concentrate drinks coming soon.")
+            return jsonify({"status": "ok"})
+
+        if incoming == "3":
+            send_message(phone, "💵 Full training: $10 once-off")
+            return jsonify({"status": "ok"})
+
+        if incoming == "4":
+            send_message(phone, free_detergent())
+            return jsonify({"status": "ok"})
+
+        if incoming == "5":
+            send_message(phone, "👉 Nyora *PAY* kuti ubhadhare")
+            return jsonify({"status": "ok"})
+
+        if incoming == "6":
+            send_message(phone, "📞 Trainer: 0773 208904")
+            return jsonify({"status": "ok"})
+
+    # =========================
+    # DETERGENT MENU
+    # =========================
     if user["state"] == "detergent_menu":
+
         if incoming == "1":
             send_message(phone, free_detergent())
-        elif incoming == "2":
+            return jsonify({"status": "ok"})
+
+        if incoming == "2":
             if user["is_paid"]:
                 send_pdf(
                     phone,
                     "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf",
-                    "🧼 MODULE 2: DISHWASH"
+                    "🧼 *MODULE 2: DISHWASH*"
+                )
+                send_pdf(
+                    phone,
+                    "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf",
+                    "🧴 *MODULE 3: THICK BLEACH*"
                 )
             else:
                 send_message(phone, "🔒 Paid only — Nyora *PAY*")
-        return jsonify({"status": "ok"})
+            return jsonify({"status": "ok"})
 
     send_message(phone, "Nyora *MENU*")
     return jsonify({"status": "ok"})
@@ -207,6 +244,8 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
 
 
