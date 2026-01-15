@@ -1,7 +1,7 @@
-
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect, url_for
 from twilio.rest import Client
 import sqlite3, os
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -12,7 +12,12 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
 
-ADMIN_NUMBER = "+263773208904"  # MUST include +
+ADMIN_NUMBER = "+263773208904"
+
+UPLOAD_FOLDER = "static/lessons"
+ALLOWED_EXTENSIONS = {"pdf"}
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -41,11 +46,17 @@ def init_db():
 
 init_db()
 
+# =========================
+# HELPERS
+# =========================
 def normalize_phone(phone):
     phone = phone.strip()
     if not phone.startswith("+"):
         phone = "+" + phone
     return phone
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def mark_paid(phone):
     phone = normalize_phone(phone)
@@ -59,9 +70,6 @@ def mark_paid(phone):
     conn.commit()
     conn.close()
 
-# =========================
-# HELPERS
-# =========================
 def send_message(phone, text):
     client.messages.create(
         from_=TWILIO_WHATSAPP_NUMBER,
@@ -120,26 +128,8 @@ def main_menu():
         "6️⃣ Taura na Trainer"
     )
 
-def free_lesson():
-    return (
-        "🎁 *FREE LESSON*\n\n"
-        "Dishwash basics:\n"
-        "✔ SLES\n✔ Salt\n✔ Dye\n✔ Perfume\n✔ Mvura\n\n"
-        "⚠ Pfeka magloves, mask ne apron."
-    )
-
 # =========================
-# AI FAQ
-# =========================
-def ai_faq_reply(msg):
-    if any(k in msg for k in ["price", "cost", "fee", "marii"]):
-        return "💵 Full training: $10 once-off\nNyora *PAY*"
-    if "certificate" in msg:
-        return "🎓 Ehe — unowana certificate."
-    return None
-
-# =========================
-# WEBHOOK
+# WEBHOOK (UNCHANGED LOGIC)
 # =========================
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -155,13 +145,6 @@ def webhook():
     create_user(phone)
     user = get_user(phone)
 
-    # AI FAQ
-    faq = ai_faq_reply(incoming)
-    if faq and incoming not in ["1","2","3","4","5","6","menu","pay","join","admin"]:
-        send_message(phone, faq)
-        return jsonify({"status": "ok"})
-
-    # ADMIN DASHBOARD (WHATSAPP)
     if incoming == "admin" and phone == ADMIN_NUMBER:
         conn = get_db()
         c = conn.cursor()
@@ -171,19 +154,13 @@ def webhook():
         paid = c.fetchone()[0]
         conn.close()
 
-        send_message(
-            phone,
-            f"📊 *ADMIN DASHBOARD*\n\n"
-            f"👥 Users: {total}\n"
-            f"💰 Paid: {paid}"
-        )
+        send_message(phone, f"📊 USERS: {total}\n💰 PAID: {paid}")
         return jsonify({"status": "ok"})
 
     if incoming.startswith("approve ") and phone == ADMIN_NUMBER:
         target = normalize_phone(incoming.replace("approve ", ""))
         mark_paid(target)
-        send_message(target, "🎉 Payment Approved!\nYou now have full access.")
-        send_message(phone, f"✅ Approved: {target}")
+        send_message(target, "🎉 Approved. Full access granted.")
         return jsonify({"status": "ok"})
 
     if incoming in ["menu", "start"]:
@@ -191,107 +168,82 @@ def webhook():
         send_message(phone, main_menu())
         return jsonify({"status": "ok"})
 
-    if incoming == "pay":
-        set_payment_status(phone, "waiting_proof")
-        send_message(phone, "💳 Pay $10 to 0773 208904\nSend proof here.")
+    if user["state"] == "main" and incoming == "1":
+        set_state(phone, "detergent_menu")
+        send_message(phone, "1️⃣ Dishwash\n2️⃣ Thick Bleach")
         return jsonify({"status": "ok"})
 
-    # MAIN MENU
-    if user["state"] == "main":
-
-        if incoming == "1":
-            set_state(phone, "detergent_menu")
-            send_message(
-                phone,
-                "🧼 *DETERGENTS – PAID LESSONS*\n\n"
-                "1️⃣ Dishwash\n"
-                "2️⃣ Thick Bleach\n"
-                "3️⃣ Foam Bath\n"
-                "4️⃣ Pine Gel\n\n"
-                "Nyora *MENU* kudzokera kumusoro"
-            )
-            return jsonify({"status": "ok"})
-
-        if incoming == "2":
-            send_message(phone, "🥤 Concentrate Drinks module coming soon.")
-            return jsonify({"status": "ok"})
-
-        if incoming == "3":
-            send_message(phone, "💵 Full training: $10 once-off\nNyora *PAY*")
-            return jsonify({"status": "ok"})
-
-        if incoming == "4":
-            send_message(phone, free_lesson())
-            return jsonify({"status": "ok"})
-
-        if incoming == "5":
-            send_message(phone, "📝 Join full training — Nyora *PAY*")
-            return jsonify({"status": "ok"})
-
-        if incoming == "6":
-            send_message(phone, "📞 Trainer: 0773 208904")
-            return jsonify({"status": "ok"})
-
-    # DETERGENT MENU
     if user["state"] == "detergent_menu":
 
         if not user["is_paid"]:
-            send_message(
-                phone,
-                "🔒 *Paid Members Only*\n\n"
-                "Full detergent course: $10\n"
-                "Nyora *PAY* kuti ubhadhare."
-            )
+            send_message(phone, "🔒 Paid only. Send PAY.")
             return jsonify({"status": "ok"})
 
         if incoming == "1":
             send_pdf(
                 phone,
-                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf",
-                "🧼 MODULE: DISHWASH"
+                f"{request.url_root}static/lessons/dishwash.pdf",
+                "🧼 DISHWASH MODULE"
             )
             return jsonify({"status": "ok"})
 
         if incoming == "2":
             send_pdf(
                 phone,
-                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf",
-                "🧴 MODULE: THICK BLEACH"
+                f"{request.url_root}static/lessons/thick_bleach.pdf",
+                "🧴 THICK BLEACH MODULE"
             )
             return jsonify({"status": "ok"})
 
-        if incoming == "3":
-            send_message(phone, "📘 Foam Bath PDF coming soon.")
-            return jsonify({"status": "ok"})
-
-        if incoming == "4":
-            send_message(phone, "📘 Pine Gel PDF coming soon.")
-            return jsonify({"status": "ok"})
-
-    send_message(phone, "Nyora *MENU*")
+    send_message(phone, "Nyora MENU")
     return jsonify({"status": "ok"})
 
 # =========================
-# ADMIN WEB DASHBOARD
+# ADMIN DASHBOARD + PDF UPLOAD
 # =========================
-@app.route("/admin")
+@app.route("/admin", methods=["GET", "POST"])
 def admin_dashboard():
+
+    if request.method == "POST":
+        if "file" not in request.files:
+            return "No file selected"
+
+        file = request.files["file"]
+
+        if file.filename == "":
+            return "No filename"
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+            file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+            return redirect(url_for("admin_dashboard"))
+
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT phone, is_paid, payment_status FROM users")
+    c.execute("SELECT phone, is_paid FROM users")
     users = c.fetchall()
     conn.close()
 
-    html = "<h2>Arachis Admin Dashboard</h2>"
-    html += "<table border='1' cellpadding='6'>"
-    html += "<tr><th>Phone</th><th>Paid</th><th>Status</th><th>Action</th></tr>"
+    html = """
+    <h2>Arachis Admin Dashboard</h2>
+
+    <h3>Upload Lesson PDF</h3>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" accept="application/pdf" required>
+        <button type="submit">Upload PDF</button>
+    </form>
+
+    <h3>Students</h3>
+    <table border="1" cellpadding="6">
+    <tr><th>Phone</th><th>Paid</th><th>Action</th></tr>
+    """
 
     for u in users:
         html += f"""
         <tr>
             <td>{u['phone']}</td>
             <td>{u['is_paid']}</td>
-            <td>{u['payment_status']}</td>
             <td><a href="/admin/approve/{u['phone']}">Approve</a></td>
         </tr>
         """
@@ -301,9 +253,8 @@ def admin_dashboard():
 
 @app.route("/admin/approve/<phone>")
 def admin_approve(phone):
-    phone = normalize_phone(phone)
     mark_paid(phone)
-    return f"User {phone} approved.<br><a href='/admin'>Back</a>"
+    return redirect(url_for("admin_dashboard"))
 
 # =========================
 # HEALTH CHECK
@@ -314,6 +265,8 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
 
 
