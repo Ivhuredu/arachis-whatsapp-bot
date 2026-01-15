@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 from twilio.rest import Client
 import sqlite3, os
@@ -11,7 +12,7 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
 
-ADMIN_NUMBER = "263773208904"  # admin WhatsApp number (no prefix)
+ADMIN_NUMBER = "+263773208904"  # MUST include +
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -19,7 +20,7 @@ client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 # DATABASE
 # =========================
 def get_db():
-    conn = sqlite3.connect("users.db")
+    conn = sqlite3.connect("users.db", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -40,13 +41,21 @@ def init_db():
 
 init_db()
 
+def normalize_phone(phone):
+    phone = phone.strip()
+    if not phone.startswith("+"):
+        phone = "+" + phone
+    return phone
+
 def mark_paid(phone):
+    phone = normalize_phone(phone)
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        "UPDATE users SET is_paid=1, payment_status='approved' WHERE phone=?",
-        (phone,)
-    )
+    c.execute("""
+        UPDATE users
+        SET is_paid=1, payment_status='approved'
+        WHERE phone=?
+    """, (phone,))
     conn.commit()
     conn.close()
 
@@ -120,7 +129,7 @@ def free_lesson():
     )
 
 # =========================
-# AI FAQ (UNCHANGED)
+# AI FAQ
 # =========================
 def ai_faq_reply(msg):
     if any(k in msg for k in ["price", "cost", "fee", "marii"]):
@@ -135,7 +144,9 @@ def ai_faq_reply(msg):
 @app.route("/webhook", methods=["POST"])
 def webhook():
 
-    phone = request.form.get("From", "").replace("whatsapp:", "")
+    phone = normalize_phone(
+        request.form.get("From", "").replace("whatsapp:", "")
+    )
     incoming = request.form.get("Body", "").strip().lower()
 
     if not phone or not incoming:
@@ -150,7 +161,7 @@ def webhook():
         send_message(phone, faq)
         return jsonify({"status": "ok"})
 
-    # ADMIN VIA WHATSAPP (UNCHANGED)
+    # ADMIN DASHBOARD (WHATSAPP)
     if incoming == "admin" and phone == ADMIN_NUMBER:
         conn = get_db()
         c = conn.cursor()
@@ -169,7 +180,7 @@ def webhook():
         return jsonify({"status": "ok"})
 
     if incoming.startswith("approve ") and phone == ADMIN_NUMBER:
-        target = incoming.replace("approve ", "").strip()
+        target = normalize_phone(incoming.replace("approve ", ""))
         mark_paid(target)
         send_message(target, "🎉 Payment Approved!\nYou now have full access.")
         send_message(phone, f"✅ Approved: {target}")
@@ -185,6 +196,7 @@ def webhook():
         send_message(phone, "💳 Pay $10 to 0773 208904\nSend proof here.")
         return jsonify({"status": "ok"})
 
+    # MAIN MENU
     if user["state"] == "main":
 
         if incoming == "1":
@@ -220,6 +232,7 @@ def webhook():
             send_message(phone, "📞 Trainer: 0773 208904")
             return jsonify({"status": "ok"})
 
+    # DETERGENT MENU
     if user["state"] == "detergent_menu":
 
         if not user["is_paid"]:
@@ -259,7 +272,7 @@ def webhook():
     return jsonify({"status": "ok"})
 
 # =========================
-# ADMIN WEB DASHBOARD (NEW)
+# ADMIN WEB DASHBOARD
 # =========================
 @app.route("/admin")
 def admin_dashboard():
@@ -288,6 +301,7 @@ def admin_dashboard():
 
 @app.route("/admin/approve/<phone>")
 def admin_approve(phone):
+    phone = normalize_phone(phone)
     mark_paid(phone)
     return f"User {phone} approved.<br><a href='/admin'>Back</a>"
 
@@ -300,6 +314,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
