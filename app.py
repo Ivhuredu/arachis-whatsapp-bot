@@ -1,4 +1,3 @@
-
 from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
 from twilio.rest import Client
@@ -18,11 +17,9 @@ ADMIN_NUMBER = "+263773208904"  # MUST include +
 
 UPLOAD_FOLDER = "static/lessons"
 ALLOWED_EXTENSIONS = {"pdf"}
-
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # =========================
@@ -184,9 +181,7 @@ Question:
 @app.route("/webhook", methods=["POST"])
 def webhook():
 
-    phone = normalize_phone(
-        request.form.get("From", "").replace("whatsapp:", "")
-    )
+    phone = normalize_phone(request.form.get("From", "").replace("whatsapp:", ""))
     incoming = request.form.get("Body", "").strip().lower()
 
     if not phone or not incoming:
@@ -208,13 +203,7 @@ def webhook():
         c.execute("SELECT COUNT(*) FROM users WHERE is_paid=1")
         paid = c.fetchone()[0]
         conn.close()
-
-        send_message(
-            phone,
-            f"📊 *ADMIN DASHBOARD*\n\n"
-            f"👥 Users: {total}\n"
-            f"💰 Paid: {paid}"
-        )
+        send_message(phone, f"📊 *ADMIN DASHBOARD*\n\n👥 Users: {total}\n💰 Paid: {paid}")
         return jsonify({"status": "ok"})
 
     if incoming.startswith("approve ") and phone == ADMIN_NUMBER:
@@ -234,24 +223,48 @@ def webhook():
         send_message(phone, "💳 Pay $10 to 0773 208904\nSend proof here.")
         return jsonify({"status": "ok"})
 
-    if user["state"] == "detergent_menu":
-
-        if not user["is_paid"]:
-            send_message(
-                phone,
-                "🔒 *Paid Members Only*\n\n"
-                "Full detergent course: $10\n"
-                "Nyora *PAY* kuti ubhadhare."
+    if user["state"] == "main":
+        if incoming == "1":
+            set_state(phone, "detergent_menu")
+            send_message(phone,
+                "🧼 *DETERGENTS – PAID LESSONS*\n\n"
+                "1️⃣ Dishwash\n"
+                "2️⃣ Thick Bleach\n"
+                "3️⃣ Foam Bath\n"
+                "4️⃣ Pine Gel\n\n"
+                "Nyora *MENU* kudzokera kumusoro"
             )
             return jsonify({"status": "ok"})
 
+        if incoming == "4":
+            send_message(phone, free_lesson())
+            return jsonify({"status": "ok"})
+
+    if user["state"] == "detergent_menu":
+        if not user["is_paid"]:
+            send_message(phone, "🔒 Paid Members Only\nNyora *PAY*")
+            return jsonify({"status": "ok"})
+
+        if incoming == "1":
+            send_pdf(phone, "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf", "🧼 DISHWASH")
+            return jsonify({"status": "ok"})
+
+        if incoming == "2":
+            send_pdf(phone, "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf", "🧴 THICK BLEACH")
+            return jsonify({"status": "ok"})
+
+        if incoming == "3":
+            send_pdf(phone, "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/foam_bath.pdf", "🫧 FOAM BATH")
+            return jsonify({"status": "ok"})
+
+        if incoming == "4":
+            send_pdf(phone, "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/pine_gel.pdf", "🌲 PINE GEL")
+            return jsonify({"status": "ok"})
+
     # =========================
-    # AI TRAINER (FIXED INDENTATION – NOTHING ELSE CHANGED)
+    # AI TRAINER (FIXED INDENTATION)
     # =========================
-    blocked_commands = [
-        "1","2","3","4","5","6",
-        "menu","start","pay","admin"
-    ]
+    blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin"]
 
     if incoming not in blocked_commands and user["is_paid"]:
         ai_answer = ai_trainer_reply(incoming)
@@ -259,20 +272,18 @@ def webhook():
         return jsonify({"status": "ok"})
 
     send_message(phone, "Nyora *MENU*")
-         return jsonify({"status": "ok"})
+    return jsonify({"status": "ok"})
 
 # =========================
 # ADMIN WEB DASHBOARD
 # =========================
 @app.route("/admin", methods=["GET", "POST"])
 def admin_dashboard():
-
     if request.method == "POST":
         file = request.files.get("file")
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-            file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+            file.save(os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(file.filename)))
             return redirect(url_for("admin_dashboard"))
 
     conn = get_db()
@@ -284,22 +295,30 @@ def admin_dashboard():
     html = "<h2>Arachis Admin Dashboard</h2>"
     html += """
     <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="file" accept="application/pdf" required>
+        <input type="file" name="file" required>
         <button type="submit">Upload PDF</button>
     </form><hr>
     """
-
     for u in users:
-        html += f"{u['phone']} | Paid: {u['is_paid']}<br>"
-
+        html += f"{u['phone']} | Paid: {u['is_paid']} | <a href='/admin/approve/{u['phone']}'>Approve</a><br>"
     return html
 
+@app.route("/admin/approve/<phone>")
+def admin_approve(phone):
+    mark_paid(phone)
+    return redirect(url_for("admin_dashboard"))
+
+# =========================
+# HEALTH
+# =========================
 @app.route("/")
 def home():
     return "Arachis WhatsApp Bot Running"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
 
 
