@@ -326,8 +326,6 @@ if incoming not in blocked_commands and user["is_paid"]:
     send_message(phone, ai_answer)
     return jsonify({"status": "ok"})
 
-      
-
     send_message(phone, "Nyora *MENU*")
     return jsonify({"status": "ok"})
 
@@ -393,6 +391,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
