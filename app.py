@@ -265,11 +265,19 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "3":
-            send_message(phone, "📘 Foam Bath PDF coming soon.")
+            send_pdf(
+                phone, 
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/foam_bath.pdf",
+                "📘 MODULE FOAM BATH"
+            )
             return jsonify({"status": "ok"})
 
         if incoming == "4":
-            send_message(phone, "📘 Pine Gel PDF coming soon.")
+            send_pdf(
+                phone, 
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/pine_gel.pdf",
+             "📘 MODULE PINE GEL."
+            )
             return jsonify({"status": "ok"})
 
     send_message(phone, "Nyora *MENU*")
@@ -337,6 +345,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
