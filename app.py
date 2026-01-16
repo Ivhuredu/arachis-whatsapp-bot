@@ -239,27 +239,51 @@ def webhook():
         if incoming == "4":
             send_message(phone, free_lesson())
             return jsonify({"status": "ok"})
-
+    # DETERGENT MENU
     if user["state"] == "detergent_menu":
+
         if not user["is_paid"]:
-            send_message(phone, "🔒 Paid Members Only\nNyora *PAY*")
+            send_message(
+                phone,
+                "🔒 *Paid Members Only*\n\n"
+                "Full detergent course: $10\n"
+                "Nyora *PAY* kuti ubhadhare."
+            )
             return jsonify({"status": "ok"})
 
         if incoming == "1":
-            send_pdf(phone, "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf", "🧼 DISHWASH")
+            send_pdf(
+                phone,
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf",
+                "🧼 MODULE: DISHWASH"
+            )
             return jsonify({"status": "ok"})
 
         if incoming == "2":
-            send_pdf(phone, "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf", "🧴 THICK BLEACH")
+            send_pdf(
+                phone,
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf",
+                "🧴 MODULE: THICK BLEACH"
+            )
             return jsonify({"status": "ok"})
 
         if incoming == "3":
-            send_pdf(phone, "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/foam_bath.pdf", "🫧 FOAM BATH")
+            send_pdf(
+                phone,
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/foam_bath.pdf",
+                "📘 MODULE: FOAM BATH"
+            )
             return jsonify({"status": "ok"})
 
         if incoming == "4":
-            send_pdf(phone, "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/pine_gel.pdf", "🌲 PINE GEL")
+            send_pdf(
+                phone,
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/pine_gel.pdf",
+                "🌲 PINE GEL"
+            )
             return jsonify({"status": "ok"})
+
+    
 
     # =========================
     # AI TRAINER (FIXED INDENTATION)
@@ -317,6 +341,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
