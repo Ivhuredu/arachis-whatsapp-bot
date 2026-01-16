@@ -1,3 +1,4 @@
+from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
 from twilio.rest import Client
 import sqlite3, os
@@ -20,6 +21,9 @@ ALLOWED_EXTENSIONS = {"pdf"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 # =========================
 # DATABASE
@@ -145,6 +149,36 @@ def ai_faq_reply(msg):
     if "certificate" in msg:
         return "🎓 Ehe — unowana certificate."
     return None
+def ai_trainer_reply(question):
+    prompt = f"""
+You are an Arachis Online Training instructor.
+
+You teach:
+- Dishwash
+- Thick Bleach
+- Foam Bath
+- Pine Gel
+
+Rules:
+- Answer clearly
+- Use simple Shona mixed with English
+- Be practical
+- Emphasize safety
+- Do NOT invent chemicals
+- If unsure, say "hazvina kufundiswa mu module"
+
+Question:
+{question}
+"""
+
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=350
+    )
+
+    return response.choices[0].message.content.strip()
+
 
 # =========================
 # WEBHOOK (UNCHANGED)
@@ -279,6 +313,19 @@ def webhook():
              "📘 MODULE PINE GEL."
             )
             return jsonify({"status": "ok"})
+# =========================
+# AI TRAINER (QUESTIONS)
+# =========================
+blocked_commands = [
+    "1","2","3","4","5","6",
+    "menu","start","pay","admin"
+]
+
+if incoming not in blocked_commands and user["is_paid"]:
+ ai_answer = ai_trainer_reply(incoming)
+    send_message(phone, ai_answer)
+    return jsonify({"status": "ok"})
+      
 
     send_message(phone, "Nyora *MENU*")
     return jsonify({"status": "ok"})
@@ -345,6 +392,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
