@@ -235,6 +235,22 @@ def webhook():
                 "Nyora *MENU* kudzokera kumusoro"
             )
             return jsonify({"status": "ok"})
+            
+         if incoming == "2":
+            send_message(phone, "🥤 Concentrate Drinks module coming soon.")
+            return jsonify({"status": "ok"})
+
+        if incoming == "3":
+            send_message(phone, "💵 Full training: $10 once-off\nNyora *PAY*")
+            return jsonify({"status": "ok"})
+
+        if incoming == "5":
+            send_message(phone, "📝 Join full training — Nyora *PAY*")
+            return jsonify({"status": "ok"})
+
+        if incoming == "6":
+            send_message(phone, "📞 Trainer: 0773 208904")
+            return jsonify({"status": "ok"})
 
         if incoming == "4":
             send_message(phone, free_lesson())
@@ -341,6 +357,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
