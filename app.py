@@ -236,8 +236,7 @@ def webhook():
                 "6️⃣ Engine Cleaner\n\n"
                 "Nyora *MENU* kudzokera kumusoro"
             )
-
-            )
+            
             return jsonify({"status": "ok"})
             
         if incoming == "2":
@@ -375,6 +374,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
