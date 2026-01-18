@@ -299,8 +299,22 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-    
-
+        if incoming == "5":
+            send_pdf(
+                phone,
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/toilet_cleaner.pdf",
+                "🌲 TOILET CLEANER"
+            )
+            return jsonify({"status": "ok"})
+            
+        if incoming == "6":
+            send_pdf(
+                phone,
+                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/engine_cleaner.pdf",
+                "🌲 ENGINE CLEANER"
+            )
+            return jsonify({"status": "ok"})
+            
     # =========================
     # AI TRAINER (FIXED INDENTATION)
     # =========================
@@ -357,6 +371,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
