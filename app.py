@@ -45,6 +45,7 @@ def init_db():
     conn.commit()
     conn.close()
     
+
 def init_module_access_table():
     conn = get_db()
     c = conn.cursor()
@@ -408,6 +409,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
