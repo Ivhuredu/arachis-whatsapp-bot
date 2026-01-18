@@ -226,13 +226,17 @@ def webhook():
     if user["state"] == "main":
         if incoming == "1":
             set_state(phone, "detergent_menu")
-            send_message(phone,
-                "🧼 *DETERGENTS – PAID LESSONS*\n\n"
-                "1️⃣ Dishwash\n"
-                "2️⃣ Thick Bleach\n"
-                "3️⃣ Foam Bath\n"
-                "4️⃣ Pine Gel\n\n"
-                "Nyora *MENU* kudzokera kumusoro"
+           send_message(phone,
+               "🧼 *DETERGENTS – PAID LESSONS*\n\n"
+               "1️⃣ Dishwash\n"
+               "2️⃣ Thick Bleach\n"
+               "3️⃣ Foam Bath\n"
+               "4️⃣ Pine Gel\n"
+               "5️⃣ Toilet Cleaner\n"
+               "6️⃣ Engine Cleaner\n\n"
+               "Nyora *MENU* kudzokera kumusoro"
+            )
+
             )
             return jsonify({"status": "ok"})
             
@@ -371,6 +375,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
