@@ -2,3 +2,4 @@ flask
 twilio
 requests
 openai
+werkzeug
