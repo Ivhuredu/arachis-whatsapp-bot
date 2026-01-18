@@ -44,7 +44,6 @@ def init_db():
     """)
     conn.commit()
     conn.close()
-    
 
 def init_module_access_table():
     conn = get_db()
@@ -61,9 +60,7 @@ def init_module_access_table():
     conn.close()
 
 init_db()
-
 init_module_access_table()
-
 
 def normalize_phone(phone):
     phone = phone.strip()
@@ -82,7 +79,7 @@ def mark_paid(phone):
     """, (phone,))
     conn.commit()
     conn.close()
-    
+
 # =========================
 # HELPERS
 # =========================
@@ -129,7 +126,7 @@ def set_payment_status(phone, status):
     c.execute("UPDATE users SET payment_status=? WHERE phone=?", (status, phone))
     conn.commit()
     conn.close()
-    
+
 def record_module_access(phone, module_name):
     conn = get_db()
     c = conn.cursor()
@@ -139,7 +136,18 @@ def record_module_access(phone, module_name):
     )
     conn.commit()
     conn.close()
-    
+
+# ✅ NEW (REQUIRED FOR AI RESTRICTION)
+def get_user_modules(phone):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "SELECT module FROM module_access WHERE phone=?",
+        (phone,)
+    )
+    rows = c.fetchall()
+    conn.close()
+    return [r["module"] for r in rows]
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -176,27 +184,32 @@ def ai_faq_reply(msg):
         return "🎓 Ehe — unowana certificate."
     return None
 
-def ai_trainer_reply(question):
+# ✅ MODIFIED (MODULE-AWARE AI)
+def ai_trainer_reply(question, allowed_modules):
+    if not allowed_modules:
+        return "❌ Hausati wavhura module ripi zvaro. Tanga wavhura lesson rauri kudzidza."
+
+    modules_text = ", ".join(allowed_modules)
+
     prompt = f"""
 You are an Arachis Online Training instructor.
 
-You teach:
-- Dishwash
-- Thick Bleach
-- Foam Bath
-- Pine Gel
+Allowed modules for this student:
+{modules_text}
 
 Rules:
-- Answer clearly
+- ONLY answer using the allowed modules above
+- If question is outside these modules, say:
+  "Hazvina kufundiswa mu module dzawakavhura"
 - Use simple Shona mixed with English
 - Be practical
 - Emphasize safety
 - Do NOT invent chemicals
-- If unsure, say "hazvina kufundiswa mu module"
 
 Question:
 {question}
 """
+
     response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
@@ -265,15 +278,18 @@ def webhook():
                 "6️⃣ Engine Cleaner\n\n"
                 "Nyora *MENU* kudzokera kumusoro"
             )
-            
             return jsonify({"status": "ok"})
-            
+
         if incoming == "2":
             send_message(phone, "🥤 Concentrate Drinks module coming soon.")
             return jsonify({"status": "ok"})
 
         if incoming == "3":
             send_message(phone, "💵 Full training: $10 once-off\nNyora *PAY*")
+            return jsonify({"status": "ok"})
+
+        if incoming == "4":
+            send_message(phone, free_lesson())
             return jsonify({"status": "ok"})
 
         if incoming == "5":
@@ -284,82 +300,38 @@ def webhook():
             send_message(phone, "📞 Trainer: 0773 208904")
             return jsonify({"status": "ok"})
 
-        if incoming == "4":
-            send_message(phone, free_lesson())
-            return jsonify({"status": "ok"})
-    # DETERGENT MENU
     if user["state"] == "detergent_menu":
 
         if not user["is_paid"]:
-            send_message(
-                phone,
-                "🔒 *Paid Members Only*\n\n"
-                "Full detergent course: $10\n"
-                "Nyora *PAY* kuti ubhadhare."
+            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+            return jsonify({"status": "ok"})
+
+        modules = {
+            "1": ("dishwash", "dishwash.pdf", "🧼 DISHWASH"),
+            "2": ("thick_bleach", "thick_bleach.pdf", "🧴 THICK BLEACH"),
+            "3": ("foam_bath", "foam_bath.pdf", "📘 FOAM BATH"),
+            "4": ("pine_gel", "pine_gel.pdf", "🌲 PINE GEL"),
+            "5": ("toilet_cleaner", "toilet_cleaner.pdf", "🚽 TOILET CLEANER"),
+            "6": ("engine_cleaner", "engine_cleaner.pdf", "🛠 ENGINE CLEANER")
+        }
+
+        if incoming in modules:
+            module, pdf, label = modules[incoming]
+            record_module_access(phone, module)
+            send_pdf(phone,
+                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+                label
             )
             return jsonify({"status": "ok"})
 
-        if incoming == "1":
-            record_module_access(phone, "dishwash")
-            send_pdf(
-                phone,
-                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf",
-                "🧼 MODULE: DISHWASH"
-            )
-            return jsonify({"status": "ok"})
-
-        if incoming == "2":
-            record_module_access(phone, "thick_bleach")
-            send_pdf(
-                phone,
-                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf",
-                "🧴 MODULE: THICK BLEACH"
-            )
-            return jsonify({"status": "ok"})
-
-        if incoming == "3":
-            record_module_access(phone, "foam_bath")
-            send_pdf(
-                phone,
-                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/foam_bath.pdf",
-                "📘 MODULE: FOAM BATH"
-            )
-            return jsonify({"status": "ok"})
-
-        if incoming == "4":
-            record_module_access(phone, "pine_gel")
-            send_pdf(
-                phone,
-                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/pine_gel.pdf",
-                "🌲 PINE GEL"
-            )
-            return jsonify({"status": "ok"})
-
-        if incoming == "5":
-            record_module_access(phone, "toilet_cleaner")
-            send_pdf(
-                phone,
-                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/toilet_cleaner.pdf",
-                "🌲 TOILET CLEANER"
-            )
-            return jsonify({"status": "ok"})
-            
-        if incoming == "6":
-            record_module_access(phone, "engine_cleaner")
-            send_pdf(
-                phone,
-                "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/engine_cleaner.pdf",
-                "🌲 ENGINE CLEANER"
-            )
-            return jsonify({"status": "ok"})
-            
     # =========================
-    # AI TRAINER (FIXED INDENTATION)
+    # AI TRAINER (MODULE RESTRICTED)
     # =========================
     blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin"]
 
     if incoming not in blocked_commands and user["is_paid"]:
-        ai_answer = ai_trainer_reply(incoming)
+        allowed_modules = get_user_modules(phone)
+        ai_answer = ai_trainer_reply(incoming, allowed_modules)
         send_message(phone, ai_answer)
         return jsonify({"status": "ok"})
 
@@ -400,15 +372,14 @@ def admin_approve(phone):
     mark_paid(phone)
     return redirect(url_for("admin_dashboard"))
 
-# =========================
-# HEALTH
-# =========================
 @app.route("/")
 def home():
     return "Arachis WhatsApp Bot Running"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
 
 
