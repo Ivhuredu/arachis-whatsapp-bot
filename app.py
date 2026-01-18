@@ -44,8 +44,25 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+    
+   def init_module_access_table():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS module_access (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT,
+        module TEXT,
+        UNIQUE(phone, module)
+    )
+    """)
+    conn.commit()
+    conn.close()
 
 init_db()
+
+init_module_access_table()
+
 
 def normalize_phone(phone):
     phone = phone.strip()
@@ -64,7 +81,7 @@ def mark_paid(phone):
     """, (phone,))
     conn.commit()
     conn.close()
-
+    
 # =========================
 # HELPERS
 # =========================
@@ -111,6 +128,17 @@ def set_payment_status(phone, status):
     c.execute("UPDATE users SET payment_status=? WHERE phone=?", (status, phone))
     conn.commit()
     conn.close()
+    
+def record_module_access(phone, module_name):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR IGNORE INTO module_access (phone, module) VALUES (?, ?)",
+        (phone, module_name)
+    )
+    conn.commit()
+    conn.close()
+    
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -271,6 +299,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "1":
+            record_module_access(phone, "dishwash")
             send_pdf(
                 phone,
                 "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/dishwash.pdf",
@@ -279,6 +308,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "2":
+            record_module_access(phone, "thick_bleach")
             send_pdf(
                 phone,
                 "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/thick_bleach.pdf",
@@ -287,6 +317,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "3":
+            record_module_access(phone, "foam_bath")
             send_pdf(
                 phone,
                 "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/foam_bath.pdf",
@@ -295,6 +326,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "4":
+            record_module_access(phone, "pine_gel")
             send_pdf(
                 phone,
                 "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/pine_gel.pdf",
@@ -303,6 +335,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "5":
+            record_module_access(phone, "toilet_cleaner")
             send_pdf(
                 phone,
                 "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/toilet_cleaner.pdf",
@@ -311,6 +344,7 @@ def webhook():
             return jsonify({"status": "ok"})
             
         if incoming == "6":
+            record_module_access(phone, "engine_cleaner")
             send_pdf(
                 phone,
                 "https://arachis-whatsapp-bot-2.onrender.com/static/lessons/engine_cleaner.pdf",
@@ -374,6 +408,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
