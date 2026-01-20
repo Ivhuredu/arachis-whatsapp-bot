@@ -315,7 +315,7 @@ def webhook():
             send_message(phone, "📝 Join full training — Nyora *PAY*")
             return jsonify({"status": "ok"})
 
-       if incoming == "6":
+        if incoming == "6":
             set_state(phone, "offline_intro")
             send_message(
                  phone,
@@ -472,6 +472,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
