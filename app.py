@@ -392,7 +392,7 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-     if user["state"] == "pay_method":
+      if user["state"] == "pay_method":
 
     # ECOCASH
      if incoming == "1":
@@ -612,6 +612,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
