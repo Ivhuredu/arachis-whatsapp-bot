@@ -392,7 +392,7 @@ def webhook():
          )
          return jsonify({"status": "ok"})
 
-  if user["state"] == "detergent_menu":
+     if user["state"] == "detergent_menu":
 
         if not user["is_paid"]:
             send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
@@ -471,6 +471,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
