@@ -171,6 +171,35 @@ def get_user_modules(phone):
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+STORE_ITEMS = {
+    "sles": {
+        "name": "SLES (Sodium Lauryl Ether Sulfate)",
+        "price": "$4 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+    "caustic": {
+        "name": "Caustic Soda",
+        "price": "$3 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+    "hypo": {
+        "name": "Sodium Hypochlorite",
+        "price": "$2 per litre",
+        "sizes": "1L | 5L | 20L"
+    },
+    "cde": {
+        "name": "CDE (Cocamide DEA)",
+        "price": "$5 per litre",
+        "sizes": "1L | 5L"
+    },
+    "perfume": {
+        "name": "Detergent Perfumes",
+        "price": "$1 per 10ml",
+        "sizes": "10ml | 50ml | 100ml"
+    }
+}
+
+
 # =========================
 # MENUS
 # =========================
@@ -182,7 +211,8 @@ def main_menu():
         "3️⃣ Mitengo & Kubhadhara\n"
         "4️⃣ Free Lesson\n"
         "5️⃣ Join Full Training\n"
-        "6️⃣ Register For Offline Class"
+        "6️⃣ Register for Offline Classes\n"
+        "7️⃣ Online Store (Chemicals)"
     )
 
 def free_lesson():
@@ -329,6 +359,52 @@ def webhook():
                   "Reply *MENU* to cancel"
             )
             return jsonify({"status": "ok"})
+
+        if incoming == "7":
+            set_state(phone, "store")
+            send_message(
+                phone,
+                "🛒 *ARACHIS ONLINE STORE*\n\n"
+                "Available chemicals:\n"
+                "- SLES\n"
+                "- Caustic Soda\n"
+                "- Hypochlorite\n"
+                "- CDE\n"
+                "- Perfumes\n\n"
+                "🔍 Type the chemical name to search.\n"
+                "Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
+
+    # =========================
+    # ONLINE STORE
+    # =========================
+    if user["state"] == "store":
+
+        for key, item in STORE_ITEMS.items():
+            if key in incoming:
+                send_message(
+                    phone,
+                    f"🧪 *{item['name']}*\n\n"
+                    f"💵 Price: {item['price']}\n"
+                    f"📦 Sizes: {item['sizes']}\n\n"
+                    "📞 To order, reply:\n"
+                    f"*ORDER {item['name']}*"
+                )
+                return jsonify({"status": "ok"})
+
+        if incoming.startswith("order"):
+            send_message(
+                phone,
+                "✅ Order received!\n\n"
+                "📞 Our team will contact you shortly.\n"
+                "💳 Payment: EcoCash / Cash\n"
+                "🚚 Delivery available."
+            )
+            set_state(phone, "main")
+            return jsonify({"status": "ok"})
+ 
+
     
 # =========================
 # OFFLINE REGISTRATION FLOW
@@ -471,6 +547,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
