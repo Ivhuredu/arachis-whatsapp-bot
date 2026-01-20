@@ -328,7 +328,7 @@ def webhook():
                  "Reply *YES* to register\n"
                   "Reply *MENU* to cancel"
             )
-             return jsonify({"status": "ok"})
+            return jsonify({"status": "ok"})
 
 
     if user["state"] == "detergent_menu":
@@ -472,6 +472,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
