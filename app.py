@@ -3,6 +3,8 @@ from flask import Flask, request, jsonify, redirect, url_for
 from twilio.rest import Client
 import sqlite3, os
 from werkzeug.utils import secure_filename
+from paynow import Paynow
+
 
 app = Flask(__name__)
 
@@ -21,6 +23,14 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+paynow = Paynow(
+    integration_id=os.getenv("PAYNOW_INTEGRATION_ID"),
+    integration_key=os.getenv("PAYNOW_INTEGRATION_KEY"),
+    return_url="https://arachis-whatsapp-bot-2.onrender.com/payment-success",
+    result_url="https://arachis-whatsapp-bot-2.onrender.com/payment-result"
+)
+
 
 # =========================
 # DATABASE
@@ -310,9 +320,15 @@ def webhook():
         return jsonify({"status": "ok"})
 
     if incoming == "pay":
-        set_payment_status(phone, "waiting_proof")
-        send_message(phone, "💳 Pay $10 to 0773 208904\nSend proof here.")
+        set_state(phone, "pay_method")
+        send_message(
+            phone,
+            "💳 *Choose Payment Method*\n\n"
+            "1️⃣ EcoCash\n"
+            "2️⃣ PayNow Link"
+        )
         return jsonify({"status": "ok"})
+
 
     if user["state"] == "main":
         if incoming == "1":
@@ -375,6 +391,46 @@ def webhook():
                 "Nyora *MENU* kudzokera."
             )
             return jsonify({"status": "ok"})
+
+    if user["state"] == "pay_method":
+
+    # ECOCASH
+    if incoming == "1":
+        payment = paynow.create_payment("Arachis Online Training", phone)
+        payment.add("Full Training Access", 10)
+
+        response = paynow.send_mobile(payment, phone, "ecocash")
+
+        if response.success:
+            send_message(
+                phone,
+                "📲 EcoCash payment initiated.\n"
+                "Enter your PIN to complete payment.\n\n"
+                "You will be approved once payment is confirmed."
+            )
+            set_payment_status(phone, "pending_paynow")
+        else:
+            send_message(phone, "❌ Payment failed. Please try again.")
+
+        set_state(phone, "main")
+        return jsonify({"status": "ok"})
+
+    # PAYNOW LINK
+    if incoming == "2":
+        payment = paynow.create_payment("Arachis Online Training", phone)
+        payment.add("Full Training Access", 10)
+
+        response = paynow.send(payment)
+
+        send_message(
+            phone,
+            f"💳 Complete payment using this link:\n{response.redirect_url}"
+        )
+
+        set_payment_status(phone, "pending_paynow")
+        set_state(phone, "main")
+        return jsonify({"status": "ok"})
+
 
     # =========================
     # ONLINE STORE
@@ -536,6 +592,15 @@ def admin_dashboard():
         html += f"{u['phone']} | Paid: {u['is_paid']} | <a href='/admin/approve/{u['phone']}'>Approve</a><br>"
     return html
 
+@app.route("/payment-result", methods=["POST"])
+def payment_result():
+    return "OK", 200
+
+@app.route("/payment-success")
+def payment_success():
+    return "Payment received. You may return to WhatsApp."
+
+
 @app.route("/admin/approve/<phone>")
 def admin_approve(phone):
     mark_paid(phone)
@@ -547,6 +612,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
