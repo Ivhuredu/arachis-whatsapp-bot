@@ -372,7 +372,7 @@ def webhook():
          )
          return jsonify({"status": "ok"})
 
-     if user["state"] == "offline_choice":
+    if user["state"] == "offline_choice":
          conn = get_db()
          c = conn.cursor()
          c.execute(
@@ -471,6 +471,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
