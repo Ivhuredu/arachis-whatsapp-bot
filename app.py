@@ -59,6 +59,25 @@ def init_module_access_table():
     conn.commit()
     conn.close()
 
+
+def init_offline_table():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS offline_registrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT UNIQUE,
+        full_name TEXT,
+        location TEXT,
+        detergent_choice TEXT,
+        payment_status TEXT DEFAULT 'pending'
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+init_offline_table()
+
 init_db()
 init_module_access_table()
 
@@ -163,7 +182,7 @@ def main_menu():
         "3️⃣ Mitengo & Kubhadhara\n"
         "4️⃣ Free Lesson\n"
         "5️⃣ Join Full Training\n"
-        "6️⃣ Taura na Trainer"
+        "6️⃣ Register For Offline Class"
     )
 
 def free_lesson():
@@ -296,9 +315,21 @@ def webhook():
             send_message(phone, "📝 Join full training — Nyora *PAY*")
             return jsonify({"status": "ok"})
 
-        if incoming == "6":
-            send_message(phone, "📞 Trainer: 0773 208904")
-            return jsonify({"status": "ok"})
+       if incoming == "6":
+            set_state(phone, "offline_intro")
+            send_message(
+                 phone,
+                 "🧑🏽‍🏫 *ARACHIS OFFLINE PRACTICAL TRAINING*\n\n"
+                 "✔ 3 days in-person training\n"
+                 "✔ Videos + hands-on practicals\n"
+                 "✔ Ingredients to make 10L detergent\n"
+                 "✔ Certificate included\n\n"
+                 "💵 Fee: $50\n\n"
+                 "Reply *YES* to register\n"
+                  "Reply *MENU* to cancel"
+            )
+             return jsonify({"status": "ok"})
+
 
     if user["state"] == "detergent_menu":
 
@@ -323,6 +354,69 @@ def webhook():
                 label
             )
             return jsonify({"status": "ok"})
+
+# =========================
+# OFFLINE REGISTRATION FLOW
+# =========================
+if user["state"] == "offline_intro":
+
+    if incoming == "yes":
+        set_state(phone, "offline_name")
+        send_message(phone, "✍🏽 Please enter your *FULL NAME*")
+        return jsonify({"status": "ok"})
+
+if user["state"] == "offline_name":
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR IGNORE INTO offline_registrations (phone, full_name) VALUES (?, ?)",
+        (phone, incoming.title())
+    )
+    conn.commit()
+    conn.close()
+
+    set_state(phone, "offline_location")
+    send_message(phone, "📍 Enter your *Town / Area*")
+    return jsonify({"status": "ok"})
+
+if user["state"] == "offline_location":
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE offline_registrations SET location=? WHERE phone=?",
+        (incoming.title(), phone)
+    )
+    conn.commit()
+    conn.close()
+
+    set_state(phone, "offline_choice")
+    send_message(
+        phone,
+        "🧪 Choose detergent for your *FREE 10L ingredients*:\n"
+        "Dishwash / Thick Bleach / Foam Bath / Pine Gel"
+    )
+    return jsonify({"status": "ok"})
+
+if user["state"] == "offline_choice":
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE offline_registrations SET detergent_choice=? WHERE phone=?",
+        (incoming.title(), phone)
+    )
+    conn.commit()
+    conn.close()
+
+    set_state(phone, "main")
+    send_message(
+        phone,
+        "✅ Registration received!\n\n"
+        "💳 Pay *$50* to 0773 208904\n"
+        "Send proof here.\n\n"
+        "We will confirm your seat after approval."
+    )
+    return jsonify({"status": "ok"})
+
 
     # =========================
     # AI TRAINER (MODULE RESTRICTED)
@@ -378,6 +472,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
