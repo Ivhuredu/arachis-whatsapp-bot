@@ -363,6 +363,7 @@ if user["state"] == "offline_intro":
     if incoming == "yes":
         set_state(phone, "offline_name")
         send_message(phone, "✍🏽 Please enter your *FULL NAME*")
+       
         return jsonify({"status": "ok"})
 
 if user["state"] == "offline_name":
@@ -472,6 +473,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
