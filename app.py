@@ -347,50 +347,50 @@ def webhook():
             "INSERT OR IGNORE INTO offline_registrations (phone, full_name) VALUES (?, ?)",
             (phone, incoming.title())
         )
-        conn.commit()
-        conn.close()
+         conn.commit()
+         conn.close()
 
-        set_state(phone, "offline_location")
-        send_message(phone, "📍 Enter your *Town / Area*")
-        return jsonify({"status": "ok"})
+         set_state(phone, "offline_location")
+         send_message(phone, "📍 Enter your *Town / Area*")
+         return jsonify({"status": "ok"})
 
-    if user["state"] == "offline_location":
-        conn = get_db()
-        c = conn.cursor()
-        c.execute(
-            "UPDATE offline_registrations SET location=? WHERE phone=?",
-            (incoming.title(), phone)
-        )
-        conn.commit()
-        conn.close()
+     if user["state"] == "offline_location":
+         conn = get_db()
+         c = conn.cursor()
+         c.execute(
+             "UPDATE offline_registrations SET location=? WHERE phone=?",
+             (incoming.title(), phone)
+         )
+         conn.commit()
+         conn.close()
 
-        set_state(phone, "offline_choice")
-        send_message(
-            phone,
-            "🧪 Choose detergent for your *FREE 10L ingredients*:\n"
-            "Dishwash / Thick Bleach / Foam Bath / Pine Gel"
-        )
-        return jsonify({"status": "ok"})
+         set_state(phone, "offline_choice")
+         send_message(
+             phone,
+             "🧪 Choose detergent for your *FREE 10L ingredients*:\n"
+             "Dishwash / Thick Bleach / Foam Bath / Pine Gel"
+         )
+         return jsonify({"status": "ok"})
 
-    if user["state"] == "offline_choice":
-        conn = get_db()
-        c = conn.cursor()
-        c.execute(
-            "UPDATE offline_registrations SET detergent_choice=? WHERE phone=?",
-            (incoming.title(), phone)
-        )
-        conn.commit()
-        conn.close()
+     if user["state"] == "offline_choice":
+         conn = get_db()
+         c = conn.cursor()
+         c.execute(
+             "UPDATE offline_registrations SET detergent_choice=? WHERE phone=?",
+             (incoming.title(), phone)
+         )
+         conn.commit()
+         conn.close()
 
-        set_state(phone, "main")
-        send_message(
-            phone,
-            "✅ Registration received!\n\n"
-            "💳 Pay *$50* to Ecocash 0773 208904\n"
-            "Send proof here.\n\n"
-            "We will confirm your seat after approval."
-        )
-        return jsonify({"status": "ok"})
+         set_state(phone, "main")
+         send_message(
+             phone,
+             "✅ Registration received!\n\n"
+             "💳 Pay *$50* to Ecocash 0773 208904\n"
+             "Send proof here.\n\n"
+             "We will confirm your seat after approval."
+         )
+         return jsonify({"status": "ok"})
 
  if user["state"] == "detergent_menu":
 
@@ -471,6 +471,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
