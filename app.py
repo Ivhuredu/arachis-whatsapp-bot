@@ -90,8 +90,8 @@ init_offline_table()
 
 init_db()
 init_module_access_table()
-init_activity_log_table()
 
+init_activity_log_table()
 
 def init_activity_log_table():
     conn = get_db()
@@ -194,6 +194,36 @@ def log_activity(phone, action, details=""):
     conn.commit()
     conn.close()
 
+def get_dashboard_stats():
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("SELECT COUNT(*) FROM users")
+    total_users = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM users WHERE is_paid=1")
+    paid_users = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM activity_log WHERE action='open_module'")
+    module_opens = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM activity_log WHERE action='ai_question'")
+    ai_questions = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM activity_log WHERE action='blocked_access'")
+    blocked_attempts = c.fetchone()[0]
+
+    conn.close()
+
+    return {
+        "total_users": total_users,
+        "paid_users": paid_users,
+        "module_opens": module_opens,
+        "ai_questions": ai_questions,
+        "blocked_attempts": blocked_attempts
+    }
+
+
 
 # ✅ NEW (REQUIRED FOR AI RESTRICTION)
 def get_user_modules(phone):
@@ -237,6 +267,7 @@ STORE_ITEMS = {
         "sizes": "10ml | 50ml | 100ml"
     }
 }
+
 
 
 # =========================
@@ -646,6 +677,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
