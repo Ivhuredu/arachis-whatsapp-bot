@@ -86,13 +86,6 @@ def init_offline_table():
     conn.commit()
     conn.close()
 
-init_offline_table()
-
-init_db()
-init_module_access_table()
-
-init_activity_log_table()
-
 def init_activity_log_table():
     conn = get_db()
     c = conn.cursor()
@@ -108,6 +101,13 @@ def init_activity_log_table():
     conn.commit()
     conn.close()
 
+    
+init_offline_table()
+
+init_db()
+init_module_access_table()
+
+init_activity_log_table()
 
 def normalize_phone(phone):
     phone = phone.strip()
@@ -633,6 +633,7 @@ def webhook():
 # =========================
 @app.route("/admin", methods=["GET", "POST"])
 def admin_dashboard():
+
     if request.method == "POST":
         file = request.files.get("file")
         if file and allowed_file(file.filename):
@@ -640,22 +641,69 @@ def admin_dashboard():
             file.save(os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(file.filename)))
             return redirect(url_for("admin_dashboard"))
 
+    stats = get_dashboard_stats()
+
     conn = get_db()
     c = conn.cursor()
+
+    c.execute("""
+        SELECT phone, action, details, timestamp
+        FROM activity_log
+        ORDER BY timestamp DESC
+        LIMIT 100
+    """)
+    activities = c.fetchall()
+
     c.execute("SELECT phone, is_paid, payment_status FROM users")
     users = c.fetchall()
+
     conn.close()
 
     html = "<h2>Arachis Admin Dashboard</h2>"
+
+    # ===== STATS =====
+    html += f"""
+    <h3>📊 System Stats</h3>
+    <ul>
+        <li>Total Users: <b>{stats['total_users']}</b></li>
+        <li>Paid Users: <b>{stats['paid_users']}</b></li>
+        <li>Module Opens: <b>{stats['module_opens']}</b></li>
+        <li>AI Questions Asked: <b>{stats['ai_questions']}</b></li>
+        <li>Blocked Access Attempts: <b>{stats['blocked_attempts']}</b></li>
+    </ul>
+    <hr>
+    """
+
+    # ===== UPLOAD =====
     html += """
+    <h3>📤 Upload Lesson PDF</h3>
     <form method="POST" enctype="multipart/form-data">
         <input type="file" name="file" required>
         <button type="submit">Upload PDF</button>
-    </form><hr>
+    </form>
+    <hr>
     """
+
+    # ===== USERS =====
+    html += "<h3>👥 Users</h3>"
     for u in users:
-        html += f"{u['phone']} | Paid: {u['is_paid']} | <a href='/admin/approve/{u['phone']}'>Approve</a><br>"
+        html += f"""
+        {u['phone']} | Paid: {u['is_paid']}
+        | <a href='/admin/approve/{u['phone']}'>Approve</a><br>
+        """
+
+    html += "<hr><h3>📜 Activity Feed (Latest 100)</h3>"
+
+    # ===== ACTIVITY FEED =====
+    for a in activities:
+        html += f"""
+        <small>
+        [{a['timestamp']}] <b>{a['phone']}</b> → {a['action']} ({a['details']})
+        </small><br>
+        """
+
     return html
+
 
 @app.route("/payment-result", methods=["POST"])
 def payment_result():
@@ -677,6 +725,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
