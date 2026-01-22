@@ -90,6 +90,24 @@ init_offline_table()
 
 init_db()
 init_module_access_table()
+init_activity_log_table()
+
+
+def init_activity_log_table():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS activity_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT,
+        action TEXT,
+        details TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    conn.commit()
+    conn.close()
+
 
 def normalize_phone(phone):
     phone = phone.strip()
@@ -165,6 +183,17 @@ def record_module_access(phone, module_name):
     )
     conn.commit()
     conn.close()
+
+def log_activity(phone, action, details=""):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO activity_log (phone, action, details) VALUES (?, ?, ?)",
+        (phone, action, details)
+    )
+    conn.commit()
+    conn.close()
+
 
 # ✅ NEW (REQUIRED FOR AI RESTRICTION)
 def get_user_modules(phone):
@@ -309,6 +338,7 @@ def webhook():
 
     if incoming.startswith("approve ") and phone == ADMIN_NUMBER:
         target = normalize_phone(incoming.replace("approve ", ""))
+        log_activity(target, "payment_approved", "admin")
         mark_paid(target)
         send_message(target, "🎉 Payment Approved!\nYou now have full access.")
         send_message(phone, f"✅ Approved: {target}")
@@ -317,10 +347,12 @@ def webhook():
     if incoming in ["menu", "start"]:
         set_state(phone, "main")
         send_message(phone, main_menu())
+        log_activity(phone, "open_menu", "main")
         return jsonify({"status": "ok"})
 
     if incoming == "pay":
         set_state(phone, "pay_method")
+        log_activity(phone, "payment_intent", "pay_command")
         send_message(
             phone,
             "💳 *Choose Payment Method*\n\n"
@@ -333,6 +365,7 @@ def webhook():
     if user["state"] == "main":
         if incoming == "1":
             set_state(phone, "detergent_menu")
+            log_activity(phone, "open_menu", "detergents")
             send_message(phone,
                 "🧼 *DETERGENTS – PAID LESSONS*\n\n"
                 "1️⃣ Dishwash\n"
@@ -543,6 +576,7 @@ def webhook():
             module, pdf, label = modules[incoming]
             record_module_access(phone, module)
             send_pdf(phone,
+            log_activity(phone, "open_module")
                 f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
                 label
             )
@@ -557,6 +591,7 @@ def webhook():
     if incoming not in blocked_commands and user["is_paid"]:
         allowed_modules = get_user_modules(phone)
         ai_answer = ai_trainer_reply(incoming, allowed_modules)
+        log_activity(phone, "ai_question", incoming)
         send_message(phone, ai_answer)
         return jsonify({"status": "ok"})
 
@@ -612,6 +647,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
