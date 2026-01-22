@@ -24,12 +24,25 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+from paynow import Paynow
+
 paynow = Paynow(
-    integration_id=os.getenv("PAYNOW_INTEGRATION_ID"),
-    integration_key=os.getenv("PAYNOW_INTEGRATION_KEY"),
-    return_url="https://arachis-whatsapp-bot-2.onrender.com/payment-success",
-    result_url="https://arachis-whatsapp-bot-2.onrender.com/payment-result"
+    os.getenv("PAYNOW_INTEGRATION_ID"),
+    os.getenv("PAYNOW_INTEGRATION_KEY"),
+    "https://arachis-whatsapp-bot-2.onrender.com/paynow/callback",
+    "https://arachis-whatsapp-bot-2.onrender.com/paynow/callback"
 )
+
+def start_ecocash_payment(phone):
+    payment = paynow.create_payment(phone, phone)
+    payment.add("Arachis Training", 10)
+
+    response = paynow.send_mobile(payment, phone, "ecocash")
+
+    if response.success:
+        return "📲 Dial *151# and approve EcoCash payment"
+    else:
+        return "❌ Payment initiation failed. Try again."
 
 
 # =========================
@@ -382,14 +395,8 @@ def webhook():
         return jsonify({"status": "ok"})
 
     if incoming == "pay":
-        set_state(phone, "pay_method")
-        log_activity(phone, "payment_intent", "pay_command")
-        send_message(
-            phone,
-            "💳 *Choose Payment Method*\n\n"
-            "1️⃣ EcoCash\n"
-            "2️⃣ PayNow Link"
-        )
+        msg = start_ecocash_payment(phone)
+        send_message(phone, msg)
         return jsonify({"status": "ok"})
 
 
@@ -704,6 +711,19 @@ def admin_dashboard():
 
     return html
 
+@app.route("/paynow/callback", methods=["POST"])
+def paynow_callback():
+    reference = request.form.get("reference")
+    status = request.form.get("status")
+    phone = request.form.get("phone")
+
+    if status == "Paid":
+        mark_paid(phone)
+        send_message(phone, "✅ Payment received. You now have full access.")
+
+    return "OK", 200
+
+
 
 @app.route("/payment-result", methods=["POST"])
 def payment_result():
@@ -725,6 +745,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
