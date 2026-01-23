@@ -3,7 +3,6 @@ from flask import Flask, request, jsonify, redirect, url_for
 from twilio.rest import Client
 import sqlite3, os
 from werkzeug.utils import secure_filename
-from paynow import Paynow
 
 
 app = Flask(__name__)
@@ -23,27 +22,6 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-from paynow import Paynow
-
-paynow = Paynow(
-    os.getenv("PAYNOW_INTEGRATION_ID"),
-    os.getenv("PAYNOW_INTEGRATION_KEY"),
-    "https://arachis-whatsapp-bot-2.onrender.com/paynow/callback",
-    "https://arachis-whatsapp-bot-2.onrender.com/paynow/callback"
-)
-
-def start_ecocash_payment(phone):
-    payment = paynow.create_payment(phone, phone)
-    payment.add("Arachis Training", 10)
-
-    response = paynow.send_mobile(payment, phone, "ecocash")
-
-    if response.success:
-        return "📲 Dial *151# and approve EcoCash payment"
-    else:
-        return "❌ Payment initiation failed. Try again."
-
 
 # =========================
 # DATABASE
@@ -395,9 +373,16 @@ def webhook():
         return jsonify({"status": "ok"})
 
     if incoming == "pay":
-        msg = start_ecocash_payment(phone)
-        send_message(phone, msg)
-        return jsonify({"status": "ok"})
+        set_state(phone, "pay_menu")
+        send_message(
+           phone,
+           "💳 *PAYMENT METHOD*\n\n"
+           "1️⃣ EcoCash\n"
+           "2️⃣ Cancel\n\n"
+           "Reply with 1 or 2"
+       )
+       return jsonify({"status": "ok"})
+
 
 
     if user["state"] == "main":
@@ -463,45 +448,39 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-    if user["state"] == "pay_method":
+    if user["state"] == "pay_menu":
 
-    # ECOCASH
         if incoming == "1":
-            payment = paynow.create_payment("Arachis Online Training", phone)
-            payment.add("Full Training Access", 10)
-
-            response = paynow.send_mobile(payment, phone, "ecocash")
-
-        if response.success:
+            set_state(phone, "awaiting_payment")
             send_message(
-                phone,
-                "📲 EcoCash payment initiated.\n"
-                "Enter your PIN to complete payment.\n\n"
-                "You will be approved once payment is confirmed."
+               phone,
+               "📲 *EcoCash Payment*\n\n"
+               "Dial this on your phone 👇\n\n"
+               "*153*1*1*0773208904*10#\n\n"
+               "👤 Recipient: *Beloved Nkomo*\n"
+               "💵 Amount: *$10*\n\n"
+               "✔ Enter your EcoCash PIN\n"
+               "✔ After payment, reply with: *DONE*"
             )
-            set_payment_status(phone, "pending_paynow")
-        else:
-            send_message(phone, "❌ Payment failed. Please try again.")
+            return jsonify({"status": "ok"})
 
-        set_state(phone, "main")
-        return jsonify({"status": "ok"})
+        if incoming == "2":
+           set_state(phone, "main")
+           send_message(phone, main_menu())
+           return jsonify({"status": "ok"})
 
-    # PAYNOW LINK
-    if incoming == "2":
-        payment = paynow.create_payment("Arachis Online Training", phone)
-        payment.add("Full Training Access", 10)
-
-        response = paynow.send(payment)
-
+    if user["state"] == "awaiting_payment" and incoming == "done":
+        set_payment_status(phone, "awaiting_approval")
         send_message(
             phone,
-            f"💳 Complete payment using this link:\n{response.redirect_url}"
+            "⏳ Payment noted.\n"
+            "Please wait while we verify your payment.\n\n"
+            "You will be notified once approved ✅"
         )
-
-        set_payment_status(phone, "pending_paynow")
-        set_state(phone, "main")
         return jsonify({"status": "ok"})
 
+
+    
 
     # =========================
     # ONLINE STORE
@@ -745,6 +724,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
