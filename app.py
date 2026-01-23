@@ -544,7 +544,7 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-            else:
+        else:
             send_message(phone, "❌ Please enter a number only.")
             return jsonify({"status": "ok"})
 
@@ -763,6 +763,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
