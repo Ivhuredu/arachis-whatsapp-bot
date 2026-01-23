@@ -513,40 +513,40 @@ def webhook():
 
     if user["state"] == "store_view_item":
 
-    if incoming == "order":
-        set_state(phone, "store_quantity")
-        send_message(phone, "📦 Enter quantity (e.g. 5 litres):")
-        return jsonify({"status": "ok"})
+        if incoming == "order":
+            set_state(phone, "store_quantity")
+            send_message(phone, "📦 Enter quantity (e.g. 5 litres):")
+            return jsonify({"status": "ok"})
 
     if user["state"] == "store_quantity":
 
-    if incoming.isdigit():
-        qty = int(incoming)
+        if incoming.isdigit():
+            qty = int(incoming)
 
-        conn = get_db()
-        c = conn.cursor()
-        c.execute(
-            "UPDATE temp_orders SET quantity=? WHERE phone=?",
-            (qty, phone)
-        )
-        conn.commit()
-        conn.close()
+            conn = get_db()
+            c = conn.cursor()
+            c.execute(
+                "UPDATE temp_orders SET quantity=? WHERE phone=?",
+                (qty, phone)
+            )
+            conn.commit()
+            conn.close()
 
-        set_state(phone, "main")
+            set_state(phone, "main")
 
-        send_message(
-            phone,
-            f"✅ Order received!\n\n"
-            f"📦 Quantity: {qty}\n"
-            f"📞 Our team will contact you shortly.\n"
-            f"💳 Payment: EcoCash / Cash\n"
-            f"🚚 Delivery available."
-        )
-        return jsonify({"status": "ok"})
+            send_message(
+                phone,
+                f"✅ Order received!\n\n"
+                f"📦 Quantity: {qty}\n"
+                f"📞 Our team will contact you shortly.\n"
+                f"💳 Payment: EcoCash / Cash\n"
+                f"🚚 Delivery available."
+            )
+            return jsonify({"status": "ok"})
 
-    else:
-        send_message(phone, "❌ Please enter a number only.")
-        return jsonify({"status": "ok"})
+            else:
+            send_message(phone, "❌ Please enter a number only.")
+            return jsonify({"status": "ok"})
 
 
 
@@ -763,6 +763,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
