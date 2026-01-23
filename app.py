@@ -348,7 +348,7 @@ Rules:
 Question:
 {question}
 """
-
+try:
     response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
@@ -356,11 +356,11 @@ Question:
     )
     return response.choices[0].message.content.strip()
     
-    except Exception:
-        return (
-            "⚠️ AI Trainer is temporarily unavailable.\n\n"
-            "Please refer to your module PDFs or try again later."
-        )
+except Exception:
+    return (
+         "⚠️ AI Trainer is temporarily unavailable.\n\n"
+        "Please refer to your module PDFs or try again later."
+    )
 
 # =========================
 # WEBHOOK
@@ -798,6 +798,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
