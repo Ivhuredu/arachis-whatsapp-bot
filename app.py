@@ -348,19 +348,21 @@ Rules:
 Question:
 {question}
 """
-try:
-    response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=350
-     )
-     return response.choices[0].message.content.strip()
     
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=350
+        )
+        return response.choices[0].message.content.strip()
+    
+
 except Exception:
-     return (
-         "⚠️ AI Trainer is temporarily unavailable.\n\n"
-        "Please refer to your module PDFs or try again later."
-     )
+         return (
+             "⚠️ Tine urombo pari zvino AI Trainer yedu yakawandirwa.\n\n"
+            "Tapota imboshandisai maPDFs enyu mozoedzazve zvekare pane imwe nguva."
+         )
 
 # =========================
 # WEBHOOK
@@ -798,6 +800,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
