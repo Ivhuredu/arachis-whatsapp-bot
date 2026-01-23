@@ -60,6 +60,20 @@ def init_module_access_table():
     conn.commit()
     conn.close()
 
+def init_temp_orders_table():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS temp_orders (
+        phone TEXT PRIMARY KEY,
+        item TEXT,
+        quantity INTEGER DEFAULT 1
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+
 
 def init_offline_table():
     conn = get_db()
@@ -92,11 +106,26 @@ def init_activity_log_table():
     conn.commit()
     conn.close()
 
+def init_temp_orders_table():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS temp_orders (
+        phone TEXT PRIMARY KEY,
+        item TEXT,
+        quantity INTEGER
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+
     
 init_offline_table()
 
 init_db()
 init_module_access_table()
+init_temp_orders_table()
 
 init_activity_log_table()
 
@@ -763,6 +792,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
