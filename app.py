@@ -256,12 +256,12 @@ def allowed_file(filename):
 STORE_ITEMS = {
     "sles": {
         "name": "SLES (Sodium Lauryl Ether Sulfate)",
-        "price": "$4 per kg",
+        "price": "$3.25 per kg",
         "sizes": "1kg | 5kg | 25kg"
     },
     "caustic": {
         "name": "Caustic Soda",
-        "price": "$3 per kg",
+        "price": "$2 per kg",
         "sizes": "1kg | 5kg | 25kg"
     },
     "hypo": {
@@ -276,8 +276,8 @@ STORE_ITEMS = {
     },
     "perfume": {
         "name": "Detergent Perfumes",
-        "price": "$1 per 10ml",
-        "sizes": "10ml | 50ml | 100ml"
+        "price": "$1 per 30ml",
+        "sizes": "30ml | 50ml | 100ml"
     }
 }
 
@@ -745,6 +745,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
