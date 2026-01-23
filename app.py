@@ -466,13 +466,13 @@ def webhook():
             send_message(
                 phone,
                 "🛒 *ARACHIS ONLINE STORE*\n\n"
-                "Available chemicals:\n"
+                "Machemicals aripo:\n"
                 "- SLES\n"
                 "- Caustic Soda\n"
                 "- Hypochlorite\n"
                 "- CDE\n"
                 "- Perfumes\n\n"
-                "🔍 Type the chemical name to search.\n"
+                "🔍 Nyora chemical yauri kuda.\n"
                 "Nyora *MENU* kudzokera."
             )
             return jsonify({"status": "ok"})
@@ -483,13 +483,13 @@ def webhook():
             set_state(phone, "awaiting_payment")
             send_message(
                phone,
-               "📲 *EcoCash Payment*\n\n"
-               "Dial this on your phone 👇\n\n"
+               "📲 *Bhadhara neEcoCash *\n\n"
+               "Nyora izvi pafoni yako 👇\n\n"
                "*153*1*1*0773208904*10#\n\n"
                "👤 Recipient: *Beloved Nkomo*\n"
                "💵 Amount: *$10*\n\n"
-               "✔ Enter your EcoCash PIN\n"
-               "✔ After payment, reply with: *DONE*"
+               "✔ Chibva waisa EcoCash PIN\n"
+               "✔ Kana wapedza kubhadhara, nyora: *DONE*"
             )
             return jsonify({"status": "ok"})
 
@@ -503,8 +503,8 @@ def webhook():
         send_message(
             phone,
             "⏳ Payment noted.\n"
-            "Please wait while we verify your payment.\n\n"
-            "You will be notified once approved ✅"
+            "Mirira zvishoma tiongorore.\n\n"
+            "Tichakuzivisa nekukurumidza ✅"
         )
         return jsonify({"status": "ok"})
 
@@ -536,7 +536,7 @@ def webhook():
                     f"🧪 *{item['name']}*\n\n"
                     f"💵 Price: {item['price']}\n"
                     f"📦 Sizes: {item['sizes']}\n\n"
-                    "✍🏽 Reply *ORDER* to continue"
+                    "✍🏽 Nyora *ORDER* kuti uende mberi"
                 )
                 return jsonify({"status": "ok"})
 
@@ -565,16 +565,16 @@ def webhook():
 
             send_message(
                 phone,
-                f"✅ Order received!\n\n"
+                f"✅ Order yako yatambirwa!\n\n"
                 f"📦 Quantity: {qty}\n"
-                f"📞 Our team will contact you shortly.\n"
+                f"📞 Order yako iri kugadzirwa.\n"
                 f"💳 Payment: EcoCash / Cash\n"
-                f"🚚 Delivery available."
+                f"🚚 Delivery available countrywide."
             )
             return jsonify({"status": "ok"})
 
         else:
-            send_message(phone, "❌ Please enter a number only.")
+            send_message(phone, "❌ Tapota nyora number chete.")
             return jsonify({"status": "ok"})
 
 
@@ -792,6 +792,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
