@@ -286,6 +286,36 @@ STORE_ITEMS = {
         "price": "$1 per 30ml",
         "sizes": "30ml | 50ml | 100ml"
     }
+     "soda": {
+        "name": "Soda Ash",
+        "price": "$2 per kg",
+        "sizes": "500ml| 1L | 5L"
+    },
+    "bermacol": {
+        "name": "Bermacol",
+        "price": "$7 per 1kg",
+        "sizes": "50g | 100g | 500g | 1kg"
+    },
+    "amido": {
+        "name": "Amido",
+        "price": "$3 per litre",
+        "sizes": "50ml | 100mL | 5L"
+    },
+    "formalin": {
+        "name": "Formalin",
+        "price": "$1 per 50ml",
+        "sizes": "20ml | 50ml | 500ml"
+    },
+     "dye": {
+        "name": "Detergents Dye",
+        "price": "$3 per 100g",
+        "sizes": "20ml | 50ml | 100g"
+    },
+    "ardogen": {
+        "name": "Ardogen",
+        "price": "$5 per 1kg",
+        "sizes": "100g | 500g | 1kg"
+    }
 }
 
 
@@ -300,9 +330,10 @@ def main_menu():
         "2️⃣ Concentrate Drinks\n"
         "3️⃣ Mitengo & Kubhadhara\n"
         "4️⃣ Free Lesson\n"
-        "5️⃣ Join Full Training\n"
+        "5️⃣ Join Full Online Training\n"
         "6️⃣ Register for Offline Classes\n"
         "7️⃣ Online Store (Chemicals)"
+        "8 Tsvaga Rubatsiro"
     )
 
 def free_lesson():
@@ -455,7 +486,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "5":
-            send_message(phone, "📝 Join full training — Nyora *PAY*")
+            send_message(phone, "📝 Join full online training — Nyora *PAY*")
             return jsonify({"status": "ok"})
 
         if incoming == "6":
@@ -487,6 +518,10 @@ def webhook():
                 "🔍 Nyora chemical yauri kuda.\n"
                 "Nyora *MENU* kudzokera."
             )
+            return jsonify({"status": "ok"})
+            
+       if incoming == "8":
+            send_message(phone, "📝 Kana une dambudziko raungada rubatsiro — Taura nesu pa *+263714961448*")
             return jsonify({"status": "ok"})
 
     if user["state"] == "pay_menu":
@@ -808,6 +843,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
