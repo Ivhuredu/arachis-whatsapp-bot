@@ -520,7 +520,7 @@ def webhook():
             )
             return jsonify({"status": "ok"})
             
-       if incoming == "8":
+        if incoming == "8":
             send_message(phone, "📝 Kana une dambudziko raungada rubatsiro — Taura nesu pa *+263714961448*")
             return jsonify({"status": "ok"})
 
@@ -843,6 +843,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
