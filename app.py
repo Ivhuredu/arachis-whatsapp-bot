@@ -433,7 +433,11 @@ def webhook():
                 "3️⃣ Foam Bath\n"
                 "4️⃣ Pine Gel\n"
                 "5️⃣ Toilet Cleaner\n"
-                "6️⃣ Engine Cleaner\n\n"
+                "6️⃣ Engine Cleaner\n"
+                "7️⃣ Laundry Bar Soap\n"
+                "8️⃣ Fabric Softener\n"
+                "9️⃣ Petroleum Jelly\n"
+                "🔟 Floor Polish\n\n"
                 "Nyora *MENU* kudzokera kumusoro"
             )
             return jsonify({"status": "ok"})
@@ -663,6 +667,10 @@ def webhook():
             "4": ("pine_gel", "pine_gel.pdf", "🌲 PINE GEL"),
             "5": ("toilet_cleaner", "toilet_cleaner.pdf", "🚽 TOILET CLEANER"),
             "6": ("engine_cleaner", "engine_cleaner.pdf", "🛠 ENGINE CLEANER")
+            "7": ("laundry_bar", "laundry_bar.pdf", "📘 LAUNDRY BAR"),
+            "8": ("fabric_softener", "fabric_softener.pdf", "🌲 FABRIC SOFTENER"),
+            "9": ("petroleum_jelly", "petroleum_jelly.pdf", "🚽 PETROLEUM JELLY"),
+            "10": ("floor_polish", "floor_polish.pdf", "🛠 FLOOR POLISH")
         }
 
         if incoming in modules:
@@ -800,6 +808,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
