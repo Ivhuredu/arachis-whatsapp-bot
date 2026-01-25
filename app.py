@@ -285,7 +285,7 @@ STORE_ITEMS = {
         "name": "Detergent Perfumes",
         "price": "$1 per 30ml",
         "sizes": "30ml | 50ml | 100ml"
-    }
+    },
      "soda": {
         "name": "Soda Ash",
         "price": "$2 per kg",
@@ -843,6 +843,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
