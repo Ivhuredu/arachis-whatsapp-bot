@@ -389,11 +389,11 @@ Student question:
 
     return response.choices[0].message.content.strip()
 
-    except Exception:
-         return (
-             "⚠️ Tine urombo pari zvino AI Trainer yedu yakawandirwa.\n\n"
-            "Tapota imboshandisai maPDFs enyu mozoedzazve zvekare pane imwe nguva."
-         )
+except Exception:
+    return (
+        "⚠️ Tine urombo pari zvino AI Trainer yedu yakawandirwa.\n\n"
+        "Tapota imboshandisai maPDFs enyu mozoedzazve zvekare pane imwe nguva."
+    )
 
 # =========================
 # WEBHOOK
@@ -843,6 +843,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
