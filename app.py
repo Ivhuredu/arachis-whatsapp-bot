@@ -355,38 +355,40 @@ def ai_faq_reply(msg):
     return None
 
 # ✅ MODIFIED (MODULE-AWARE AI)
-def ai_trainer_reply(question, allowed_modules):
-    if not allowed_modules:
-        return "❌ Hausati wavhura module ripi zvaro. Tanga wavhura lesson rauri kudzidza."
-
-    modules_text = ", ".join(allowed_modules)
-
+def ai_trainer_reply(question):
     prompt = f"""
-You are an Arachis Online Training instructor.
+You are a friendly and professional Arachis Online Training instructor.
 
-Allowed modules for this student:
-{modules_text}
+Your role:
+- Help students understand detergent making practically
+- Explain clearly in natural Shona mixed with simple English
+- Give safety tips when needed
+- Expand on lessons when helpful
+- Use examples
+
+You teach these modules:
+Dishwash, Thick Bleach, Foam Bath, Pine Gel, Toilet Cleaner, Engine Cleaner,
+Laundry Bar, Fabric Softener, Petroleum Jelly, Floor Polish
 
 Rules:
-- ONLY answer using the allowed modules above
-- If question is outside these modules, say:
-  "Hazvina kufundiswa mu module dzawakavhura"
-- Use simple Shona mixed with English
-- Be practical
-- Emphasize safety
-- Do NOT invent chemicals
+- Answer naturally like a real trainer (not a robot)
+- If a student asks beyond modules, relate it back practically
+- Avoid dangerous chemical advice
+- Correct mistakes politely
 
-Question:
+Student question:
 {question}
 """
-    
-    try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=350
-        )
-        return response.choices[0].message.content.strip()
+
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=500,
+        temperature=0.6
+    )
+
+    return response.choices[0].message.content.strip()
+
     
 
     except Exception:
@@ -843,6 +845,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
