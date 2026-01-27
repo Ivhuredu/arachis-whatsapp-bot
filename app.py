@@ -92,7 +92,22 @@ Steps:
 """,
 
     "pine_gel": """
-(Paste your pine gel formula here)
+Ingredients:
+- Pine oil 1L
+- Sulphonic Acid 3kg
+- Caustic Soda 350g
+- Np6 1kg
+- Water 15 litres
+- Green Dye
+
+Steps:
+1. Water 15l
+2. Add 3kg Sulphonic Acid
+3. Add 350g Caustic Soda
+4. Add 1kg Np6
+5. Add dye
+6. Add 1litre pine oil
+7. ph inofanira kuita pH7
 """,
 
     "toilet_cleaner": """
@@ -950,6 +965,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
