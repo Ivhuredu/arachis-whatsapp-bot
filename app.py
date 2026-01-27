@@ -360,13 +360,11 @@ def ai_trainer_reply(question, allowed_modules):
     modules_text = ", ".join(allowed_modules) if allowed_modules else "none"
 
     prompt = f"""
-You are an Arachis Online Training instructor.
+You are a friendly and professional Arachis Online Training instructor.
 
 The student has access to these modules only:
 {modules_text}
-    prompt = f"""
-You are a friendly and professional Arachis Online Training instructor.
-
+    
 Your role:
 - Help students understand detergent making practically
 - Explain clearly in natural Shona mixed with simple English
@@ -845,6 +843,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
