@@ -387,7 +387,7 @@ Student question:
 """
 
     response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=500,
         temperature=0.6
@@ -843,6 +843,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
