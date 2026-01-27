@@ -24,6 +24,104 @@ client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # =========================
+# MODULE CONTENT FOR AI TRAINER
+# =========================
+
+MODULE_CONTENT = {
+
+    "dishwash": """
+Ingredients:
+- SLES 1.5kg
+- Sulphonic acid 1 litre
+- Caustic soda 3 tablespoons
+- Soda ash 3 tablespoons
+- Salt 500g
+- Bermacol 3 tablespoons
+- Amido 100ml
+- Dye 20g
+- Perfume 33ml
+- Water 17.5 litres
+
+Steps:
+1. Mix 10L water with SLES until dissolved
+2. Add sulphonic acid and mix well
+3. Add caustic soda
+4. Add soda ash
+5. Add salt slowly
+6. Add bermacol (pre-mixed)
+7. Add dye gradually
+8. Add perfume
+9. Add amido
+10. Top up with water
+""",
+
+    "thick_bleach": """
+Ingredients:
+- SLES 2kg
+- Hypochlorite 3kg
+- Caustic soda 300g
+- Water 15 litres
+
+Steps:
+1. Dissolve SLES in water
+2. Add caustic soda
+3. Add hypochlorite slowly
+4. Add perfume
+5. Adjust thickness with water
+""",
+
+    "foam_bath": """
+Ingredients:
+- SLES 2kg
+- CDE 500ml
+- Glycerin 500ml
+- Salt 1 cup
+- Dye 20g
+- Formalin 10ml
+- Perfume
+- Amido
+
+Steps:
+1. Mix SLES and CDE
+2. Add glycerin
+3. Add salt gradually
+4. Add dye
+5. Add formalin
+6. Add perfume
+7. Add amido
+""",
+
+    "pine_gel": """
+(Paste your pine gel formula here)
+""",
+
+    "toilet_cleaner": """
+(Paste toilet cleaner formula here)
+""",
+
+    "engine_cleaner": """
+(Paste engine cleaner formula here)
+""",
+
+    "laundry_bar": """
+(Paste laundry bar formula here)
+""",
+
+    "fabric_softener": """
+(Paste fabric softener formula here)
+""",
+
+    "floor_polish": """
+(Paste floor polish formula here)
+""",
+
+    "petroleum_jelly": """
+(Paste petroleum jelly formula here)
+"""
+}
+
+
+# =========================
 # DATABASE
 # =========================
 def get_db():
@@ -357,13 +455,20 @@ def ai_faq_reply(msg):
 # ✅ MODIFIED (MODULE-AWARE AI)
 def ai_trainer_reply(question, allowed_modules):
 
-    modules_text = ", ".join(allowed_modules) if allowed_modules else "none"
+    content_blocks = []
+
+    for m in allowed_modules:
+        if m in MODULE_CONTENT:
+            content_blocks.append(MODULE_CONTENT[m])
+
+    lessons_text = "\n\n".join(content_blocks)
 
     prompt = f"""
-You are a friendly and professional Arachis Online Training instructor.
+You are an Arachis Online Training instructor.
 
-The student has access to these modules only:
-{modules_text}
+Below are the exact lessons the student has studied:
+
+{lessons_text}
     
 Your role:
 - Help students understand detergent making practically
@@ -377,6 +482,8 @@ Dishwash, Thick Bleach, Foam Bath, Pine Gel, Toilet Cleaner, Engine Cleaner,
 Laundry Bar, Fabric Softener, Petroleum Jelly, Floor Polish
 
 Rules:
+- Answer ONLY using the lesson content above
+- Do not add new ingredients or steps
 - Answer naturally like a real trainer (not a robot)
 - If a student asks beyond modules, relate it back practically
 - Avoid dangerous chemical advice
@@ -843,6 +950,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
