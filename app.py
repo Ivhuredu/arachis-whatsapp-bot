@@ -216,8 +216,6 @@ def init_module_access_table():
     conn.commit()
     conn.close()
 
-
-
 def init_activity_log_table():
     conn = get_db()
     c = conn.cursor()
@@ -226,12 +224,12 @@ def init_activity_log_table():
         id SERIAL PRIMARY KEY,
         phone TEXT,
         action TEXT,
-        details TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
     conn.commit()
     conn.close()
+
 
 def init_temp_orders_table():
     conn = get_db()
@@ -982,6 +980,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
