@@ -187,30 +187,27 @@ def init_db():
     conn.close()
 
 
-
-
 def init_offline_table():
     conn = get_db()
     c = conn.cursor()
     c.execute("""
     CREATE TABLE IF NOT EXISTS offline_registrations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         phone TEXT UNIQUE,
         full_name TEXT,
-        location TEXT,
-        detergent_choice TEXT,
-        payment_status TEXT DEFAULT 'pending'
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
     conn.commit()
     conn.close()
+
 
 def init_activity_log_table():
     conn = get_db()
     c = conn.cursor()
     c.execute("""
     CREATE TABLE IF NOT EXISTS activity_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY
         phone TEXT,
         action TEXT,
         details TEXT,
@@ -969,6 +966,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
