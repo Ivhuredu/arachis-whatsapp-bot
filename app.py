@@ -1,9 +1,9 @@
 from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
 from twilio.rest import Client
-import sqlite3, os
 from werkzeug.utils import secure_filename
-
+import psycopg2
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 
@@ -140,42 +140,39 @@ Steps:
 # DATABASE
 # =========================
 def get_db():
-    conn = sqlite3.connect("users.db", check_same_thread=False)
-    conn.row_factory = sqlite3.Row
+    url = urlparse(os.getenv("DATABASE_URL"))
+    conn = psycopg2.connect(
+        dbname=url.path[1:],
+        user=url.username,
+        password=url.password,
+        host=url.hostname,
+        port=url.port
+    )
     return conn
 
 def init_db():
     conn = get_db()
     c = conn.cursor()
+
     c.execute("""
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         phone TEXT UNIQUE,
         state TEXT DEFAULT 'main',
         payment_status TEXT DEFAULT 'none',
         is_paid INTEGER DEFAULT 0
     )
     """)
-    conn.commit()
-    conn.close()
 
-def init_module_access_table():
-    conn = get_db()
-    c = conn.cursor()
     c.execute("""
     CREATE TABLE IF NOT EXISTS module_access (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         phone TEXT,
         module TEXT,
         UNIQUE(phone, module)
     )
     """)
-    conn.commit()
-    conn.close()
 
-def init_temp_orders_table():
-    conn = get_db()
-    c = conn.cursor()
     c.execute("""
     CREATE TABLE IF NOT EXISTS temp_orders (
         phone TEXT PRIMARY KEY,
@@ -183,8 +180,10 @@ def init_temp_orders_table():
         quantity INTEGER DEFAULT 1
     )
     """)
+
     conn.commit()
     conn.close()
+
 
 
 
@@ -281,7 +280,7 @@ def send_pdf(phone, pdf_url, caption):
 def get_user(phone):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE phone=?", (phone,))
+    c.execute("SELECT * FROM users WHERE phone=%s", (phone,))
     user = c.fetchone()
     conn.close()
     return user
@@ -289,21 +288,21 @@ def get_user(phone):
 def create_user(phone):
     conn = get_db()
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO users (phone) VALUES (?)", (phone,))
+    c.execute("INSERT OR IGNORE INTO users (phone) VALUES (%s)", (phone,))
     conn.commit()
     conn.close()
 
 def set_state(phone, state):
     conn = get_db()
     c = conn.cursor()
-    c.execute("UPDATE users SET state=? WHERE phone=?", (state, phone))
+    c.execute("UPDATE users SET state=? WHERE phone=%s", (state, phone))
     conn.commit()
     conn.close()
 
 def set_payment_status(phone, status):
     conn = get_db()
     c = conn.cursor()
-    c.execute("UPDATE users SET payment_status=? WHERE phone=?", (status, phone))
+    c.execute("UPDATE users SET payment_status=? WHERE phone=%s", (status, phone))
     conn.commit()
     conn.close()
 
@@ -311,7 +310,7 @@ def record_module_access(phone, module_name):
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        "INSERT OR IGNORE INTO module_access (phone, module) VALUES (?, ?)",
+        "INSERT OR IGNORE INTO module_access (phone, module) VALUES (%s, %s)",
         (phone, module_name)
     )
     conn.commit()
@@ -321,7 +320,7 @@ def log_activity(phone, action, details=""):
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        "INSERT INTO activity_log (phone, action, details) VALUES (?, ?, ?)",
+        "INSERT INTO activity_log (phone, action, details) VALUES (%s, %s, %s)",
         (phone, action, details)
     )
     conn.commit()
@@ -363,7 +362,7 @@ def get_user_modules(phone):
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        "SELECT module FROM module_access WHERE phone=?",
+        "SELECT module FROM module_access WHERE phone=%s",
         (phone,)
     )
     rows = c.fetchall()
@@ -694,7 +693,7 @@ def webhook():
                     ("store_view_item", phone)
                 )
                 c.execute(
-                    "INSERT OR REPLACE INTO temp_orders (phone, item) VALUES (?, ?)",
+                    "INSERT OR REPLACE INTO temp_orders (phone, item) VALUES (%s, %s)",
                     (phone, item["name"])
                 )
                 conn.commit()
@@ -724,7 +723,7 @@ def webhook():
             conn = get_db()
             c = conn.cursor()
             c.execute(
-                "UPDATE temp_orders SET quantity=? WHERE phone=?",
+                "UPDATE temp_orders SET quantity=? WHERE phone=%s",
                 (qty, phone)
             )
             conn.commit()
@@ -763,7 +762,7 @@ def webhook():
          conn = get_db()
          c = conn.cursor()
          c.execute(
-            "INSERT OR IGNORE INTO offline_registrations (phone, full_name) VALUES (?, ?)",
+            "INSERT OR IGNORE INTO offline_registrations (phone, full_name) VALUES (%s, %s)",
             (phone, incoming.title())
         )
          conn.commit()
@@ -777,7 +776,7 @@ def webhook():
          conn = get_db()
          c = conn.cursor()
          c.execute(
-             "UPDATE offline_registrations SET location=? WHERE phone=?",
+             "UPDATE offline_registrations SET location=? WHERE phone=%s",
              (incoming.title(), phone)
          )
          conn.commit()
@@ -795,7 +794,7 @@ def webhook():
          conn = get_db()
          c = conn.cursor()
          c.execute(
-             "UPDATE offline_registrations SET detergent_choice=? WHERE phone=?",
+             "UPDATE offline_registrations SET detergent_choice=? WHERE phone=%s",
              (incoming.title(), phone)
          )
          conn.commit()
@@ -968,6 +967,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
