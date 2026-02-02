@@ -3,4 +3,5 @@ twilio
 requests
 openai
 werkzeug
-paynow
+psycopg2-binary
+
