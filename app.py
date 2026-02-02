@@ -271,8 +271,7 @@ def set_payment_status(phone, status):
     conn.commit()
     conn.close()
     
- 
- def mark_paid(phone):
+def mark_paid(phone):
     conn = get_db()
     c = conn.cursor()
     c.execute("""
@@ -282,8 +281,8 @@ def set_payment_status(phone, status):
     """, (phone,))
     conn.commit()
     conn.close() 
-     
- def record_module_access(phone, module):
+    
+def record_module_access(phone, module):
     conn = get_db()
     c = conn.cursor()
     c.execute("""
@@ -293,16 +292,16 @@ def set_payment_status(phone, status):
     """, (phone, module))
     conn.commit()
     conn.close()
-
- def get_user_modules(phone):
+    
+def get_user_modules(phone):
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT module FROM module_access WHERE phone=%s", (phone,))
     rows = c.fetchall()
     conn.close()
     return [r[0] for r in rows]
-
- def log_activity(phone, action, details=""):
+    
+def log_activity(phone, action, details=""):
     conn = get_db()
     c = conn.cursor()
     c.execute("""
@@ -311,11 +310,11 @@ def set_payment_status(phone, status):
     """, (phone, action, details))
     conn.commit()
     conn.close()
-
- def allowed_file(filename):
+    
+def allowed_file(filename):
     return "." in filename and filename.rsplit(".",1)[1].lower() in ALLOWED_EXTENSIONS
 
- def get_dashboard_stats():
+def get_dashboard_stats():
     conn = get_db()
     c = conn.cursor()
 
@@ -950,6 +949,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
