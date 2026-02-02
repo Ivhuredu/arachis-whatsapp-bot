@@ -1,9 +1,11 @@
 from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
 from twilio.rest import Client
-from werkzeug.utils import secure_filename
 import psycopg2
 from urllib.parse import urlparse
+import os
+from werkzeug.utils import secure_filename
+
 
 app = Flask(__name__)
 
@@ -967,6 +969,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
