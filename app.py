@@ -223,7 +223,7 @@ def init_activity_log_table():
     c = conn.cursor()
     c.execute("""
     CREATE TABLE IF NOT EXISTS activity_log (
-        id SERIAL PRIMARY KEY
+        id SERIAL PRIMARY KEY,
         phone TEXT,
         action TEXT,
         details TEXT,
@@ -982,6 +982,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
