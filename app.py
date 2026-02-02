@@ -182,7 +182,7 @@ def init_db():
         quantity INTEGER DEFAULT 1
     )
     """)
-   c.execute("""
+    c.execute("""
     CREATE TABLE IF NOT EXISTS offline_registrations (
         id SERIAL PRIMARY KEY,
         phone TEXT UNIQUE,
@@ -949,6 +949,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
