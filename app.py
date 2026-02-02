@@ -308,26 +308,35 @@ def create_user(phone):
     conn.commit()
     conn.close()
 
-
 def set_state(phone, state):
     conn = get_db()
     c = conn.cursor()
-    c.execute("UPDATE users SET state=? WHERE phone=%s", (state, phone))
+    c.execute(
+        "UPDATE users SET state=%s WHERE phone=%s",
+        (state, phone)
+    )
     conn.commit()
     conn.close()
-
+    
 def set_payment_status(phone, status):
     conn = get_db()
     c = conn.cursor()
-    c.execute("UPDATE users SET payment_status=? WHERE phone=%s", (status, phone))
+    c.execute(
+        "UPDATE users SET payment_status=%s WHERE phone=%s",
+        (status, phone)
+    )
     conn.commit()
     conn.close()
-
+    
 def record_module_access(phone, module_name):
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        "INSERT OR IGNORE INTO module_access (phone, module) VALUES (%s, %s)",
+        """
+        INSERT INTO module_access (phone, module)
+        VALUES (%s, %s)
+        ON CONFLICT (phone, module) DO NOTHING
+        """,
         (phone, module_name)
     )
     conn.commit()
@@ -342,6 +351,7 @@ def log_activity(phone, action, details=""):
     )
     conn.commit()
     conn.close()
+
 
 def get_dashboard_stats():
     conn = get_db()
@@ -984,6 +994,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
