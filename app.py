@@ -150,8 +150,7 @@ def get_db():
         host=url.hostname,
         port=url.port
     )
-    return conn
-
+    
 def init_db():
     conn = get_db()
     c = conn.cursor()
@@ -171,6 +170,7 @@ def init_db():
         id SERIAL PRIMARY KEY,
         phone TEXT,
         module TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(phone, module)
     )
     """)
@@ -182,99 +182,38 @@ def init_db():
         quantity INTEGER DEFAULT 1
     )
     """)
-
-    conn.commit()
-    conn.close()
-
-
-def init_offline_table():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("""
+   c.execute("""
     CREATE TABLE IF NOT EXISTS offline_registrations (
         id SERIAL PRIMARY KEY,
         phone TEXT UNIQUE,
         full_name TEXT,
+        location TEXT,
+        detergent_choice TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-    """)
-    conn.commit()
-    conn.close()
-
-def init_module_access_table():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS module_access (
-        id SERIAL PRIMARY KEY,
-        phone TEXT,
-        module TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(phone, module)
-    )
-    """)
-    conn.commit()
-    conn.close()
-
-def init_activity_log_table():
-    conn = get_db()
-    c = conn.cursor()
+    """) 
     c.execute("""
     CREATE TABLE IF NOT EXISTS activity_log (
         id SERIAL PRIMARY KEY,
         phone TEXT,
         action TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        details TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
     conn.commit()
     conn.close()
 
+    init_db()
 
-def init_temp_orders_table():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS temp_orders (
-        phone TEXT PRIMARY KEY,
-        item TEXT,
-        quantity INTEGER
-    )
-    """)
-    conn.commit()
-    conn.close()
-
-
-    
-init_offline_table()
-
-init_db()
-init_module_access_table()
-init_temp_orders_table()
-
-init_activity_log_table()
-
-def normalize_phone(phone):
-    phone = phone.strip()
-    if not phone.startswith("+"):
-        phone = "+" + phone
-    return phone
-
-def mark_paid(phone):
-    phone = normalize_phone(phone)
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("""
-        UPDATE users
-        SET is_paid=1, payment_status='approved'
-        WHERE phone=?
-    """, (phone,))
-    conn.commit()
-    conn.close()
 
 # =========================
 # HELPERS
 # =========================
+def normalize_phone(phone):
+    return phone if phone.startswith("+") else "+" + phone
+    
 def send_message(phone, text):
     client.messages.create(
         from_=TWILIO_WHATSAPP_NUMBER,
@@ -290,68 +229,90 @@ def send_pdf(phone, pdf_url, caption):
         media_url=[pdf_url]
     )
 
-def get_user(phone):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE phone=%s", (phone,))
-    user = c.fetchone()
-    conn.close()
-    return user
-
 def create_user(phone):
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        "INSERT INTO users (phone) VALUES (%s) ON CONFLICT (phone) DO NOTHING",
-        (phone,)
-    )
+    c.execute("""
+        INSERT INTO users (phone)
+        VALUES (%s)
+        ON CONFLICT (phone) DO NOTHING
+    """, (phone,))
     conn.commit()
     conn.close()
+
+def get_user(phone):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT phone, state, payment_status, is_paid FROM users WHERE phone=%s", (phone,))
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "phone": row[0],
+        "state": row[1],
+        "payment_status": row[2],
+        "is_paid": row[3]
+    }
 
 def set_state(phone, state):
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        "UPDATE users SET state=%s WHERE phone=%s",
-        (state, phone)
-    )
+    c.execute("UPDATE users SET state=%s WHERE phone=%s", (state, phone))
     conn.commit()
     conn.close()
-    
+
 def set_payment_status(phone, status):
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        "UPDATE users SET payment_status=%s WHERE phone=%s",
-        (status, phone)
-    )
+    c.execute("UPDATE users SET payment_status=%s WHERE phone=%s", (status, phone))
     conn.commit()
     conn.close()
     
-def record_module_access(phone, module_name):
+ def mark_paid(phone):
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        """
+    c.execute("""
+        UPDATE users
+        SET is_paid=1, payment_status='approved'
+        WHERE phone=%s
+    """, (phone,))
+    conn.commit()
+    conn.close() 
+     
+def record_module_access(phone, module):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
         INSERT INTO module_access (phone, module)
         VALUES (%s, %s)
         ON CONFLICT (phone, module) DO NOTHING
-        """,
-        (phone, module_name)
-    )
+    """, (phone, module))
     conn.commit()
     conn.close()
+
+def get_user_modules(phone):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT module FROM module_access WHERE phone=%s", (phone,))
+    rows = c.fetchall()
+    conn.close()
+    return [r[0] for r in rows]
 
 def log_activity(phone, action, details=""):
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        "INSERT INTO activity_log (phone, action, details) VALUES (%s, %s, %s)",
-        (phone, action, details)
-    )
+    c.execute("""
+        INSERT INTO activity_log (phone, action, details)
+        VALUES (%s, %s, %s)
+    """, (phone, action, details))
     conn.commit()
     conn.close()
 
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".",1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_dashboard_stats():
     conn = get_db()
@@ -789,7 +750,7 @@ def webhook():
          conn = get_db()
          c = conn.cursor()
          c.execute(
-            "INSERT OR IGNORE INTO offline_registrations (phone, full_name) VALUES (%s, %s)",
+            "ON CONFLICT DO NOTHING offline_registrations (phone, full_name) VALUES (%s, %s)",
             (phone, incoming.title())
         )
          conn.commit()
@@ -960,12 +921,6 @@ def admin_dashboard():
 
     return html
 
-@app.route("/paynow/callback", methods=["POST"])
-def paynow_callback():
-    reference = request.form.get("reference")
-    status = request.form.get("status")
-    phone = request.form.get("phone")
-
     if status == "Paid":
         mark_paid(phone)
         send_message(phone, "✅ Payment received. You now have full access.")
@@ -985,7 +940,7 @@ def payment_success():
 
 @app.route("/admin/approve/<phone>")
 def admin_approve(phone):
-    mark_paid(phone)
+    mark_paid(normalize_phone(phone))
     return redirect(url_for("admin_dashboard"))
 
 @app.route("/")
@@ -994,6 +949,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
