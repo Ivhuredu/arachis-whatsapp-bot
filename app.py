@@ -301,9 +301,13 @@ def get_user(phone):
 def create_user(phone):
     conn = get_db()
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO users (phone) VALUES (%s)", (phone,))
+    c.execute(
+        "INSERT INTO users (phone) VALUES (%s) ON CONFLICT (phone) DO NOTHING",
+        (phone,)
+    )
     conn.commit()
     conn.close()
+
 
 def set_state(phone, state):
     conn = get_db()
@@ -980,6 +984,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
