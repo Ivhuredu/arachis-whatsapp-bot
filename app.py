@@ -142,14 +142,24 @@ Steps:
 # DATABASE
 # =========================
 def get_db():
-    url = urlparse(os.getenv("DATABASE_URL"))
+    database_url = os.getenv("DATABASE_URL")
+
+    if not database_url:
+        raise Exception("DATABASE_URL not set")
+
+    url = urlparse(database_url)
+
     conn = psycopg2.connect(
         dbname=url.path[1:],
         user=url.username,
         password=url.password,
         host=url.hostname,
-        port=url.port
+        port=url.port,
+        sslmode="require"
     )
+
+    return conn
+
     
 def init_db():
     conn = get_db()
@@ -206,7 +216,6 @@ def init_db():
     conn.close()
 
     init_db()
-
 
 # =========================
 # HELPERS
@@ -274,14 +283,13 @@ def set_payment_status(phone, status):
 def mark_paid(phone):
     conn = get_db()
     c = conn.cursor()
-    c.execute("""
-        UPDATE users
-        SET is_paid=1, payment_status='approved'
-        WHERE phone=%s
-    """, (phone,))
+    c.execute(
+        "UPDATE users SET is_paid=1, payment_status='approved' WHERE phone=%s",
+        (phone,)
+    )
     conn.commit()
     conn.close()
-    
+   
 def record_module_access(phone, module):
     conn = get_db()
     c = conn.cursor()
@@ -355,7 +363,7 @@ def get_user_modules(phone):
     )
     rows = c.fetchall()
     conn.close()
-    return [r["module"] for r in rows]
+    return [r[0] for r in rows]
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -677,12 +685,17 @@ def webhook():
                 conn = get_db()
                 c = conn.cursor()
                 c.execute(
-                    "UPDATE users SET state=? WHERE phone=?",
-                    ("store_view_item", phone)
+                  "UPDATE users SET state=%s WHERE phone=%s",
+                  ("store_view_item", phone)
                 )
-                c.execute(
-                    "INSERT OR REPLACE INTO temp_orders (phone, item) VALUES (%s, %s)",
-                    (phone, item["name"])
+
+                )
+                c.execute("""
+                    INSERT INTO temp_orders (phone, item)
+                    VALUES (%s, %s)
+                    ON CONFLICT (phone) DO UPDATE SET item = EXCLUDED.item
+                """, (phone, item["name"]))
+
                 )
                 conn.commit()
                 conn.close()
@@ -711,9 +724,10 @@ def webhook():
             conn = get_db()
             c = conn.cursor()
             c.execute(
-                "UPDATE temp_orders SET quantity=? WHERE phone=%s",
+                "UPDATE temp_orders SET quantity=%s WHERE phone=%s",
                 (qty, phone)
             )
+
             conn.commit()
             conn.close()
 
@@ -749,10 +763,13 @@ def webhook():
     if user["state"] == "offline_name":
          conn = get_db()
          c = conn.cursor()
-         c.execute(
-            "ON CONFLICT DO NOTHING offline_registrations (phone, full_name) VALUES (%s, %s)",
-            (phone, incoming.title())
-        )
+         c.execute("""
+            INSERT INTO offline_registrations (phone, full_name)
+            VALUES (%s, %s)
+            ON CONFLICT (phone) DO NOTHING
+         """, (phone, incoming.title()))
+ 
+         )
          conn.commit()
          conn.close()
 
@@ -764,7 +781,8 @@ def webhook():
          conn = get_db()
          c = conn.cursor()
          c.execute(
-             "UPDATE offline_registrations SET location=? WHERE phone=%s",
+             "UPDATE offline_registrations SET location=%s WHERE phone=%s,
+
              (incoming.title(), phone)
          )
          conn.commit()
@@ -782,7 +800,7 @@ def webhook():
          conn = get_db()
          c = conn.cursor()
          c.execute(
-             "UPDATE offline_registrations SET detergent_choice=? WHERE phone=%s",
+             "UPDATE offline_registrations SET detergent_choice=%s WHERE phone=%s",
              (incoming.title(), phone)
          )
          conn.commit()
@@ -949,6 +967,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
