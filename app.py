@@ -203,14 +203,15 @@ def init_db():
     """)
         
     c.execute("""
-    CREATE TABLE IF NOT EXISTS activity_log (
-        id SERIAL PRIMARY KEY,
-        phone TEXT,
-        action TEXT,
-        details TEXT,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+       CREATE TABLE IF NOT EXISTS activity_log (
+       id SERIAL PRIMARY KEY,
+       phone TEXT,
+       action TEXT,
+       details TEXT,
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
     c.execute("""
         ALTER TABLE activity_log 
         ADD COLUMN IF NOT EXISTS details TEXT
@@ -887,11 +888,12 @@ def admin_dashboard():
     c = conn.cursor()
 
     c.execute("""
-        SELECT phone, action, details, timestamp
+        SELECT phone, action, details, created_at
         FROM activity_log
-        ORDER BY timestamp DESC
+        ORDER BY created_at DESC
         LIMIT 100
     """)
+
     activities = c.fetchall()
 
     c.execute("SELECT phone, is_paid, payment_status FROM users")
@@ -972,6 +974,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
