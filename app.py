@@ -688,8 +688,7 @@ def webhook():
                   "UPDATE users SET state=%s WHERE phone=%s",
                   ("store_view_item", phone)
                 )
-
-                )
+                
                 c.execute("""
                     INSERT INTO temp_orders (phone, item)
                     VALUES (%s, %s)
@@ -967,6 +966,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
