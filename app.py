@@ -595,23 +595,23 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-        if incoming == "2":
+        elif incoming == "2":
             send_message(phone, "🥤 Concentrate Drinks module coming soon.")
             return jsonify({"status": "ok"})
 
-        if incoming == "3":
+        elif incoming == "3":
             send_message(phone, "💵 Full training: $10 once-off\nNyora *PAY*")
             return jsonify({"status": "ok"})
 
-        if incoming == "4":
+        elif incoming == "4":
             send_message(phone, free_lesson())
             return jsonify({"status": "ok"})
 
-        if incoming == "5":
+        elif incoming == "5":
             send_message(phone, "📝 Join full online training — Nyora *PAY*")
             return jsonify({"status": "ok"})
 
-        if incoming == "6":
+        elif incoming == "6":
             set_state(phone, "offline_intro")
             send_message(
                  phone,
@@ -626,7 +626,7 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-        if incoming == "7":
+        elif incoming == "7":
             set_state(phone, "store")
             send_message(
                 phone,
@@ -642,11 +642,11 @@ def webhook():
             )
             return jsonify({"status": "ok"})
             
-        if incoming == "8":
+        elif incoming == "8":
             send_message(phone, "📝 Kana une dambudziko raungada rubatsiro — Taura nesu pa *+263714961448*")
             return jsonify({"status": "ok"})
 
-    if user["state"] == "pay_menu":
+    elif user["state"] == "pay_menu":
 
         if incoming == "1":
             set_state(phone, "awaiting_payment")
@@ -662,12 +662,12 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-        if incoming == "2":
+        elif incoming == "2":
            set_state(phone, "main")
            send_message(phone, main_menu())
            return jsonify({"status": "ok"})
 
-    if user["state"] == "awaiting_payment" and incoming == "done":
+    elif user["state"] == "awaiting_payment" and incoming == "done":
         set_payment_status(phone, "awaiting_approval")
         send_message(
             phone,
@@ -683,7 +683,7 @@ def webhook():
     # =========================
     # ONLINE STORE
     # =========================
-    if user["state"] == "store":
+    elif user["state"] == "store":
 
         for key, item in STORE_ITEMS.items():
             if key in incoming:
@@ -711,14 +711,14 @@ def webhook():
                 )
                 return jsonify({"status": "ok"})
 
-    if user["state"] == "store_view_item":
+    elif user["state"] == "store_view_item":
 
         if incoming == "order":
             set_state(phone, "store_quantity")
             send_message(phone, "📦 Enter quantity (e.g. 5 litres):")
             return jsonify({"status": "ok"})
 
-    if user["state"] == "store_quantity":
+    elif user["state"] == "store_quantity":
 
         if incoming.isdigit():
             qty = int(incoming)
@@ -755,14 +755,14 @@ def webhook():
 # =========================
 # OFFLINE REGISTRATION FLOW
 # =========================
-    if user["state"] == "offline_intro":
+    elif user["state"] == "offline_intro":
 
          if incoming == "yes":
             set_state(phone, "offline_name")
             send_message(phone, "✍🏽 Please enter your *FULL NAME*")
             return jsonify({"status": "ok"})
 
-    if user["state"] == "offline_name":
+    elif user["state"] == "offline_name":
          conn = get_db()
          c = conn.cursor()
          c.execute("""
@@ -777,7 +777,7 @@ def webhook():
          send_message(phone, "📍 Enter your *Town / Area*")
          return jsonify({"status": "ok"})
 
-    if user["state"] == "offline_location":
+    elif user["state"] == "offline_location":
          conn = get_db()
          c = conn.cursor()
          c.execute(
@@ -796,7 +796,7 @@ def webhook():
          )
          return jsonify({"status": "ok"})
 
-    if user["state"] == "offline_choice":
+    elif user["state"] == "offline_choice":
          conn = get_db()
          c = conn.cursor()
          c.execute(
@@ -816,7 +816,7 @@ def webhook():
          )
          return jsonify({"status": "ok"})
 
-    if user["state"] == "detergent_menu":
+    elif user["state"] == "detergent_menu":
 
         fresh_user = get_user(phone)
 
@@ -967,6 +967,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
