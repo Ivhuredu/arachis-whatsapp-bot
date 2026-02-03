@@ -159,8 +159,6 @@ def get_db():
     )
 
     return conn
-
-    
 def init_db():
     conn = get_db()
     c = conn.cursor()
@@ -192,6 +190,7 @@ def init_db():
         quantity INTEGER DEFAULT 1
     )
     """)
+
     c.execute("""
     CREATE TABLE IF NOT EXISTS offline_registrations (
         id SERIAL PRIMARY KEY,
@@ -201,7 +200,8 @@ def init_db():
         detergent_choice TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-    """) 
+    """)
+
     c.execute("""
     CREATE TABLE IF NOT EXISTS activity_log (
         id SERIAL PRIMARY KEY,
@@ -215,7 +215,12 @@ def init_db():
     conn.commit()
     conn.close()
 
-    init_db()
+
+# ✅ call once only
+init_db()
+
+    
+
 
 # =========================
 # HELPERS
@@ -694,7 +699,6 @@ def webhook():
                     VALUES (%s, %s)
                     ON CONFLICT (phone) DO UPDATE SET item = EXCLUDED.item
                 """, (phone, item["name"]))
-
                 )
                 conn.commit()
                 conn.close()
@@ -966,6 +970,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
