@@ -201,7 +201,7 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
-
+        
     c.execute("""
     CREATE TABLE IF NOT EXISTS activity_log (
         id SERIAL PRIMARY KEY,
@@ -211,6 +211,11 @@ def init_db():
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    c.execute("""
+        ALTER TABLE activity_log 
+        ADD COLUMN IF NOT EXISTS details TEXT
+    """)
+
 
     conn.commit()
     conn.close()
@@ -967,6 +972,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
