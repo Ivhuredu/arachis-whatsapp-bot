@@ -699,7 +699,6 @@ def webhook():
                     VALUES (%s, %s)
                     ON CONFLICT (phone) DO UPDATE SET item = EXCLUDED.item
                 """, (phone, item["name"]))
-                )
                 conn.commit()
                 conn.close()
 
@@ -970,6 +969,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
