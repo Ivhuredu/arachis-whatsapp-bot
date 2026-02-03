@@ -781,7 +781,7 @@ def webhook():
          conn = get_db()
          c = conn.cursor()
          c.execute(
-             "UPDATE offline_registrations SET location=%s WHERE phone=%s,
+             "UPDATE offline_registrations SET location=%s WHERE phone=%s",
 
              (incoming.title(), phone)
          )
@@ -967,6 +967,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
