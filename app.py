@@ -270,7 +270,7 @@ def set_payment_status(phone, status):
     c.execute("UPDATE users SET payment_status=%s WHERE phone=%s", (status, phone))
     conn.commit()
     conn.close()
-    
+
 def mark_paid(phone):
     conn = get_db()
     c = conn.cursor()
@@ -280,7 +280,7 @@ def mark_paid(phone):
         WHERE phone=%s
     """, (phone,))
     conn.commit()
-    conn.close() 
+    conn.close()
     
 def record_module_access(phone, module):
     conn = get_db()
@@ -949,6 +949,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
