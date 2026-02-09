@@ -113,27 +113,65 @@ Steps:
 """,
 
     "toilet_cleaner": """
-(Paste toilet cleaner formula here)
+Ma ingredients anodiwa kugadzira 
+1.125ml Sulphonic Acid
+2.250g Sless
+3.125g Salt
+4.3 Spoons Caustic Soda
+5.Perfume Lavender kana kuti Pine
+6.Dye (Blue kana kuti Purple)
+7.Bermacol (hafu ye satchet)
+8.4.5 litres mvura
 """,
 
     "engine_cleaner": """
-(Paste engine cleaner formula here)
+Ma ingredients anodiwa
+1.19.5 litres Paraffin
+2.NP-9 400ml
+3.5-10 grams Oil-soluble Red Dye
+4.30-50ml Oil- Soluble Perfume (Orange,Strawberry kana kuti Lavender)
 """,
 
     "laundry_bar": """
-(Paste laundry bar formula here)
+Ma ingredients anodiwa kugadzira 10 magreen bar
+1. 7.2 kg Tallow
+2. 3.2 kg Dolomite
+3. 1kg Sulphonic acid
+4.1.1 kg Caustic soda
+5. 10 mls Liquid soap dye
+6. 20mls Fragrance optional
 """,
 
     "fabric_softener": """
-(Paste fabric softener formula here)
+Ma ingredientes anodiwa kugadzira 20 litres
+1.19 litres water
+2. 1kg  Ardogen
+3. Fabric Softener Dye (shoma)
+4. Fabric Softener Perfume 30-50ml
 """,
 
     "floor_polish": """
-(Paste floor polish formula here)
+Ingredients 
+1 Wax 4 kg
+2 Hardener 1kg 
+3 Oxide 200g-400g 
+4 perfume 30 mls 
+5 Paraffin 10-12 litres
+
+red and back liquid polish
+Ma ingredients anodiwa:
+1.Savenix 4ltrs 
+2.Thickener 50mls 
+3.Colesents 500mls 
+4.Oxide 100-200g
 """,
 
     "petroleum_jelly": """
-(Paste petroleum jelly formula here)
+Maingredients anodiwa kugadzira 
+1.Petroleum jelly 1kg
+2.Perfume 15ml (Pinnacle Ladder)
+3.Dye (Yellow- oil based) 
+3.White oil  20ml
 """
 }
 
@@ -451,9 +489,8 @@ def main_menu():
         "4️⃣ Free Lesson\n"
         "5️⃣ Join Full Online Training\n"
         "6️⃣ Register for Offline Classes\n"
-        "7️⃣ Online Store (Chemicals)"
-        "8 Tsvaga Rubatsiro"
-    )
+        "7️⃣ Online Store (Chemicals)\n"
+        "8️⃣ Tsvaga Rubatsiro")
 
 def free_lesson():
     return (
@@ -471,6 +508,8 @@ def ai_faq_reply(msg):
         return "💵 Full training: $10 once-off\nNyora *PAY*"
     if "certificate" in msg:
         return "🎓 Ehe — unowana certificate."
+    if "kupi" in msg:
+        return " Tinowanika kuMataga"
     return None
 
 # ✅ MODIFIED (MODULE-AWARE AI)
@@ -562,7 +601,7 @@ def webhook():
         send_message(phone, f"✅ Approved: {target}")
         return jsonify({"status": "ok"})
 
-    if incoming in ["menu", "start"]:
+    if incoming in ["menu", "start" "makadini", "hie",]:
         set_state(phone, "main")
         send_message(phone, main_menu())
         log_activity(phone, "open_menu", "main")
@@ -601,8 +640,19 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-        elif incoming == "2":
-            send_message(phone, "🥤 Concentrate Drinks module coming soon.")
+        if incoming == "2":
+            set_state(phone, "concentrate_drinks_menu")
+            log_activity(phone, "open_menu", "concentrate_
+            send_message(phone, 
+                "🥤 CONCENTRATE DRINKS - PAID LESSONS*\n\n"
+                "1️⃣ Orange, Mango, Passion, Pineapple\n""
+                "2️⃣ Raspberry, Blackberry, Strawberry
+                "3️⃣ Freezits \n"
+                "4️⃣ Mawuyu Drink\n"
+                "5️⃣ Soft Drinks\n"
+                "6️⃣ Juices\n"
+                "Nyora *MENU* kudzokera kumusoro"
+            )
             return jsonify({"status": "ok"})
 
         elif incoming == "3":
@@ -857,7 +907,7 @@ def webhook():
     # =========================
     # AI TRAINER (MODULE RESTRICTED)
     # =========================
-    blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin"]
+    blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
 
     if incoming not in blocked_commands and user["is_paid"]:
         allowed_modules = get_user_modules(phone)
@@ -974,6 +1024,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
