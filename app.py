@@ -1014,7 +1014,6 @@ def webhook():
 blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
 
     if incoming not in blocked_commands and user["is_paid"]:
-
         allowed_modules = get_user_modules(phone)
         requested_module = detect_module_from_question(incoming)
 
@@ -1032,8 +1031,6 @@ blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","
             )
             log_activity(phone, "blocked_access", "ai_out_of_scope")
             return jsonify({"status": "ok"})
-
-
 
     send_message(phone, "Nyora *MENU*")
     return jsonify({"status": "ok"})
@@ -1147,6 +1144,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
