@@ -407,15 +407,7 @@ def record_module_access(phone, module):
     """, (phone, module))
     conn.commit()
     conn.close()
-    
-def get_user_modules(phone):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT module FROM module_access WHERE phone=%s", (phone,))
-    rows = c.fetchall()
-    conn.close()
-    return [r[0] for r in rows]
-    
+        
 def log_activity(phone, action, details=""):
     conn = get_db()
     c = conn.cursor()
@@ -426,9 +418,6 @@ def log_activity(phone, action, details=""):
     conn.commit()
     conn.close()
     
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".",1)[1].lower() in ALLOWED_EXTENSIONS
-
 def get_dashboard_stats():
     conn = get_db()
     c = conn.cursor()
@@ -688,7 +677,7 @@ def webhook():
         send_message(phone, f"✅ Approved: {target}")
         return jsonify({"status": "ok"})
 
-    if incoming in ["menu", "start" "makadini", "hie",]:
+    if incoming in ["menu", "start", "makadini", "hie",]:
         set_state(phone, "main")
         send_message(phone, main_menu())
         log_activity(phone, "open_menu", "main")
@@ -1019,25 +1008,35 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-            
 
-    # =========================
-    # AI TRAINER (MODULE RESTRICTED)
-    # =========================
-    blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
+# =========================
+# AI TRAINER (MODULE RESTRICTED)
+# =========================
+blocked_commands = [
+    "1","2","3","4","5","6",
+    "menu","start","pay","admin","hie","makadini"
+]
 
-        allowed_modules = get_user_modules(phone)
-        requested_module = detect_module_from_question(incoming)
+if incoming not in blocked_commands and user["is_paid"]:
+
+    allowed_modules = get_user_modules(phone)
+    requested_module = detect_module_from_question(incoming)
 
     if requested_module and requested_module in allowed_modules:
         ai_answer = ai_trainer_reply(incoming, [requested_module])
+        log_activity(phone, "ai_question", requested_module)
+        send_message(phone, ai_answer)
+        return jsonify({"status": "ok"})
+
     else:
         send_message(
             phone,
             "❗ Mubvunzo wako hauna kuenderana ne module yawakavhura.\n"
             "Tapota bvunza nezve module yawadzidza."
-    )
-    return jsonify({"status": "ok"})
+        )
+        log_activity(phone, "blocked_access", incoming)
+        return jsonify({"status": "ok"})
+
 
 
     send_message(phone, "Nyora *MENU*")
@@ -1112,10 +1111,17 @@ def admin_dashboard():
 
     # ===== ACTIVITY FEED =====
     for a in activities:
+        phone = a[0]
+        action = a[1]
+        details = a[2]
+        created_at = a[3]
+
         html += f"""
         <small>
-        [{a['timestamp']}] <b>{a['phone']}</b> → {a['action']} ({a['details']})
+        [{created_at}] <b>{phone}</b> → {action} ({details})
         </small><br>
+        """
+
         """
 
     return html
@@ -1148,6 +1154,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
