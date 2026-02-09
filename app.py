@@ -642,7 +642,7 @@ def webhook():
 
         if incoming == "2":
             set_state(phone, "concentrate_drinks_menu")
-            log_activity(phone, "open_menu", "concentrate_
+            log_activity(phone, "open_menu", "concentrate_drinks")
             send_message(phone, 
                 "🥤 CONCENTRATE DRINKS - PAID LESSONS*\n\n"
                 "1️⃣ Orange, Mango, Passion, Pineapple\n""
@@ -1024,6 +1024,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
