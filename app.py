@@ -968,29 +968,29 @@ if user["state"] == "drink_menu":
 
     fresh_user = get_user(phone)
 
-    if not fresh_user["is_paid"]:
-        send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-        log_activity(phone, "blocked_access", "drink_modules")
-        return jsonify({"status": "ok"})
+        if not fresh_user["is_paid"]:
+            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+            log_activity(phone, "blocked_access", "drink_modules")
+            return jsonify({"status": "ok"})
 
-    drink_modules = {
-        "1": ("orange_drink", "orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
-        "2": ("raspberry_drink", "raspberry_drink.pdf", "🍓 RASPBERRY CONCENTRATE"),
-        "3": ("cream_soda", "cream_soda.pdf", "🥤 CREAM SODA")
-    }
+        drink_modules = {
+            "1": ("orange_drink", "orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
+            "2": ("raspberry_drink", "raspberry_drink.pdf", "🍓 RASPBERRY CONCENTRATE"),
+            "3": ("cream_soda", "cream_soda.pdf", "🥤 CREAM SODA")
+        }
 
-    if incoming in drink_modules:
-        module, pdf, label = drink_modules[incoming]
+        if incoming in drink_modules:
+            module, pdf, label = drink_modules[incoming]
 
-        record_module_access(phone, module)
-        log_activity(phone, "open_module", module)
+            record_module_access(phone, module)
+            log_activity(phone, "open_module", module)
 
-        send_pdf(
-            phone,
-            f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
-            label
-        )
-        return jsonify({"status": "ok"})
+            send_pdf(
+                phone,
+                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+                label
+            )
+            return jsonify({"status": "ok"})
 
             
 
@@ -1114,6 +1114,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
