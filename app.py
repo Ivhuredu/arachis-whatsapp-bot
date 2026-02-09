@@ -174,6 +174,64 @@ Maingredients anodiwa kugadzira
 3.White oil  20ml
 """
 }
+# =========================
+# CONCENTRATE DRINK MODULES
+# =========================
+
+DRINK_MODULE_CONTENT = {
+    "orange_drink": """
+Ingredients:
+- Sugar 8kg
+- Water 10 litres
+- Orange flavour 100ml
+- Citric acid 50g
+- Sodium benzoate 20g
+- Food colour (orange)
+
+Steps:
+1. Dissolve sugar in warm water
+2. Add citric acid and mix well
+3. Add sodium benzoate
+4. Add flavour and colour
+5. Top up with water
+6. Filter and bottle
+""",
+
+    "raspberry_drink": """
+Ingredients:
+- Sugar 8kg
+- Water 10 litres
+- Raspberry flavour 100ml
+- Citric acid 50g
+- Sodium benzoate 20g
+- Red food colour
+
+Steps:
+1. Dissolve sugar
+2. Add citric acid
+3. Add preservative
+4. Add flavour & colour
+5. Filter and bottle
+""",
+
+    "cream_soda": """
+Ingredients:
+- Sugar 8kg
+- Water 10 litres
+- Cream soda flavour 100ml
+- Citric acid 50g
+- Sodium benzoate 20g
+- Green food colour
+
+Steps:
+1. Dissolve sugar
+2. Add citric acid
+3. Add preservative
+4. Add flavour & colour
+5. Bottle
+"""
+}
+
 
 
 # =========================
@@ -518,8 +576,10 @@ def ai_trainer_reply(question, allowed_modules):
     content_blocks = []
 
     for m in allowed_modules:
-        if m in MODULE_CONTENT:
-            content_blocks.append(MODULE_CONTENT[m])
+    if m in MODULE_CONTENT:
+        content_blocks.append(MODULE_CONTENT[m])
+    if m in DRINK_MODULE_CONTENT:
+        content_blocks.append(DRINK_MODULE_CONTENT[m])
 
     lessons_text = "\n\n".join(content_blocks)
 
@@ -641,18 +701,16 @@ def webhook():
             return jsonify({"status": "ok"})
 
         if incoming == "2":
-            set_state(phone, "concentrate_drinks_menu")
-            log_activity(phone, "open_menu", "concentrate_drinks")
-            send_message(phone, 
-                "🥤 CONCENTRATE DRINKS - PAID LESSONS*\n\n"
-                "1️⃣ Orange, Mango, Passion, Pineapple\n""
-                "2️⃣ Raspberry, Blackberry, Strawberry\n"
-                "3️⃣ Freezits \n"
-                "4️⃣ Mawuyu Drink\n"
-                "5️⃣ Soft Drinks\n"
-                "6️⃣ Juices\n"
-                "Nyora *MENU* kudzokera kumusoro"
+            set_state(phone, "drink_menu")
+            send_message(
+                phone,
+                "🥤 *CONCENTRATE DRINKS – PAID LESSONS*\n\n"
+                "1️⃣ Orange Concentrate\n"
+                "2️⃣ Raspberry Concentrate\n"
+                "3️⃣ Cream Soda\n\n"
+                "Nyora *MENU* kudzokera"
             )
+            log_activity(phone, "open_menu", "drinks")
             return jsonify({"status": "ok"})
 
         elif incoming == "3":
@@ -902,6 +960,38 @@ def webhook():
                 label
             )
             return jsonify({"status": "ok"})
+
+    # =========================
+# DRINK MODULE MENU
+# =========================
+if user["state"] == "drink_menu":
+
+    fresh_user = get_user(phone)
+
+    if not fresh_user["is_paid"]:
+        send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+        log_activity(phone, "blocked_access", "drink_modules")
+        return jsonify({"status": "ok"})
+
+    drink_modules = {
+        "1": ("orange_drink", "orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
+        "2": ("raspberry_drink", "raspberry_drink.pdf", "🍓 RASPBERRY CONCENTRATE"),
+        "3": ("cream_soda", "cream_soda.pdf", "🥤 CREAM SODA")
+    }
+
+    if incoming in drink_modules:
+        module, pdf, label = drink_modules[incoming]
+
+        record_module_access(phone, module)
+        log_activity(phone, "open_module", module)
+
+        send_pdf(
+            phone,
+            f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+            label
+        )
+        return jsonify({"status": "ok"})
+
             
 
     # =========================
@@ -1024,6 +1114,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
