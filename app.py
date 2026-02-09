@@ -964,9 +964,9 @@ def webhook():
     # =========================
 # DRINK MODULE MENU
 # =========================
-if user["state"] == "drink_menu":
+    if user["state"] == "drink_menu":
 
-    fresh_user = get_user(phone)
+        fresh_user = get_user(phone)
 
         if not fresh_user["is_paid"]:
             send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
@@ -1114,6 +1114,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
