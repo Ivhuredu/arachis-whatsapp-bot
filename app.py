@@ -576,10 +576,10 @@ def ai_trainer_reply(question, allowed_modules):
     content_blocks = []
 
     for m in allowed_modules:
-    if m in MODULE_CONTENT:
-        content_blocks.append(MODULE_CONTENT[m])
-    if m in DRINK_MODULE_CONTENT:
-        content_blocks.append(DRINK_MODULE_CONTENT[m])
+        if m in MODULE_CONTENT:
+            content_blocks.append(MODULE_CONTENT[m])
+        if m in DRINK_MODULE_CONTENT:
+            content_blocks.append(DRINK_MODULE_CONTENT[m])
 
     lessons_text = "\n\n".join(content_blocks)
 
@@ -1114,6 +1114,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
