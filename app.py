@@ -622,6 +622,33 @@ Student question:
 
     return response.choices[0].message.content.strip()
 
+def detect_module_from_question(question):
+    q = question.lower()
+
+    if "dishwash" in q or "dish wash" in q:
+        return "dishwash"
+    if "bleach" in q:
+        return "thick_bleach"
+    if "foam" in q:
+        return "foam_bath"
+    if "pine" in q:
+        return "pine_gel"
+    if "toilet" in q:
+        return "toilet_cleaner"
+    if "engine" in q:
+        return "engine_cleaner"
+    if "laundry" in q or "soap" in q:
+        return "laundry_bar"
+    if "fabric" in q or "softener" in q:
+        return "fabric_softener"
+    if "petroleum" in q or "vaseline" in q:
+        return "petroleum_jelly"
+    if "polish" in q:
+        return "floor_polish"
+
+    return None
+
+
 # =========================
 # WEBHOOK
 # =========================
@@ -999,12 +1026,19 @@ def webhook():
     # =========================
     blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
 
-    if incoming not in blocked_commands and user["is_paid"]:
         allowed_modules = get_user_modules(phone)
-        ai_answer = ai_trainer_reply(incoming, allowed_modules)
-        log_activity(phone, "ai_question", incoming)
-        send_message(phone, ai_answer)
-        return jsonify({"status": "ok"})
+        requested_module = detect_module_from_question(incoming)
+
+    if requested_module and requested_module in allowed_modules:
+        ai_answer = ai_trainer_reply(incoming, [requested_module])
+    else:
+        send_message(
+            phone,
+            "❗ Mubvunzo wako hauna kuenderana ne module yawakavhura.\n"
+            "Tapota bvunza nezve module yawadzidza."
+    )
+    return jsonify({"status": "ok"})
+
 
     send_message(phone, "Nyora *MENU*")
     return jsonify({"status": "ok"})
@@ -1114,6 +1148,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
