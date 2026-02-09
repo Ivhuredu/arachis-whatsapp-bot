@@ -1026,7 +1026,7 @@ if incoming not in blocked_commands and user["is_paid"]:
         ai_answer = ai_trainer_reply(incoming, [requested_module])
         log_activity(phone, "ai_question", requested_module)
         send_message(phone, ai_answer)
-        return jsonify({"status": "ok"})
+      return jsonify({"status": "ok"})
 
     else:
         send_message(
@@ -1151,6 +1151,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
