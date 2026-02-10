@@ -1013,11 +1013,11 @@ def webhook():
 # =========================
 blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
 
-    if incoming not in blocked_commands and user["is_paid"]:
+if incoming not in blocked_commands and user["is_paid"]:
         allowed_modules = get_user_modules(phone)
         requested_module = detect_module_from_question(incoming)
 
-    if requested_module and requested_module in allowed_modules:
+if requested_module and requested_module in allowed_modules:
         ai_answer = ai_trainer_reply(incoming, [requested_module])
         log_activity(phone, "ai_question", incoming)
         send_message(phone, ai_answer)
@@ -1144,6 +1144,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
