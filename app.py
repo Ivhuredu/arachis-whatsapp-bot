@@ -1112,10 +1112,15 @@ def admin_dashboard():
     # ===== USERS =====
     html += "<h3>👥 Users</h3>"
     for u in users:
+        phone = u[0]
+        is_paid = u[1]
+        payment_status = u[2]
+   
         html += f"""
-        {u['phone']} | Paid: {u['is_paid']}
-        | <a href='/admin/approve/{u['phone']}'>Approve</a><br>
+        {phone} | Paid: {is_paid} | Status: {payment_status}
+        | <a href='/admin/approve/{phone}'>Approve</a><br>
         """
+
 
     html += "<hr><h3>📜 Activity Feed (Latest 100)</h3>"
 
@@ -1161,6 +1166,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
