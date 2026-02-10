@@ -1017,20 +1017,20 @@ blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","
         allowed_modules = get_user_modules(phone)
         requested_module = detect_module_from_question(incoming)
 
-        if requested_module and requested_module in allowed_modules:
-            ai_answer = ai_trainer_reply(incoming, [requested_module])
-            log_activity(phone, "ai_question", incoming)
-            send_message(phone, ai_answer)
-            return jsonify({"status": "ok"})
+    if requested_module and requested_module in allowed_modules:
+        ai_answer = ai_trainer_reply(incoming, [requested_module])
+        log_activity(phone, "ai_question", incoming)
+        send_message(phone, ai_answer)
+        return jsonify({"status": "ok"})
 
         else:
             send_message(
                 phone,
-                "❗ Mubvunzo wako hauna kuenderana ne module yawakavhura.\n"
-                "Tapota bvunza nezve module yawadzidza."
-            )
-            log_activity(phone, "blocked_access", "ai_out_of_scope")
-            return jsonify({"status": "ok"})
+                    "❗ Mubvunzo wako hauna kuenderana ne module yawakavhura.\n"
+                    "Tapota bvunza nezve module yawadzidza."
+        )
+        log_activity(phone, "blocked_access", "ai_out_of_scope")
+        return jsonify({"status": "ok"})
 
     send_message(phone, "Nyora *MENU*")
     return jsonify({"status": "ok"})
@@ -1144,6 +1144,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
