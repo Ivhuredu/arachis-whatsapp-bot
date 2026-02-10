@@ -1023,8 +1023,8 @@ if requested_module and requested_module in allowed_modules:
         send_message(phone, ai_answer)
         return jsonify({"status": "ok"})
 
-        else:
-            send_message(
+            else:
+                send_message(
                 phone,
                     "❗ Mubvunzo wako hauna kuenderana ne module yawakavhura.\n"
                     "Tapota bvunza nezve module yawadzidza."
@@ -1144,6 +1144,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
