@@ -816,9 +816,7 @@ def webhook():
             "Tichakuzivisa nekukurumidza ✅"
         )
         return jsonify({"status": "ok"})
-
-
-    
+        
 
     # =========================
     # ONLINE STORE
@@ -921,41 +919,6 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-    # =========================
-# DRINK MODULE MENU
-# =========================
-    if user["state"] == "drink_menu":
-
-        fresh_user = get_user(phone)
-
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-            log_activity(phone, "blocked_access", "drink_modules")
-            return jsonify({"status": "ok"})
-
-        drink_modules = {
-            "1": ("orange_drink", "orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
-            "2": ("raspberry_drink", "raspberry_drink.pdf", "🍓 RASPBERRY CONCENTRATE"),
-            "3": ("cream_soda", "cream_soda.pdf", "🥤 CREAM SODA")
-        }
-
-        if incoming in drink_modules:
-            module, pdf, label = drink_modules[incoming]
-
-            record_module_access(phone, module)
-            log_activity(phone, "open_module", module)
-
-            send_pdf(
-                phone,
-                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
-                label
-            )
-            return jsonify({"status": "ok"})
-
-    # =========================
-# OFFLINE REGISTRATION FLOW
-# =========================
-
     elif user["state"] == "offline_intro":
 
         if incoming == "yes":
@@ -1027,6 +990,39 @@ def webhook():
 
 
     # =========================
+# DRINK MODULE MENU
+# =========================
+    if user["state"] == "drink_menu":
+
+        fresh_user = get_user(phone)
+
+        if not fresh_user["is_paid"]:
+            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+            log_activity(phone, "blocked_access", "drink_modules")
+            return jsonify({"status": "ok"})
+
+        drink_modules = {
+            "1": ("orange_drink", "orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
+            "2": ("raspberry_drink", "raspberry_drink.pdf", "🍓 RASPBERRY CONCENTRATE"),
+            "3": ("cream_soda", "cream_soda.pdf", "🥤 CREAM SODA")
+        }
+
+        if incoming in drink_modules:
+            module, pdf, label = drink_modules[incoming]
+
+            record_module_access(phone, module)
+            log_activity(phone, "open_module", module)
+
+            send_pdf(
+                phone,
+                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+                label
+            )
+            return jsonify({"status": "ok"})
+
+   
+
+    # =========================
     # AI TRAINER (MODULE RESTRICTED)
     # =========================
     blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
@@ -1054,70 +1050,6 @@ def webhook():
     # ===== DEFAULT FALLBACK =====
     send_message(phone, "Nyora *MENU*")
     return jsonify({"status": "ok"})
-
-# =========================
-# OFFLINE REGISTRATION FLOW
-# =========================
-    elif user["state"] == "offline_intro":
-
-         if incoming == "yes":
-            set_state(phone, "offline_name")
-            send_message(phone, "✍🏽 Please enter your *FULL NAME*")
-            return jsonify({"status": "ok"})
-
-    elif user["state"] == "offline_name":
-         conn = get_db()
-         c = conn.cursor()
-         c.execute("""
-            INSERT INTO offline_registrations (phone, full_name)
-            VALUES (%s, %s)
-            ON CONFLICT (phone) DO NOTHING
-         """, (phone, incoming.title()))
-         conn.commit()
-         conn.close()
-
-         set_state(phone, "offline_location")
-         send_message(phone, "📍 Enter your *Town / Area*")
-         return jsonify({"status": "ok"})
-
-    elif user["state"] == "offline_location":
-         conn = get_db()
-         c = conn.cursor()
-         c.execute(
-             "UPDATE offline_registrations SET location=%s WHERE phone=%s",
-
-             (incoming.title(), phone)
-         )
-         conn.commit()
-         conn.close()
-
-         set_state(phone, "offline_choice")
-         send_message(
-             phone,
-             "🧪 Choose detergent for your *FREE 10L ingredients*:\n"
-             "Dishwash / Thick Bleach / Foam Bath / Pine Gel"
-         )
-         return jsonify({"status": "ok"})
-
-    elif user["state"] == "offline_choice":
-         conn = get_db()
-         c = conn.cursor()
-         c.execute(
-             "UPDATE offline_registrations SET detergent_choice=%s WHERE phone=%s",
-             (incoming.title(), phone)
-         )
-         conn.commit()
-         conn.close()
-
-         set_state(phone, "main")
-         send_message(
-             phone,
-             "✅ Registration received!\n\n"
-             "💳 Pay *$50* to Ecocash 0773 208904\n"
-             "Send proof here.\n\n"
-             "We will confirm your seat after approval."
-         )
-         return jsonify({"status": "ok"})
 
 
 # =========================
@@ -1229,6 +1161,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
