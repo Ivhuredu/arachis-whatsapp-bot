@@ -1,3 +1,4 @@
+import PyPDF2
 import requests
 from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
@@ -471,6 +472,25 @@ def log_activity(phone, action, details=""):
     """, (phone, action, details))
     conn.commit()
     conn.close()
+
+def extract_pdf_text(pdf_filename):
+
+    try:
+        path = os.path.join("static/lessons", pdf_filename)
+
+        with open(path, "rb") as file:
+            reader = PyPDF2.PdfReader(file)
+            text = ""
+
+            for page in reader.pages:
+                text += page.extract_text() + "\n"
+
+        return text
+
+    except Exception as e:
+        print("PDF READ ERROR:", e)
+        return ""
+
     
 def get_dashboard_stats():
     conn = get_db()
@@ -736,58 +756,60 @@ def ai_faq_reply(msg):
 # ✅ MODIFIED (MODULE-AWARE AI)
 def ai_trainer_reply(question, allowed_modules):
 
-    content_blocks = []
+    pdf_text_blocks = []
 
-    for m in allowed_modules:
-        if m in MODULE_CONTENT:
-            content_blocks.append(MODULE_CONTENT[m])
-        if m in DRINK_MODULE_CONTENT:
-            content_blocks.append(DRINK_MODULE_CONTENT[m])
+    module_pdf_map = {
+        "dishwash": "dishwash.pdf",
+        "thick_bleach": "thick_bleach.pdf",
+        "foam_bath": "foam_bath.pdf",
+        "pine_gel": "pine_gel.pdf",
+        "toilet_cleaner": "toilet_cleaner.pdf",
+        "engine_cleaner": "engine_cleaner.pdf",
+        "laundry_bar": "laundry_bar.pdf",
+        "fabric_softener": "fabric_softener.pdf",
+        "petroleum_jelly": "petroleum_jelly.pdf",
+        "floor_polish": "floor_polish.pdf",
+        "orange_drink": "orange_drink.pdf",
+        "raspberry_drink": "raspberry_drink.pdf",
+        "cream_soda": "cream_soda.pdf"
+    }
 
-    lessons_text = "\n\n".join(content_blocks)
+    for module in allowed_modules:
+        if module in module_pdf_map:
+            pdf_text = extract_pdf_text(module_pdf_map[module])
+            pdf_text_blocks.append(pdf_text)
+
+    combined_text = "\n\n".join(pdf_text_blocks)
 
     prompt = f"""
-You are an Arachis Online Training instructor.
+You are a professional hands-on chemical production trainer.
 
-Below are the exact lessons the student has studied:
+Below is the official lesson material:
 
-{lessons_text}
-    
-Your role:
-- Act like a hands-on chemical trainer
-- Diagnose student mistakes
-- Explain what likely went wrong
-- Provide correction steps
-- Give prevention tips for next batch
-
-
-You teach these modules:
-Dishwash, Thick Bleach, Foam Bath, Pine Gel, Toilet Cleaner, Engine Cleaner,
-Laundry Bar, Fabric Softener, Petroleum Jelly, Floor Polish
-
-Rules:
-- Base your answer mainly on the lesson content above
-- You may explain practical troubleshooting based on the ingredients already listed
-- Be practical and specific and use ony correct grammatical shona not english
-- Give real-world reasons (e.g. too much salt, too much bermacol, too little water)
-- Explain step-by-step how to fix the problem
-- Speak like a real trainer guiding a student in class
-- Avoid unsafe chemical handling advice
-- Correct mistakes politely
-
+{combined_text}
 
 Student question:
 {question}
+
+Instructions:
+- Diagnose the problem practically
+- Explain what likely went wrong
+- Give step-by-step correction
+- Give prevention advice for next batch
+- Be specific
+- Do NOT invent ingredients outside lesson
+- Speak naturally like a trainer and only correct grammatical shona
 """
 
     response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=500,
+        max_tokens=600,
         temperature=0.6
     )
 
     return response.choices[0].message.content.strip()
+
 
 def detect_module_from_question(question):
     q = question.lower()
@@ -1469,6 +1491,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
