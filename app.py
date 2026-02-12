@@ -26,215 +26,6 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # =========================
-# MODULE CONTENT FOR AI TRAINER
-# =========================
-
-MODULE_CONTENT = {
-
-    "dishwash": """
-Ingredients:
-- SLES 1.5kg
-- Sulphonic acid 1 litre
-- Caustic soda 3 tablespoons
-- Soda ash 3 tablespoons
-- Salt 500g
-- Bermacol 3 tablespoons
-- Amido 100ml
-- Dye 20g
-- Perfume 33ml
-- Water 17.5 litres
-
-Steps:
-1. Mix 10L water with SLES until dissolved
-2. Add sulphonic acid and mix well
-3. Add caustic soda
-4. Add soda ash
-5. Add salt slowly
-6. Add bermacol (pre-mixed)
-7. Add dye gradually
-8. Add perfume
-9. Add amido
-10. Top up with water
-""",
-
-    "thick_bleach": """
-Ingredients:
-- SLES 2kg
-- Hypochlorite 3kg
-- Caustic soda 300g
-- Water 15 litres
-
-Steps:
-1. Dissolve SLES in water
-2. Add caustic soda
-3. Add hypochlorite slowly
-4. Add perfume
-5. Adjust thickness with water
-""",
-
-    "foam_bath": """
-Ingredients:
-- SLES 2kg
-- CDE 500ml
-- Glycerin 500ml
-- Salt 1 cup
-- Dye 20g
-- Formalin 10ml
-- Perfume
-- Amido
-
-Steps:
-1. Mix SLES and CDE
-2. Add glycerin
-3. Add salt gradually
-4. Add dye
-5. Add formalin
-6. Add perfume
-7. Add amido
-""",
-
-    "pine_gel": """
-Ingredients:
-- Pine oil 1L
-- Sulphonic Acid 3kg
-- Caustic Soda 350g
-- Np6 1kg
-- Water 15 litres
-- Green Dye
-
-Steps:
-1. Water 15l
-2. Add 3kg Sulphonic Acid
-3. Add 350g Caustic Soda
-4. Add 1kg Np6
-5. Add dye
-6. Add 1litre pine oil
-7. ph inofanira kuita pH7
-""",
-
-    "toilet_cleaner": """
-Ma ingredients anodiwa kugadzira 
-1.125ml Sulphonic Acid
-2.250g Sless
-3.125g Salt
-4.3 Spoons Caustic Soda
-5.Perfume Lavender kana kuti Pine
-6.Dye (Blue kana kuti Purple)
-7.Bermacol (hafu ye satchet)
-8.4.5 litres mvura
-""",
-
-    "engine_cleaner": """
-Ma ingredients anodiwa
-1.19.5 litres Paraffin
-2.NP-9 400ml
-3.5-10 grams Oil-soluble Red Dye
-4.30-50ml Oil- Soluble Perfume (Orange,Strawberry kana kuti Lavender)
-""",
-
-    "laundry_bar": """
-Ma ingredients anodiwa kugadzira 10 magreen bar
-1. 7.2 kg Tallow
-2. 3.2 kg Dolomite
-3. 1kg Sulphonic acid
-4.1.1 kg Caustic soda
-5. 10 mls Liquid soap dye
-6. 20mls Fragrance optional
-""",
-
-    "fabric_softener": """
-Ma ingredientes anodiwa kugadzira 20 litres
-1.19 litres water
-2. 1kg  Ardogen
-3. Fabric Softener Dye (shoma)
-4. Fabric Softener Perfume 30-50ml
-""",
-
-    "floor_polish": """
-Ingredients 
-1 Wax 4 kg
-2 Hardener 1kg 
-3 Oxide 200g-400g 
-4 perfume 30 mls 
-5 Paraffin 10-12 litres
-
-red and back liquid polish
-Ma ingredients anodiwa:
-1.Savenix 4ltrs 
-2.Thickener 50mls 
-3.Colesents 500mls 
-4.Oxide 100-200g
-""",
-
-    "petroleum_jelly": """
-Maingredients anodiwa kugadzira 
-1.Petroleum jelly 1kg
-2.Perfume 15ml (Pinnacle Ladder)
-3.Dye (Yellow- oil based) 
-3.White oil  20ml
-"""
-}
-# =========================
-# CONCENTRATE DRINK MODULES
-# =========================
-
-DRINK_MODULE_CONTENT = {
-    "orange_drink": """
-Ingredients:
-- Sugar 8kg
-- Water 10 litres
-- Orange flavour 100ml
-- Citric acid 50g
-- Sodium benzoate 20g
-- Food colour (orange)
-
-Steps:
-1. Dissolve sugar in warm water
-2. Add citric acid and mix well
-3. Add sodium benzoate
-4. Add flavour and colour
-5. Top up with water
-6. Filter and bottle
-""",
-
-    "raspberry_drink": """
-Ingredients:
-- Sugar 8kg
-- Water 10 litres
-- Raspberry flavour 100ml
-- Citric acid 50g
-- Sodium benzoate 20g
-- Red food colour
-
-Steps:
-1. Dissolve sugar
-2. Add citric acid
-3. Add preservative
-4. Add flavour & colour
-5. Filter and bottle
-""",
-
-    "cream_soda": """
-Ingredients:
-- Sugar 8kg
-- Water 10 litres
-- Cream soda flavour 100ml
-- Citric acid 50g
-- Sodium benzoate 20g
-- Green food colour
-
-Steps:
-1. Dissolve sugar
-2. Add citric acid
-3. Add preservative
-4. Add flavour & colour
-5. Bottle
-"""
-}
-
-
-
-# =========================
 # DATABASE
 # =========================
 def get_db():
@@ -546,7 +337,7 @@ STORE_ITEMS = {
     },
     "caustic": {
         "name": "Caustic Soda",
-        "price": "$2 per kg",
+        "price": "$2.25 per kg",
         "sizes": "1kg | 5kg | 25kg"
     },
     "hypo": {
@@ -556,7 +347,7 @@ STORE_ITEMS = {
     },
     "cde": {
         "name": "CDE (Cocamide DEA)",
-        "price": "$5 per litre",
+        "price": "$0.0 per litre",
         "sizes": "1L | 5L"
     },
     "perfume": {
@@ -566,7 +357,7 @@ STORE_ITEMS = {
     },
      "soda": {
         "name": "Soda Ash",
-        "price": "$2 per kg",
+        "price": "$2.25 per kg",
         "sizes": "500ml| 1L | 5L"
     },
     "bermacol": {
@@ -576,7 +367,7 @@ STORE_ITEMS = {
     },
     "amido": {
         "name": "Amido",
-        "price": "$3 per litre",
+        "price": "$3.5 per litre",
         "sizes": "50ml | 100mL | 5L"
     },
     "formalin": {
@@ -591,9 +382,100 @@ STORE_ITEMS = {
     },
     "ardogen": {
         "name": "Ardogen",
-        "price": "$5 per 1kg",
+        "price": "$0.0 per 1kg",
         "sizes": "100g | 500g | 1kg"
-    }
+    },
+    "sulphonic": {
+        "name": "Sulphonic Acid",
+        "price": "$3.25 per kg",
+        "sizes": "1ltr | 5ltr | 25ltr"
+    },
+    "glycerin": {
+        "name": "Glycerin",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "np6": {
+        "name": "Np6",
+        "price": "$6 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "pineoil": {
+        "name": "Pine Oil",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "tallow": {
+        "name": "Tallow",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "dolomite": {
+        "name": "Dolomite",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "soapdye": {
+        "name": "Liquid Soap Dye",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "petroleumjelly": {
+        "name": "Petroleum Jelly",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "dye": {
+        "name": "Dye (Oil-based",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+    "whiteoil": {
+        "name": "White Oil",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    }, 
+     "wax": {
+        "name": "Wax",
+        "price": "$3 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "hardener": {
+        "name": "Hardener",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+    "oxide": {
+        "name": "Oxide",
+        "price": "$3.5 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    }, 
+     "paraffin": {
+        "name": "Paraffin",
+        "price": "$0.0 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "savenix": {
+        "name": "Savenix",
+        "price": "$3.5 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "thickener": {
+        "name": "Thickener",
+        "price": "$5.5 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "colesents": {
+        "name": "Colesents",
+        "price": "$6.5 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+     "np9": {
+        "name": "NP9",
+        "price": "$6 per kg",
+        "sizes": "1kg | 5kg | 25kg"
+    },
+    
 }
 STORE_PACKS = {
 
@@ -1487,6 +1369,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
