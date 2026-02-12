@@ -649,7 +649,7 @@ Laundry Bar, Fabric Softener, Petroleum Jelly, Floor Polish
 Rules:
 - Base your answer mainly on the lesson content above
 - You may explain practical troubleshooting based on the ingredients already listed
-- Be practical and specific
+- Be practical and specific and use ony correct grammatical shona not english
 - Give real-world reasons (e.g. too much salt, too much bermacol, too little water)
 - Explain step-by-step how to fix the problem
 - Speak like a real trainer guiding a student in class
@@ -1303,6 +1303,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
