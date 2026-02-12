@@ -1287,6 +1287,15 @@ def approve_offline(phone):
 
     return redirect(url_for("admin_dashboard"))
 
+@app.route("/data-deletion")
+def data_deletion():
+    return """
+    <h2>Arachis Brands Data Deletion Policy</h2>
+    <p>Users may request deletion of their WhatsApp data by contacting us at:</p>
+    <p>Email: nkomobeloved3@gmail.com</p>
+    <p>Or WhatsApp: +263773208904</p>
+    <p>All requested data will be deleted within 7 working days.</p>
+    """
 
 @app.route("/")
 def home():
@@ -1294,6 +1303,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
