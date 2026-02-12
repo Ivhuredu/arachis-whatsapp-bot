@@ -431,6 +431,22 @@ def mark_paid(phone):
     )
     conn.commit()
     conn.close()
+
+def ai_questions_today(phone):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT COUNT(*) FROM activity_log
+        WHERE phone = %s
+        AND action = 'ai_question'
+        AND DATE(created_at) = CURRENT_DATE
+    """, (phone,))
+
+    count = c.fetchone()[0]
+    conn.close()
+    return count
+
    
 def record_module_access(phone, module):
     conn = get_db()
@@ -1073,6 +1089,16 @@ def webhook():
     blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
 
     if incoming not in blocked_commands and user["is_paid"]:
+               
+        today_count = ai_questions_today(phone)
+
+        if today_count >= 15:
+            send_message(
+                phone,
+                "⛔ Wapfuura 15 AI questions nhasi.\n"
+                "Dzokazve mangwana kuti uenderere mberi."
+            )
+            return jsonify({"status": "ok"})
 
         allowed_modules = get_user_modules(phone)
         requested_module = detect_module_from_question(incoming)
@@ -1126,6 +1152,14 @@ def admin_dashboard():
 
     c.execute("SELECT phone, is_paid, payment_status FROM users")
     users = c.fetchall()
+    # ===== OFFLINE REGISTRATIONS =====
+    c.execute("""
+        SELECT phone, full_name, location, detergent_choice, created_at
+        FROM offline_registrations
+        ORDER BY created_at DESC
+    """)
+    offline_regs = c.fetchall()
+
 
     conn.close()
 
@@ -1165,6 +1199,27 @@ def admin_dashboard():
         {phone} | Paid: {is_paid} | Status: {payment_status}
         | <a href='/admin/approve/{phone}'>Approve</a><br>
         """
+    html += "<hr><h3>🧑🏽‍🏫 Offline Registrations</h3>"
+
+    if not offline_regs:
+        html += "<p>No offline registrations yet.</p>"
+    else:
+        for reg in offline_regs:
+            phone = reg[0]
+            full_name = reg[1]
+            location = reg[2]
+            detergent = reg[3]
+            created = reg[4]
+
+            html += f"""
+            <b>{full_name}</b><br>
+            📞 {phone}<br>
+            📍 {location}<br>
+            🧪 {detergent}<br>
+            🗓 {created}<br>
+            <hr>
+            """
+
 
 
     html += "<hr><h3>📜 Activity Feed (Latest 100)</h3>"
@@ -1211,6 +1266,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
