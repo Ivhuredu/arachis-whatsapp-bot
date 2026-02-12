@@ -852,7 +852,7 @@ def webhook():
             return jsonify({"status": "ok"})
             
         elif incoming == "8":
-            send_message(phone, "📝 Kana une dambudziko raungada rubatsiro — Taura nesu pa *+263714961448*")
+            send_message(phone, "📝 Kana une dambudziko raungada rubatsiro — Taura nesu pa *+263719208904*")
             return jsonify({"status": "ok"})
 
     elif user["state"] == "pay_menu":
@@ -1303,6 +1303,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
