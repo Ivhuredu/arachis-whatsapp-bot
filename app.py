@@ -1,6 +1,6 @@
+import requests
 from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
-from twilio.rest import Client
 import psycopg2
 from urllib.parse import urlparse
 import os
@@ -12,9 +12,9 @@ app = Flask(__name__)
 # =========================
 # CONFIG
 # =========================
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 
 ADMIN_NUMBER = "+263773208904"  # MUST include +
 
@@ -22,7 +22,6 @@ UPLOAD_FOLDER = "static/lessons"
 ALLOWED_EXTENSIONS = {"pdf"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # =========================
@@ -341,19 +340,43 @@ def normalize_phone(phone):
     return phone if phone.startswith("+") else "+" + phone
     
 def send_message(phone, text):
-    client.messages.create(
-        from_=TWILIO_WHATSAPP_NUMBER,
-        to=f"whatsapp:{phone}",
-        body=text
-    )
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone.replace("+", ""),
+        "type": "text",
+        "text": {"body": text}
+    }
+
+    requests.post(url, headers=headers, json=payload)
+
 
 def send_pdf(phone, pdf_url, caption):
-    client.messages.create(
-        from_=TWILIO_WHATSAPP_NUMBER,
-        to=f"whatsapp:{phone}",
-        body=caption,
-        media_url=[pdf_url]
-    )
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone.replace("+", ""),
+        "type": "document",
+        "document": {
+            "link": pdf_url,
+            "caption": caption
+        }
+    }
+
+    requests.post(url, headers=headers, json=payload)
+
 
 def create_user(phone):
     conn = get_db()
@@ -651,17 +674,15 @@ def detect_module_from_question(question):
 # =========================
 # WEBHOOK
 # =========================
-@app.route("/webhook", methods=["POST"])
-def webhook():
+@app.route("/webhook", methods=["GET"])
+def verify_webhook():
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
 
-    phone = normalize_phone(request.form.get("From", "").replace("whatsapp:", ""))
-    incoming = request.form.get("Body", "").strip().lower()
-
-    if not phone or not incoming:
-        return jsonify({"status": "ignored"}), 200
-
-    create_user(phone)
-    user = get_user(phone)
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        return challenge, 200
+    return "Verification failed", 403
 
     faq = ai_faq_reply(incoming)
     if faq and incoming not in ["1","2","3","4","5","6","menu","pay","join","admin"]:
@@ -1166,6 +1187,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
