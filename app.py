@@ -1027,127 +1027,123 @@ def webhook():
 
     elif user["state"] == "store_category":
 
-    categories = {
-        "1": "dishwash",
-        "2": "bleach",
-        "3": "orange_drink"
-    }
+        categories = {
+            "1": "dishwash",
+            "2": "bleach",
+            "3": "orange_drink"
+        }
 
-    if incoming in categories:
-        selected = categories[incoming]
-        set_state(phone, f"store_pack_{selected}")
+        if incoming in categories:
+            selected = categories[incoming]
+            set_state(phone, f"store_pack_{selected}")
 
-        send_message(
-            phone,
-            "📦 Choose Pack Size:\n\n"
-            "1️⃣ Starter\n"
-            "2️⃣ Medium\n"
-            "3️⃣ Bulk Business\n\n"
-            "Reply with 1, 2 or 3"
-        )
-        return jsonify({"status": "ok"})
+            send_message(
+                phone,
+                "📦 Choose Pack Size:\n\n"
+                "1️⃣ Starter\n"
+                "2️⃣ Medium\n"
+                "3️⃣ Bulk Business\n\n"
+                "Reply with 1, 2 or 3"
+            )
+            return jsonify({"status": "ok"})
 
     elif user["state"].startswith("store_pack_"):
 
-    category = user["state"].replace("store_pack_", "")
+        category = user["state"].replace("store_pack_", "")
 
-    sizes = {
-        "1": "starter",
-        "2": "medium",
-        "3": "bulk"
-    }
+        sizes = {
+            "1": "starter",
+            "2": "medium",
+            "3": "bulk"
+        }
 
-    if incoming in sizes:
+        if incoming in sizes:
 
-        size = sizes[incoming]
-        pack = STORE_PACKS[category][size]
+            size = sizes[incoming]
+            pack = STORE_PACKS[category][size]
 
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO temp_orders (phone, item)
-            VALUES (%s, %s)
-            ON CONFLICT (phone)
-            DO UPDATE SET item = EXCLUDED.item
-        """, (phone, pack["name"]))
-        conn.commit()
-        conn.close()
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO temp_orders (phone, item)
+                VALUES (%s, %s)
+                ON CONFLICT (phone)
+                DO UPDATE SET item = EXCLUDED.item
+            """, (phone, pack["name"]))
+            conn.commit()
+            conn.close()
 
-        items_list = "\n".join([f"✔ {i}" for i in pack["items"]])
+            items_list = "\n".join([f"✔ {i}" for i in pack["items"]])
 
-        send_message(
-            phone,
-            f"📦 *{pack['name']}*\n\n"
-            f"{items_list}\n\n"
-            f"💵 Product Price: {pack['price']}\n\n"
-            "Reply *ORDER* to confirm."
-        )
+            send_message(
+                phone,
+                f"📦 *{pack['name']}*\n\n"
+                f"{items_list}\n\n"
+                f"💵 Product Price: {pack['price']}\n\n"
+                "Reply *ORDER* to confirm."
+            )
 
-        set_state(phone, "store_confirm")
-        return jsonify({"status": "ok"})
+            set_state(phone, "store_confirm")
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "store_confirm":
 
-    if incoming == "order":
-        set_state(phone, "store_delivery")
+        if incoming == "order":
+            set_state(phone, "store_delivery")
 
-        send_message(
-            phone,
-            "🚚 Enter your *Town / Area* for delivery fee calculation.\n\n"
-            "Example: Gweru"
-        )
-        return jsonify({"status": "ok"})
+            send_message(
+                phone,
+                "🚚 Enter your *Town / Area* for delivery fee calculation.\n\n"
+                "Example: Gweru"
+            )
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "store_delivery":
 
-    town = incoming.lower()
-    delivery_fee = DELIVERY_FEES.get(town, DEFAULT_DELIVERY_FEE)
+        town = incoming.lower()
+        delivery_fee = DELIVERY_FEES.get(town, DEFAULT_DELIVERY_FEE)
 
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
-    order = c.fetchone()
-    conn.close()
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
+        order = c.fetchone()
+        conn.close()
 
-    if not order:
-        send_message(phone, "❌ Order not found. Nyora *MENU*")
+        if not order:
+            send_message(phone, "❌ Order not found. Nyora *MENU*")
+            return jsonify({"status": "ok"})
+
+        item_name = order[0]
+
+        base_price = None
+        for category in STORE_PACKS.values():
+            for size in category.values():
+                if size["name"] == item_name:
+                    base_price = int(size["price"].replace("$", ""))
+                    break
+
+        if base_price is None:
+            send_message(phone, "❌ Price error.")
+            return jsonify({"status": "ok"})
+
+        total = base_price + delivery_fee
+
+        set_state(phone, "main")
+
+        send_message(
+            phone,
+            f"📦 Order: {item_name}\n"
+            f"🚚 Delivery to: {town.title()}\n"
+            f"💵 Product Price: ${base_price}\n"
+            f"🚚 Delivery Fee: ${delivery_fee}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"💰 TOTAL: ${total}\n\n"
+            "📲 Pay via EcoCash 0773 208904\n"
+            "Send proof here.\n\n"
+            "↩ Nyora *MENU* kudzokera."
+        )
+
         return jsonify({"status": "ok"})
-
-    item_name = order[0]
-
-    base_price = None
-    for category in STORE_PACKS.values():
-        for size in category.values():
-            if size["name"] == item_name:
-                base_price = int(size["price"].replace("$", ""))
-                break
-
-    if base_price is None:
-        send_message(phone, "❌ Price error.")
-        return jsonify({"status": "ok"})
-
-    total = base_price + delivery_fee
-
-    set_state(phone, "main")
-
-    send_message(
-        phone,
-        f"📦 Order: {item_name}\n"
-        f"🚚 Delivery to: {town.title()}\n"
-        f"💵 Product Price: ${base_price}\n"
-        f"🚚 Delivery Fee: ${delivery_fee}\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"💰 TOTAL: ${total}\n\n"
-        "📲 Pay via EcoCash 0773 208904\n"
-        "Send proof here.\n\n"
-        "↩ Nyora *MENU* kudzokera."
-    )
-
-    return jsonify({"status": "ok"})
-
-
-
-
         
     elif user["state"] == "detergent_menu":
 
@@ -1491,6 +1487,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
