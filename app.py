@@ -674,8 +674,9 @@ def detect_module_from_question(question):
 # =========================
 # WEBHOOK
 # =========================
+
 @app.route("/webhook", methods=["GET"])
-def verify_webhook():
+def verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
@@ -684,7 +685,25 @@ def verify_webhook():
         return challenge, 200
     return "Verification failed", 403
 
-    faq = ai_faq_reply(incoming)
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+
+    data = request.get_json()
+
+    try:
+        message = data["entry"][0]["changes"][0]["value"]["messages"][0]
+        phone = normalize_phone(message["from"])
+        incoming = message["text"]["body"].strip().lower()
+    except Exception:
+        return "OK", 200
+
+    create_user(phone)
+    user = get_user(phone)
+
+    # START OF YOUR OLD LOGIC
+
+
     if faq and incoming not in ["1","2","3","4","5","6","menu","pay","join","admin"]:
         send_message(phone, faq)
         return jsonify({"status": "ok"})
@@ -1187,6 +1206,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
