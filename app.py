@@ -575,6 +575,125 @@ STORE_ITEMS = {
         "sizes": "100g | 500g | 1kg"
     }
 }
+STORE_PACKS = {
+
+    "dishwash": {
+        "starter": {
+            "name": "Dishwash Starter Pack (10L)",
+            "price": "$18",
+            "items": [
+                "SLES 1.5kg",
+                "Sulphonic Acid 1L",
+                "Caustic Soda 300g",
+                "Salt 500g",
+                "Bermacol 100g",
+                "Dye 20g",
+                "Perfume 30ml"
+            ]
+        },
+        "medium": {
+            "name": "Dishwash Medium Pack (20L)",
+            "price": "$30",
+            "items": [
+                "SLES 3kg",
+                "Sulphonic Acid 2L",
+                "Caustic Soda 600g",
+                "Salt 1kg",
+                "Bermacol 200g",
+                "Dye 40g",
+                "Perfume 60ml"
+            ]
+        },
+        "bulk": {
+            "name": "Dishwash Bulk Business Pack (50L)",
+            "price": "$65",
+            "items": [
+                "SLES 7kg",
+                "Sulphonic Acid 5L",
+                "Caustic Soda 1.5kg",
+                "Salt 3kg",
+                "Bermacol 500g",
+                "Dye 100g",
+                "Perfume 150ml"
+            ]
+        }
+    },
+
+    "bleach": {
+        "starter": {
+            "name": "Thick Bleach Starter (10L)",
+            "price": "$15",
+            "items": [
+                "SLES 2kg",
+                "Hypochlorite 3L",
+                "Caustic Soda 300g"
+            ]
+        },
+        "medium": {
+            "name": "Thick Bleach Medium (20L)",
+            "price": "$25",
+            "items": [
+                "SLES 4kg",
+                "Hypochlorite 6L",
+                "Caustic Soda 600g"
+            ]
+        },
+        "bulk": {
+            "name": "Thick Bleach Bulk (50L)",
+            "price": "$55",
+            "items": [
+                "SLES 10kg",
+                "Hypochlorite 15L",
+                "Caustic Soda 1.5kg"
+            ]
+        }
+    },
+
+    "orange_drink": {
+        "starter": {
+            "name": "Orange Concentrate Starter (10L)",
+            "price": "$20",
+            "items": [
+                "Sugar 8kg",
+                "Orange Flavour 100ml",
+                "Citric Acid 50g",
+                "Sodium Benzoate 20g",
+                "Colour"
+            ]
+        },
+        "medium": {
+            "name": "Orange Concentrate Medium (20L)",
+            "price": "$35",
+            "items": [
+                "Sugar 16kg",
+                "Orange Flavour 200ml",
+                "Citric Acid 100g",
+                "Sodium Benzoate 40g",
+                "Colour"
+            ]
+        },
+        "bulk": {
+            "name": "Orange Concentrate Bulk (50L)",
+            "price": "$80",
+            "items": [
+                "Sugar 40kg",
+                "Orange Flavour 500ml",
+                "Citric Acid 250g",
+                "Sodium Benzoate 100g",
+                "Colour"
+            ]
+        }
+    }
+}
+DELIVERY_FEES = {
+    "mataga": 7,
+    "mberengwa": 7,
+    "gweru": 5,
+    "bulawayo": 7,
+    "harare": 3
+}
+
+DEFAULT_DELIVERY_FEE = 7  # if town not listed
 
 
 
@@ -836,20 +955,140 @@ def webhook():
             return jsonify({"status": "ok"})
 
         elif incoming == "7":
-            set_state(phone, "store")
+            set_state(phone, "store_category")
             send_message(
                 phone,
-                "🛒 *ARACHIS ONLINE STORE*\n\n"
-                "Machemicals aripo:\n"
-                "- SLES\n"
-                "- Caustic Soda\n"
-                "- Hypochlorite\n"
-                "- CDE\n"
-                "- Perfumes\n\n"
-                "🔍 Nyora chemical yauri kuda.\n"
-                "Nyora *MENU* kudzokera."
+                "🛒 *ARACHIS PRODUCTION STORE*\n\n"
+                "1️⃣ Dishwash Packs\n"
+                "2️⃣ Thick Bleach Packs\n"
+                "3️⃣ Orange Drink Packs\n\n"
+                "Reply with number."
             )
             return jsonify({"status": "ok"})
+
+        elif user["state"] == "store_category":
+
+            categories = {
+                "1": "dishwash",
+                "2": "bleach",
+                "3": "orange_drink"
+            }
+
+        if incoming in categories:
+            selected = categories[incoming]
+            set_state(phone, f"store_pack_{selected}")
+
+            send_message(
+                phone,
+                f"📦 Choose Pack Size:\n\n"
+                "1️⃣ Starter\n"
+                "2️⃣ Medium\n"
+                "3️⃣ Bulk Business\n\n"
+                "Reply with 1, 2 or 3"
+            )
+            return jsonify({"status": "ok"})
+
+        elif user["state"].startswith("store_pack_"):
+
+            category = user["state"].replace("store_pack_", "")
+
+            sizes = {
+                "1": "starter",
+                "2": "medium",
+                "3": "bulk"
+            }
+
+            if incoming in sizes:
+                size = sizes[incoming]
+                pack = STORE_PACKS[category][size]
+
+                # save order temporarily
+                conn = get_db()
+                c = conn.cursor()
+                c.execute("""
+                    INSERT INTO temp_orders (phone, item)
+                    VALUES (%s, %s)
+                    ON CONFLICT (phone)
+                    DO UPDATE SET item = EXCLUDED.item
+                """, (phone, pack["name"]))
+                conn.commit()
+                conn.close()
+
+                items_list = "\n".join([f"✔ {i}" for i in pack["items"]])
+
+                send_message(
+                    phone,
+                    f"📦 *{pack['name']}*\n\n"
+                    f"{items_list}\n\n"
+                    f"💵 Total Price: {pack['price']}\n\n"
+                    "Reply *ORDER* to confirm."
+                )
+
+                set_state(phone, "store_confirm")
+                return jsonify({"status": "ok"})
+        
+        elif user["state"] == "store_confirm":
+
+            if incoming == "order":
+                set_state(phone, "store_delivery")
+
+                send_message(
+                    phone,
+                    "🚚 Enter your *Town / Area* for delivery fee calculation.\n\n"
+                    "Example: Gweru"
+                )
+                return jsonify({"status": "ok"})
+
+        elif user["state"] == "store_delivery":
+
+            town = incoming.lower()
+
+            delivery_fee = DELIVERY_FEES.get(town, DEFAULT_DELIVERY_FEE)
+
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
+            order = c.fetchone()
+            conn.close()
+
+            if not order:
+                send_message(phone, "❌ Order not found. Nyora *MENU*")
+                return jsonify({"status": "ok"})
+
+            item_name = order[0]
+
+            # Extract base price from STORE_PACKS
+            base_price = None
+
+            for category in STORE_PACKS.values():
+                for size in category.values():
+                    if size["name"] == item_name:
+                        base_price = int(size["price"].replace("$", ""))
+                        break
+
+            if base_price is None:
+                send_message(phone, "❌ Price error.")
+                return jsonify({"status": "ok"})
+
+            total = base_price + delivery_fee
+
+            set_state(phone, "store_payment")
+
+            send_message(
+                phone,
+                f"📦 Order: {item_name}\n"
+                f"🚚 Delivery to: {town.title()}\n"
+                f"💵 Product Price: ${base_price}\n"
+                f"🚚 Delivery Fee: ${delivery_fee}\n"
+                f"━━━━━━━━━━━━━━━━\n"
+                f"💰 TOTAL: ${total}\n\n"
+                "📲 Pay via EcoCash 0773 208904\n"
+                "Send proof here.\n\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+
+            return jsonify({"status": "ok"})
+
             
         elif incoming == "8":
             send_message(phone, "📝 Kana une dambudziko raungada rubatsiro — Taura nesu pa *+263719208904*")
@@ -888,79 +1127,6 @@ def webhook():
 
         return jsonify({"status": "ok"})
         
-
-    # =========================
-    # ONLINE STORE
-    # =========================
-    elif user["state"] == "store":
-
-        for key, item in STORE_ITEMS.items():
-            if key in incoming:
-                conn = get_db()
-                c = conn.cursor()
-                c.execute(
-                  "UPDATE users SET state=%s WHERE phone=%s",
-                  ("store_view_item", phone)
-                )
-                
-                c.execute("""
-                    INSERT INTO temp_orders (phone, item)
-                    VALUES (%s, %s)
-                    ON CONFLICT (phone) DO UPDATE SET item = EXCLUDED.item
-                """, (phone, item["name"]))
-                conn.commit()
-                conn.close()
-
-                send_message(
-                    phone,
-                    f"🧪 *{item['name']}*\n\n"
-                    f"💵 Price: {item['price']}\n"
-                    f"📦 Sizes: {item['sizes']}\n\n"
-                    "✍🏽 Nyora *ORDER* kuti uende mberi"
-                )
-                return jsonify({"status": "ok"})
-
-    elif user["state"] == "store_view_item":
-
-        if incoming == "order":
-            set_state(phone, "store_quantity")
-            send_message(phone, "📦 Enter quantity (e.g. 5 litres):")
-            return jsonify({"status": "ok"})
-
-    elif user["state"] == "store_quantity":
-
-        if incoming.isdigit():
-            qty = int(incoming)
-
-            conn = get_db()
-            c = conn.cursor()
-            c.execute(
-                "UPDATE temp_orders SET quantity=%s WHERE phone=%s",
-                (qty, phone)
-            )
-
-            conn.commit()
-            conn.close()
-
-            set_state(phone, "main")
-
-            send_message(
-                phone,
-                f"✅ Order yako yatambirwa!\n\n"
-                f"📦 Quantity: {qty}\n"
-                f"📞 Order yako iri kugadzirwa.\n"
-                f"💳 Payment: EcoCash / Cash\n"
-                f"🚚 Delivery available countrywide.\n\n"
-                f"↩ Nyora *MENU* kudzokera."
-            )
-
-            return jsonify({"status": "ok"})
-
-        else:
-            send_message(phone, "❌ Tapota nyora number chete.")
-            return jsonify({"status": "ok"})
-
-
     elif user["state"] == "detergent_menu":
 
         fresh_user = get_user(phone)
@@ -1303,6 +1469,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
