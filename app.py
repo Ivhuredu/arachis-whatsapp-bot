@@ -481,8 +481,8 @@ STORE_PACKS = {
 
     "dishwash": {
         "starter": {
-            "name": "Dishwash Starter Pack (10L)",
-            "price": "$18",
+            "name": "Dishwash Starter Pack (20L)",
+            "price": "$14",
             "items": [
                 "SLES 1.5kg",
                 "Sulphonic Acid 1L",
@@ -494,8 +494,8 @@ STORE_PACKS = {
             ]
         },
         "medium": {
-            "name": "Dishwash Medium Pack (20L)",
-            "price": "$30",
+            "name": "Dishwash Medium Pack (40L)",
+            "price": "$27.5",
             "items": [
                 "SLES 3kg",
                 "Sulphonic Acid 2L",
@@ -507,7 +507,7 @@ STORE_PACKS = {
             ]
         },
         "bulk": {
-            "name": "Dishwash Bulk Business Pack (50L)",
+            "name": "Dishwash Bulk Business Pack (100L)",
             "price": "$65",
             "items": [
                 "SLES 7kg",
@@ -523,7 +523,7 @@ STORE_PACKS = {
 
     "bleach": {
         "starter": {
-            "name": "Thick Bleach Starter (10L)",
+            "name": "Thick Bleach Starter (20L)",
             "price": "$15",
             "items": [
                 "SLES 2kg",
@@ -532,8 +532,8 @@ STORE_PACKS = {
             ]
         },
         "medium": {
-            "name": "Thick Bleach Medium (20L)",
-            "price": "$25",
+            "name": "Thick Bleach Medium (40L)",
+            "price": "$29.5",
             "items": [
                 "SLES 4kg",
                 "Hypochlorite 6L",
@@ -541,7 +541,7 @@ STORE_PACKS = {
             ]
         },
         "bulk": {
-            "name": "Thick Bleach Bulk (50L)",
+            "name": "Thick Bleach Bulk (100L)",
             "price": "$55",
             "items": [
                 "SLES 10kg",
@@ -1369,6 +1369,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
