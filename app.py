@@ -354,8 +354,8 @@ def send_message(phone, text):
         "text": {"body": text}
     }
 
-    requests.post(url, headers=headers, json=payload)
-
+    response = requests.post(url, headers=headers, json=payload)
+    print(response.text)
 
 def send_pdf(phone, pdf_url, caption):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
@@ -375,7 +375,9 @@ def send_pdf(phone, pdf_url, caption):
         }
     }
 
-    requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload)
+    print(response.text)
+
 
 
 def create_user(phone):
@@ -700,10 +702,13 @@ def webhook():
 
     create_user(phone)
     user = get_user(phone)
+    if not user:
+        return "OK", 200
+
 
     # START OF YOUR OLD LOGIC
 
-
+    faq = ai_faq_reply(incoming)
     if faq and incoming not in ["1","2","3","4","5","6","menu","pay","join","admin"]:
         send_message(phone, faq)
         return jsonify({"status": "ok"})
@@ -1206,6 +1211,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
