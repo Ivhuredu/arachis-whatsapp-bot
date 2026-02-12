@@ -589,13 +589,14 @@ def main_menu():
         "6️⃣ Register for Offline Classes\n"
         "7️⃣ Online Store (Chemicals)\n"
         "8️⃣ Tsvaga Rubatsiro")
-
+    
 def free_lesson():
     return (
         "🎁 *FREE LESSON*\n\n"
         "Dishwash basics:\n"
         "✔ SLES\n✔ Salt\n✔ Dye\n✔ Perfume\n✔ Mvura\n\n"
-        "⚠ Pfeka magloves, mask ne apron."
+        "⚠ Pfeka magloves, mask ne apron.\n\n"
+        "↩ Nyora *MENU* kudzokera kumusoro."
     )
 
 # =========================
@@ -631,23 +632,27 @@ Below are the exact lessons the student has studied:
 {lessons_text}
     
 Your role:
-- Help students understand detergent making practically
-- Explain clearly in natural Shona mixed with simple English
-- Give safety tips when needed
-- Expand on lessons when helpful
-- Use examples
+- Act like a hands-on chemical trainer
+- Diagnose student mistakes
+- Explain what likely went wrong
+- Provide correction steps
+- Give prevention tips for next batch
+
 
 You teach these modules:
 Dishwash, Thick Bleach, Foam Bath, Pine Gel, Toilet Cleaner, Engine Cleaner,
 Laundry Bar, Fabric Softener, Petroleum Jelly, Floor Polish
 
 Rules:
-- Answer ONLY using the lesson content above
-- Do not add new ingredients or steps
-- Answer naturally like a real trainer (not a robot)
-- If a student asks beyond modules, relate it back practically
-- Avoid dangerous chemical advice
+- Base your answer mainly on the lesson content above
+- You may explain practical troubleshooting based on the ingredients already listed
+- Be practical and specific
+- Give real-world reasons (e.g. too much salt, too much bermacol, too little water)
+- Explain step-by-step how to fix the problem
+- Speak like a real trainer guiding a student in class
+- Avoid unsafe chemical handling advice
 - Correct mistakes politely
+
 
 Student question:
 {question}
@@ -874,8 +879,10 @@ def webhook():
             phone,
             "⏳ Payment noted.\n"
             "Mirira zvishoma tiongorore.\n\n"
-            "Tichakuzivisa nekukurumidza ✅"
+            "Tichakuzivisa nekukurumidza ✅\n\n"
+             "↩ Nyora *MENU* kudzokera."
         )
+
         return jsonify({"status": "ok"})
         
 
@@ -940,8 +947,10 @@ def webhook():
                 f"📦 Quantity: {qty}\n"
                 f"📞 Order yako iri kugadzirwa.\n"
                 f"💳 Payment: EcoCash / Cash\n"
-                f"🚚 Delivery available countrywide."
+                f"🚚 Delivery available countrywide.\n\n"
+                f"↩ Nyora *MENU* kudzokera."
             )
+
             return jsonify({"status": "ok"})
 
         else:
@@ -1217,10 +1226,9 @@ def admin_dashboard():
             📍 {location}<br>
             🧪 {detergent}<br>
             🗓 {created}<br>
+            <a href='/admin/approve-offline/{phone}'>✅ Approve</a>
             <hr>
             """
-
-
 
     html += "<hr><h3>📜 Activity Feed (Latest 100)</h3>"
 
@@ -1259,6 +1267,23 @@ def payment_success():
 def admin_approve(phone):
     mark_paid(normalize_phone(phone))
     return redirect(url_for("admin_dashboard"))
+    
+@app.route("/admin/approve-offline/<phone>")
+def approve_offline(phone):
+
+    phone = normalize_phone(phone)
+
+    # mark user as paid
+    mark_paid(phone)
+
+    # optional: log activity
+    log_activity(phone, "offline_approved", "admin")
+
+    # send confirmation message
+    send_message(phone, "🎉 Wagamuchirwa! Wava kukwanisa kuona zvidzidzo zviripo.")
+
+    return redirect(url_for("admin_dashboard"))
+
 
 @app.route("/")
 def home():
@@ -1266,6 +1291,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
