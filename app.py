@@ -661,7 +661,8 @@ def main_menu():
         "5️⃣ Join Full Online Training\n"
         "6️⃣ Register for Offline Classes\n"
         "7️⃣ Online Store (Chemicals)\n"
-        "8️⃣ Tsvaga Rubatsiro")
+        "8️⃣ Tsvaga Rubatsiro\n"
+        "9️⃣ Supplier Directory")
     
 def free_lesson():
     return (
@@ -932,6 +933,19 @@ def webhook():
             send_message(phone, "📝 Kana une dambudziko raungada rubatsiro — Taura nesu pa *+263719208904*")
             return jsonify({"status": "ok"})
 
+        elif incoming == "9":
+            set_state(phone, "supplier_directory")
+            send_message(
+                phone,
+                "🏭 *SUPPLIER DIRECTORY*\n\n"
+                "1️⃣ Detergent Ingredients\n"
+                "2️⃣ Drink Ingredients\n"
+                "3️⃣ Containers & Bottles\n\n"
+                "Reply with 1, 2 or 3.\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
+
     elif user["state"] == "pay_menu":
 
         if incoming == "1":
@@ -1084,8 +1098,58 @@ def webhook():
         )
 
         return jsonify({"status": "ok"})
+
+    elif user["state"] == "supplier_directory":
+
+        if incoming == "1":
+            send_message(
+                phone,
+                "🧪 *DETERGENT INGREDIENT SUPPLIERS*\n\n"
+                "1. Grace Rita Plastics\n"
+                "📞 +263775641533\n"
+                "📍 Harare\n\n"
+                "2. Tamayi Chemicals\n"
+                "📞 +27655521810\n"
+                "📍 South Africa\n\n"
+               "3. Nastovert Chemicals\n"
+                "📞 +263774692352\n"
+                "📍 Harare\n\n" 
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
+
+        elif incoming == "2":
+            send_message(
+                phone,
+                "🥤 *DRINK INGREDIENT SUPPLIERS*\n\n"
+                "1. Codchem Chemicals\n"
+                "📞 +263772866766\n"
+                "📍 Harare\n\n"
+                "2. Acol Chemicals\n"
+                "📞 +263778730915\n"
+                "📍 Bulawayo/ Harare\n\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
+
+        elif incoming == "3":
+            send_message(
+                phone,
+                "🧴 *CONTAINER & BOTTLE SUPPLIERS*\n\n"
+                "1. Grace Rita Plastics\n"
+                "📞 +263775641533\n"
+                "📍 Harare\n\n"
+                "2. BriPak Packaging\n"
+                "📞 +263783213322\n"
+                "📍 Harare\n\n"
+                "3. TekPak Plastics\n"
+                "📞 +263775142283\n"
+                "📍 Harare\n\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
         
-    elif user["state"] == "detergent_menu":
+     elif user["state"] == "detergent_menu":
 
         fresh_user = get_user(phone)
 
@@ -1267,23 +1331,23 @@ def webhook():
 def admin_dashboard():
 
     if request.method == "POST":
-    file = request.files.get("file")
+        file = request.files.get("file")
 
-    if file and allowed_file(file.filename):
+        if file and allowed_file(file.filename):
 
-        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+            os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
 
-        file.save(filepath)
+            file.save(filepath)
 
-        # determine module name from filename
-        module_name = filename.replace(".pdf", "")
+            # determine module name from filename
+            module_name = filename.replace(".pdf", "")
 
-        save_pdf_to_db(module_name, filename)
+            save_pdf_to_db(module_name, filename)
 
-        return redirect(url_for("admin_dashboard"))
+            return redirect(url_for("admin_dashboard"))
 
     stats = get_dashboard_stats()
 
@@ -1440,6 +1504,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
