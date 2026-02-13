@@ -113,8 +113,16 @@ def init_db():
         ALTER TABLE activity_log 
         ADD COLUMN IF NOT EXISTS details TEXT
     """)
-
-
+    
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS lesson_content (
+        id SERIAL PRIMARY KEY,
+        module TEXT UNIQUE,
+        content TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
     conn.commit()
     conn.close()
 
@@ -281,6 +289,47 @@ def extract_pdf_text(pdf_filename):
     except Exception as e:
         print("PDF READ ERROR:", e)
         return ""
+
+def save_pdf_to_db(module_name, pdf_filename):
+
+    text = extract_pdf_text(pdf_filename)
+
+    if not text:
+        print("No text extracted")
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO lesson_content (module, content)
+        VALUES (%s, %s)
+        ON CONFLICT (module)
+        DO UPDATE SET content = EXCLUDED.content
+    """, (module_name, text))
+
+    conn.commit()
+    conn.close()
+
+    print(f"Saved {module_name} to database")
+
+def get_lesson_from_db(module_name):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute(
+        "SELECT content FROM lesson_content WHERE module=%s",
+        (module_name,)
+    )
+
+    row = c.fetchone()
+    conn.close()
+
+    if row:
+        return row[0]
+
+    return ""
 
     
 def get_dashboard_stats():
@@ -658,11 +707,16 @@ def ai_trainer_reply(question, allowed_modules):
 
     for module in allowed_modules:
         if module in module_pdf_map:
-            pdf_text = extract_pdf_text(module_pdf_map[module])
-            pdf_text_blocks.append(pdf_text)
+    pdf_text_blocks = []
+
+    for module in allowed_modules:
+        lesson_text = get_lesson_from_db(module)
+
+    if lesson_text:
+        pdf_text_blocks.append(lesson_text)
 
     combined_text = "\n\n".join(pdf_text_blocks)
-
+    
     prompt = f"""
 You are a professional hands-on chemical production trainer.
 
@@ -673,13 +727,16 @@ Below is the official lesson material:
 Student question:
 {question}
 
-Instructions:
-- Diagnose the problem practically
-- Explain what likely went wrong
-- Give step-by-step correction
-- Give prevention advice for next batch
-- Be specific
-- Do NOT invent ingredients outside lesson
+Your job:
+- If the student asks HOW TO FIX a product that is already made, give immediate practical rescue steps first.
+- If the student asks WHY something happened, explain clearly.
+- If the student asks for formula guidance, give direct structured answer.
+- Only diagnose when necessary.
+- Always give practical step-by-step instructions.
+- Tell them exactly what to add, how much to add gradually, and what to observe.
+- Give prevention advice for next batch only after solving the current issue.
+- Do NOT invent new ingredients outside lesson but if students asks about a certain chemical and its relevance, give needed direction.
+- When fixing thickness problems, give gradual measurable steps (e.g., add 1 tablespoon at a time, mix 2 minutes, observe).
 - Speak naturally like a trainer and only correct grammatical shona
 """
 
@@ -1179,22 +1236,23 @@ def webhook():
             return jsonify({"status": "ok"})
 
         allowed_modules = get_user_modules(phone)
-        requested_module = detect_module_from_question(incoming)
 
-        if requested_module and requested_module in allowed_modules:
-            ai_answer = ai_trainer_reply(incoming, [requested_module])
+        if not allowed_modules:
+            send_message(phone, "🔒 Tapota vhura module kutanga.")
+            return jsonify({"status": "ok"})
+
+        # If user has 2 or more modules → allow full cross-module AI
+        if len(allowed_modules) >= 2:
+            ai_answer = ai_trainer_reply(incoming, allowed_modules)
             log_activity(phone, "ai_question", incoming)
             send_message(phone, ai_answer)
             return jsonify({"status": "ok"})
 
-        else:
-            send_message(
-                phone,
-                "❗ Mubvunzo wako hauna kuenderana ne module yawakavhura.\n"
-                "Tapota bvunza nezve module yawadzidza."
-            )
-            log_activity(phone, "blocked_access", "ai_out_of_scope")
-            return jsonify({"status": "ok"})
+        # If user has only 1 module → still allow AI but only that module
+        ai_answer = ai_trainer_reply(incoming, allowed_modules)
+        log_activity(phone, "ai_question", incoming)
+        send_message(phone, ai_answer)
+        return jsonify({"status": "ok"})
 
     # ===== DEFAULT FALLBACK =====
     send_message(phone, "Nyora *MENU*")
@@ -1208,11 +1266,23 @@ def webhook():
 def admin_dashboard():
 
     if request.method == "POST":
-        file = request.files.get("file")
-        if file and allowed_file(file.filename):
-            os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-            file.save(os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(file.filename)))
-            return redirect(url_for("admin_dashboard"))
+    file = request.files.get("file")
+
+    if file and allowed_file(file.filename):
+
+        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+
+        file.save(filepath)
+
+        # determine module name from filename
+        module_name = filename.replace(".pdf", "")
+
+        save_pdf_to_db(module_name, filename)
+
+        return redirect(url_for("admin_dashboard"))
 
     stats = get_dashboard_stats()
 
@@ -1369,6 +1439,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
