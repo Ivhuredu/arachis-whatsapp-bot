@@ -704,18 +704,19 @@ def ai_trainer_reply(question, allowed_modules):
         "raspberry_drink": "raspberry_drink.pdf",
         "cream_soda": "cream_soda.pdf"
     }
-
-    for module in allowed_modules:
-        if module in module_pdf_map:
     pdf_text_blocks = []
 
     for module in allowed_modules:
         lesson_text = get_lesson_from_db(module)
 
-    if lesson_text:
-        pdf_text_blocks.append(lesson_text)
+        if lesson_text:
+            pdf_text_blocks.append(lesson_text)
 
     combined_text = "\n\n".join(pdf_text_blocks)
+
+    # Limit lesson content size to prevent token overload
+    combined_text = combined_text[:8000]
+
     
     prompt = f"""
 You are a professional hands-on chemical production trainer.
@@ -1439,6 +1440,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
