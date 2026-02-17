@@ -1445,7 +1445,7 @@ def admin_dashboard():
     GROUP BY phone
     ORDER BY COUNT(*) DESC
     """)
-   c.execute("""
+    c.execute("""
     SELECT phone, total_messages, ai_questions, modules_opened, last_active
     FROM student_metrics
     ORDER BY last_active DESC
@@ -1596,6 +1596,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
