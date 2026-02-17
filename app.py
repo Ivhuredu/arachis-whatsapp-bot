@@ -218,6 +218,8 @@ def set_state(phone, state):
     conn.commit()
     conn.close()
 
+    log_activity(phone, "state_change", state)
+
 def set_payment_status(phone, status):
     conn = get_db()
     c = conn.cursor()
@@ -803,6 +805,7 @@ def webhook():
         message = data["entry"][0]["changes"][0]["value"]["messages"][0]
         phone = normalize_phone(message["from"])
         incoming = message["text"]["body"].strip().lower()
+        log_activity(phone, "incoming_message", incoming)
     except Exception:
         return "OK", 200
 
@@ -1317,6 +1320,7 @@ def webhook():
         ai_answer = ai_trainer_reply(incoming, allowed_modules)
         log_activity(phone, "ai_question", incoming)
         send_message(phone, ai_answer)
+        log_activity(phone, "ai_answer", ai_answer[:500])
         return jsonify({"status": "ok"})
 
     # ===== DEFAULT FALLBACK =====
@@ -1372,6 +1376,23 @@ def admin_dashboard():
         ORDER BY created_at DESC
     """)
     offline_regs = c.fetchall()
+    
+    c.execute("""
+    SELECT details, COUNT(*)
+    FROM activity_log
+    WHERE action='open_module'
+    GROUP BY details
+    ORDER BY COUNT(*) DESC
+    """)
+    popular_modules = c.fetchall()
+
+    c.execute("""
+    SELECT phone, COUNT(*)
+    FROM activity_log
+    WHERE action='blocked_access'
+    GROUP BY phone
+    ORDER BY COUNT(*) DESC
+    """)
 
 
     conn.close()
@@ -1504,6 +1525,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
