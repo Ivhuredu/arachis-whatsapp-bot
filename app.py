@@ -122,6 +122,16 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS student_metrics (
+        phone TEXT PRIMARY KEY,
+        total_messages INTEGER DEFAULT 0,
+        ai_questions INTEGER DEFAULT 0,
+        modules_opened INTEGER DEFAULT 0,
+        last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
     
     conn.commit()
     conn.close()
@@ -219,6 +229,44 @@ def set_state(phone, state):
     conn.close()
 
     log_activity(phone, "state_change", state)
+
+def update_metrics(phone, event):
+    conn = get_db()
+    c = conn.cursor()
+
+    # ensure row exists
+    c.execute("""
+        INSERT INTO student_metrics (phone)
+        VALUES (%s)
+        ON CONFLICT (phone) DO NOTHING
+    """, (phone,))
+
+    if event == "message":
+        c.execute("""
+            UPDATE student_metrics
+            SET total_messages = total_messages + 1,
+                last_active = CURRENT_TIMESTAMP
+            WHERE phone=%s
+        """, (phone,))
+
+    elif event == "ai":
+        c.execute("""
+            UPDATE student_metrics
+            SET ai_questions = ai_questions + 1,
+                last_active = CURRENT_TIMESTAMP
+            WHERE phone=%s
+        """, (phone,))
+
+    elif event == "module":
+        c.execute("""
+            UPDATE student_metrics
+            SET modules_opened = modules_opened + 1,
+                last_active = CURRENT_TIMESTAMP
+            WHERE phone=%s
+        """, (phone,))
+
+    conn.commit()
+    conn.close()
 
 def set_payment_status(phone, status):
     conn = get_db()
@@ -805,6 +853,7 @@ def webhook():
         message = data["entry"][0]["changes"][0]["value"]["messages"][0]
         phone = normalize_phone(message["from"])
         incoming = message["text"]["body"].strip().lower()
+        update_metrics(phone, "message")
         log_activity(phone, "incoming_message", incoming)
     except Exception:
         return "OK", 200
@@ -1178,6 +1227,7 @@ def webhook():
             module, pdf, label = modules[incoming]
             record_module_access(phone, module)
             send_pdf(phone,
+                update_metrics(phone, "module")     
                 f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
                 label
             )
@@ -1279,6 +1329,7 @@ def webhook():
 
             send_pdf(
                 phone,
+                update_metrics(phone, "module")
                 f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
                 label
             )
@@ -1320,6 +1371,7 @@ def webhook():
         ai_answer = ai_trainer_reply(incoming, allowed_modules)
         log_activity(phone, "ai_question", incoming)
         send_message(phone, ai_answer)
+        update_metrics(phone, "ai")
         log_activity(phone, "ai_answer", ai_answer[:500])
         return jsonify({"status": "ok"})
 
@@ -1393,6 +1445,13 @@ def admin_dashboard():
     GROUP BY phone
     ORDER BY COUNT(*) DESC
     """)
+   c.execute("""
+    SELECT phone, total_messages, ai_questions, modules_opened, last_active
+    FROM student_metrics
+    ORDER BY last_active DESC
+    LIMIT 50
+    """)
+    students = c.fetchall() 
 
 
     conn.close()
@@ -1411,6 +1470,7 @@ def admin_dashboard():
     </ul>
     <hr>
     """
+    
 
     # ===== UPLOAD =====
     html += """
@@ -1454,6 +1514,17 @@ def admin_dashboard():
             <a href='/admin/approve-offline/{phone}'>✅ Approve</a>
             <hr>
             """
+        html += "<hr><h3>🧠 Student Intelligence</h3>"
+
+        for s in students:
+            html += f"""
+            📱 {s[0]} |
+            💬 Msgs: {s[1]} |
+            🤖 AI: {s[2]} |
+            📚 Modules: {s[3]} |
+            🕒 Last: {s[4]}
+            <br>
+            """        
 
     html += "<hr><h3>📜 Activity Feed (Latest 100)</h3>"
 
@@ -1525,6 +1596,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
