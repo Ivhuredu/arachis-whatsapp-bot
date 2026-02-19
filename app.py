@@ -1595,7 +1595,7 @@ def admin_dashboard():
             <hr>
             """
 
-    html += "<hr><h3>📜 Activity Feed (Latest 500)</h3>"
+    html += "<hr><h3>📜 Activity Feed (Latest 1000)</h3>"
 
     # ===== ACTIVITY FEED =====
     for a in activities:
@@ -1678,6 +1678,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
