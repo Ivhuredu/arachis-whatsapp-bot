@@ -369,16 +369,33 @@ def extract_pdf_text(pdf_filename):
         print("PDF READ ERROR:", e)
         return ""
 
+def clean_pdf_text(text: str) -> str:
+    if not text:
+        return ""
+
+    # remove null bytes (critical for postgres)
+    text = text.replace("\x00", "")
+
+    # remove other invisible control chars except newline/tab
+    text = "".join(ch for ch in text if ord(ch) >= 32 or ch in "\n\t")
+
+    # compress excessive whitespace
+    text = " ".join(text.split())
+
+    return text
+
 def save_pdf_to_db(module_name, pdf_filename):
-
+    
+    raw_text = extract_pdf_text(pdf_filename)
     text = extract_pdf_text(pdf_filename)
-
+    
     if not text:
         print("No text extracted")
         return
 
     conn = get_db()
     c = conn.cursor()
+    text = text[:120000]  # prevent huge context pollution
 
     c.execute("""
         INSERT INTO lesson_content (module, content)
@@ -1661,6 +1678,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
