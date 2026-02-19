@@ -204,6 +204,35 @@ def create_user(phone):
     conn.commit()
     conn.close()
 
+def get_unpaid_active_users():
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+    SELECT u.phone
+    FROM users u
+    LEFT JOIN student_metrics s ON u.phone = s.phone
+    WHERE u.is_paid = 0
+    AND (s.total_messages > 2 OR s.modules_opened > 0)
+    """)
+
+    rows = c.fetchall()
+    conn.close()
+
+    return [r[0] for r in rows]
+
+def followup_message():
+    return (
+        "👋 Makadii!\n\n"
+        "Takaona makamboshandisa Arachis Training Bot asi hamusati mapedza kunyoresa.\n\n"
+        "Vanhu vazhinji vari kutotanga kugadzira dishwash & bleach vari kumba 🧼\n\n"
+        "💵 Full course: $5 once-off\n"
+        "✔ 20 detergent modules\n"
+        "✔ 6 drink modules\n"
+        "✔ Rubatsiro rwe AI kana wasangana nedambudziko\n\n"
+        "Nyora *PAY* kuti utange kana *MENU* kuona zvirimo."
+    )
+
 def get_user(phone):
     conn = get_db()
     c = conn.cursor()
@@ -1541,6 +1570,12 @@ def admin_dashboard():
         [{created_at}] <b>{phone}</b> → {action} ({details})
         </small><br>
         """
+        html += """
+        <hr>
+        <h3>📣 Marketing</h3>
+        <a href="/admin/followup-unpaid">Send follow-up to unpaid users</a>
+        <hr>
+        """
     return html
 
     if status == "Paid":
@@ -1581,6 +1616,18 @@ def approve_offline(phone):
 
     return redirect(url_for("admin_dashboard"))
 
+@app.route("/admin/followup-unpaid")
+def followup_unpaid():
+
+    users = get_unpaid_active_users()
+
+    count = 0
+    for phone in users:
+        send_message(phone, followup_message())
+        count += 1
+
+    return f"Sent followups to {count} users"
+
 @app.route("/data-deletion")
 def data_deletion():
     return """
@@ -1597,6 +1644,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
