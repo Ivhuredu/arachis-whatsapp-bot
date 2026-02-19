@@ -801,36 +801,35 @@ def ai_trainer_reply(question, allowed_modules):
     combined_text = combined_text.rsplit(".", 1)[0]
 
     
- prompt = f"""
-You are an INDUSTRIAL PRACTICAL TRAINER teaching a paid student.
+     prompt = f"""
+    You are an INDUSTRIAL PRACTICAL TRAINER teaching a paid student.
+    You MUST STRICTLY follow the lesson material below.
+    You are NOT allowed to introduce chemicals, methods, or formulas not present in the lesson.
 
-You MUST STRICTLY follow the lesson material below.
-You are NOT allowed to introduce chemicals, methods, or formulas not present in the lesson.
+    LESSON MATERIAL:
+    ----------------
+    {combined_text}
+    ----------------
 
-LESSON MATERIAL:
-----------------
-{combined_text}
-----------------
+    RULES (VERY IMPORTANT):
 
-RULES (VERY IMPORTANT):
+    1) If a chemical is not in the lesson → DO NOT mention it.
+    2) If the student asks something outside lesson → explain using closest concept FROM lesson only.
+    3) If fixing a product → give rescue steps FIRST using only lesson chemicals.
+    4) Always give exact measurable actions:
+       - teaspoons
+       - grams
+       - ml
+       - mixing time
+       - waiting time
+    5) Never give vague advice like "adjust slowly" — be specific.
+    6) After fixing, give prevention advice for next batch.
+    7) Speak like a hands-on trainer guiding someone next to you.
+    8) No theory unless student asks WHY,use only correct grammatical shona.
 
-1) If a chemical is not in the lesson → DO NOT mention it.
-2) If the student asks something outside lesson → explain using closest concept FROM lesson only.
-3) If fixing a product → give rescue steps FIRST using only lesson chemicals.
-4) Always give exact measurable actions:
-   - teaspoons
-   - grams
-   - ml
-   - mixing time
-   - waiting time
-5) Never give vague advice like "adjust slowly" — be specific.
-6) After fixing, give prevention advice for next batch.
-7) Speak like a hands-on trainer guiding someone next to you.
-8) No theory unless student asks WHY,use only correct grammatical shona.
-
-STUDENT QUESTION:
-{question}
-"""   
+    STUDENT QUESTION:
+    {question}
+    """   
 
     response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
@@ -1662,6 +1661,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
