@@ -226,7 +226,7 @@ def followup_message():
         "👋 Makadii!\n\n"
         "Takaona makamboshandisa Arachis Training Bot asi hamusati mapedza kunyoresa.\n\n"
         "Vanhu vazhinji vari kutotanga kugadzira dishwash & bleach vari kumba 🧼\n\n"
-        "💵 Full course: $5 once-off\n"
+        "💵 Full course: $5 once-off. Promotion iyi iri kupera musi wa 15 March\n"
         "✔ 20 detergent modules\n"
         "✔ 6 drink modules\n"
         "✔ Rubatsiro rwe AI kana wasangana nedambudziko\n\n"
@@ -1554,7 +1554,13 @@ def admin_dashboard():
             📚 Modules: {s[3]} |
             🕒 Last: {s[4]}
             <br>
-            """        
+            """    
+            html += """
+            <hr>
+            <h3>📣 Marketing</h3>
+            <a href="/admin/followup-unpaid">Send follow-up to unpaid users</a>
+            <hr>
+            """
 
     html += "<hr><h3>📜 Activity Feed (Latest 100)</h3>"
 
@@ -1570,12 +1576,7 @@ def admin_dashboard():
         [{created_at}] <b>{phone}</b> → {action} ({details})
         </small><br>
         """
-        html += """
-        <hr>
-        <h3>📣 Marketing</h3>
-        <a href="/admin/followup-unpaid">Send follow-up to unpaid users</a>
-        <hr>
-        """
+        
     return html
 
     if status == "Paid":
@@ -1644,6 +1645,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
