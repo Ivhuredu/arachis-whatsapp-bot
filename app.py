@@ -801,7 +801,7 @@ def ai_trainer_reply(question, allowed_modules):
     combined_text = combined_text.rsplit(".", 1)[0]
 
     
-     prompt = f"""
+    prompt = f"""
     You are an INDUSTRIAL PRACTICAL TRAINER teaching a paid student.
     You MUST STRICTLY follow the lesson material below.
     You are NOT allowed to introduce chemicals, methods, or formulas not present in the lesson.
@@ -1661,6 +1661,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
