@@ -1254,13 +1254,16 @@ def webhook():
 
         if incoming in modules:
             module, pdf, label = modules[incoming]
+
+            # record usage
             update_metrics(phone, "module")
-            record_module_access(phone, module),
-            send_pdf(phone,
-                     
-                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
-                label
-            )
+            record_module_access(phone, module)
+            log_activity(phone, "open_module", module)
+
+            # send lesson
+            pdf_url = f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}"
+            send_pdf(phone, pdf_url, label)
+
             return jsonify({"status": "ok"})
 
     elif user["state"] == "offline_intro":
@@ -1394,6 +1397,9 @@ def webhook():
         if len(allowed_modules) >= 2:
             ai_answer = ai_trainer_reply(incoming, allowed_modules)
             log_activity(phone, "ai_question", incoming)
+            update_metrics(phone, "ai")   # ← ADD THIS LINE
+            log_activity(phone, "ai_answer", ai_answer[:500])
+            
             send_message(phone, ai_answer)
             return jsonify({"status": "ok"})
 
@@ -1562,7 +1568,7 @@ def admin_dashboard():
             <hr>
             """
 
-    html += "<hr><h3>📜 Activity Feed (Latest 100)</h3>"
+    html += "<hr><h3>📜 Activity Feed (Latest 500)</h3>"
 
     # ===== ACTIVITY FEED =====
     for a in activities:
@@ -1645,6 +1651,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
