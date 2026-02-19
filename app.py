@@ -793,33 +793,44 @@ def ai_trainer_reply(question, allowed_modules):
             pdf_text_blocks.append(lesson_text)
 
     combined_text = "\n\n".join(pdf_text_blocks)
-
+    if not combined_text.strip():
+        return "Ndapota vhura module rine chidzidzo ichi kutanga kuti ndikubatsire zvakarurama."
+        
     # Limit lesson content size to prevent token overload
-    combined_text = combined_text[:8000]
+    combined_text = combined_text[:12000]
+    combined_text = combined_text.rsplit(".", 1)[0]
 
     
-    prompt = f"""
-You are a professional hands-on chemical production trainer.
+ prompt = f"""
+You are an INDUSTRIAL PRACTICAL TRAINER teaching a paid student.
 
-Below is the official lesson material:
+You MUST STRICTLY follow the lesson material below.
+You are NOT allowed to introduce chemicals, methods, or formulas not present in the lesson.
 
+LESSON MATERIAL:
+----------------
 {combined_text}
+----------------
 
-Student question:
+RULES (VERY IMPORTANT):
+
+1) If a chemical is not in the lesson → DO NOT mention it.
+2) If the student asks something outside lesson → explain using closest concept FROM lesson only.
+3) If fixing a product → give rescue steps FIRST using only lesson chemicals.
+4) Always give exact measurable actions:
+   - teaspoons
+   - grams
+   - ml
+   - mixing time
+   - waiting time
+5) Never give vague advice like "adjust slowly" — be specific.
+6) After fixing, give prevention advice for next batch.
+7) Speak like a hands-on trainer guiding someone next to you.
+8) No theory unless student asks WHY,use only correct grammatical shona.
+
+STUDENT QUESTION:
 {question}
-
-Your job:
-- If the student asks HOW TO FIX a product that is already made, give immediate practical rescue steps first.
-- If the student asks WHY something happened, explain clearly.
-- If the student asks for formula guidance, give direct structured answer.
-- Only diagnose when necessary.
-- Always give practical step-by-step instructions.
-- Tell them exactly what to add, how much to add gradually, and what to observe.
-- Give prevention advice for next batch only after solving the current issue.
-- Do NOT invent new ingredients outside lesson but if students asks about a certain chemical and its relevance, give needed direction.
-- When fixing thickness problems, give gradual measurable steps (e.g., add 1 tablespoon at a time, mix 2 minutes, observe).
-- Speak naturally like a trainer and only correct grammatical shona
-"""
+"""   
 
     response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
@@ -1651,6 +1662,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
