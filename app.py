@@ -1225,9 +1225,10 @@ def webhook():
 
         if incoming in modules:
             module, pdf, label = modules[incoming]
-            update_metrics(phone, "module") 
+            update_metrics(phone, "module")
+            record_module_access(phone, module),
             send_pdf(phone,
-                record_module_access(phone, module),     
+                     
                 f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
                 label
             )
@@ -1596,6 +1597,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
