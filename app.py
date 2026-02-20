@@ -135,6 +135,16 @@ def init_db():
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS last_followup TIMESTAMP
     """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS ai_memory (
+        id SERIAL PRIMARY KEY,
+        phone TEXT,
+        module TEXT,
+        role TEXT,
+        message TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
     
     
     conn.commit()
@@ -358,6 +368,57 @@ def log_activity(phone, action, details=""):
     """, (phone, action, details))
     conn.commit()
     conn.close()
+
+# =========================
+# AI MEMORY SYSTEM
+# =========================
+
+MAX_MEMORY_MESSAGES = 12   # last 6 exchanges
+
+def save_memory(phone, module, role, message):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO ai_memory (phone, module, role, message)
+        VALUES (%s,%s,%s,%s)
+    """, (phone, module, role, message))
+
+    # Trim old memory (keep only last N)
+    c.execute("""
+        DELETE FROM ai_memory
+        WHERE id NOT IN (
+            SELECT id FROM ai_memory
+            WHERE phone=%s AND module=%s
+            ORDER BY created_at DESC
+            LIMIT %s
+        )
+        AND phone=%s AND module=%s
+    """, (phone, module, MAX_MEMORY_MESSAGES, phone, module))
+
+    conn.commit()
+    conn.close()
+
+
+def get_memory(phone, module):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT role, message
+        FROM ai_memory
+        WHERE phone=%s AND module=%s
+        ORDER BY created_at ASC
+    """, (phone, module))
+
+    rows = c.fetchall()
+    conn.close()
+
+    memory = []
+    for r in rows:
+        memory.append({"role": r[0], "content": r[1]})
+
+    return memory
 
 def extract_pdf_text(pdf_filename):
 
@@ -828,7 +889,7 @@ def ai_faq_reply(msg):
     return None
 
 # ✅ MODIFIED (MODULE-AWARE AI)
-def ai_trainer_reply(question, allowed_modules):
+def ai_trainer_reply(phone, question, allowed_modules):
 
     pdf_text_blocks = []
 
@@ -845,6 +906,11 @@ def ai_trainer_reply(question, allowed_modules):
     # Limit lesson content size to prevent token overload
     combined_text = combined_text[:12000]
     combined_text = combined_text.rsplit(".", 1)[0]
+
+    # determine active module (latest opened)
+    active_module = allowed_modules[-1]
+
+    memory_messages = get_memory(phone, active_module)
 
     
     prompt = f"""
@@ -877,12 +943,27 @@ def ai_trainer_reply(question, allowed_modules):
     {question}
     """   
 
+    messages = [
+    {"role": "system", "content": prompt}
+    ]
+
+    messages.extend(memory_messages)
+    messages.append({"role": "user", "content": question})
+
     response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
+        messages=messages,
         max_tokens=600,
-        temperature=0.6
+        temperature=0.5
     )
+
+    answer = response.choices[0].message.content.strip()
+
+    # save conversation
+    save_memory(phone, active_module, "user", question)
+    save_memory(phone, active_module, "assistant", answer)
+
+    return answer
 
     return response.choices[0].message.content.strip()
 
@@ -1341,6 +1422,12 @@ def webhook():
                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
                label
            )
+           # ===== RESET AI MEMORY FOR THIS MODULE =====
+           conn = get_db()
+           c = conn.cursor()
+           c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
+           conn.commit()
+           conn.close() 
            return jsonify({"status": "ok"})
 
     elif user["state"] == "offline_intro":
@@ -1443,6 +1530,12 @@ def webhook():
                 f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
                 label
             )
+            # ===== RESET AI MEMORY FOR THIS MODULE =====
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
+            conn.commit()
+            conn.close()
             return jsonify({"status": "ok"})
 
     # =========================
@@ -1470,7 +1563,7 @@ def webhook():
 
         # If user has 2 or more modules → allow full cross-module AI
         if len(allowed_modules) >= 2:
-            ai_answer = ai_trainer_reply(incoming, allowed_modules)
+            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")   # ← ADD THIS LINE
             log_activity(phone, "ai_answer", ai_answer[:500])
@@ -1479,7 +1572,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         # If user has only 1 module → still allow AI but only that module
-        ai_answer = ai_trainer_reply(incoming, allowed_modules)
+        ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
         log_activity(phone, "ai_question", incoming)
         send_message(phone, ai_answer)
         update_metrics(phone, "ai")
@@ -1738,6 +1831,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
