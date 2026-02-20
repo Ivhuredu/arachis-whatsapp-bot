@@ -474,6 +474,44 @@ def get_user_modules(phone):
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+ALL_MODULES = {
+
+    # ===== DETERGENTS =====
+    "dishwash": ("dishwash.pdf", "🧼 DISHWASH"),
+    "thick_bleach": ("thick_bleach.pdf", "🧴 THICK BLEACH"),
+    "foam_bath": ("foam_bath.pdf", "🛁 FOAM BATH"),
+    "pine_gel": ("pine_gel.pdf", "🌲 PINE GEL"),
+    "toilet_cleaner": ("toilet_cleaner.pdf", "🚽 TOILET CLEANER"),
+    "engine_cleaner": ("engine_cleaner.pdf", "🛠 ENGINE CLEANER"),
+    "laundry_bar": ("laundry_bar.pdf", "🧱 LAUNDRY BAR"),
+    "fabric_softener": ("fabric_softener.pdf", "🧺 FABRIC SOFTENER"),
+    "petroleum_jelly": ("petroleum_jelly.pdf", "🧴 PETROLEUM JELLY"),
+    "floor_polish": ("floor_polish.pdf", "✨ FLOOR POLISH"),
+
+    # NEW
+    "car_shampoo": ("car_shampoo.pdf", "🚗 CAR SHAMPOO"),
+    "acidic_degreaser": ("acidic_metal_degreaser.pdf", "⚙️ ACIDIC METAL DEGREASER"),
+    "tyre_polish": ("tyre_polish.pdf", "🛞 TYRE POLISH"),
+    "liquid_shoe_polish": ("liquid_shoe_polish.pdf", "👞 LIQUID SHOE POLISH"),
+    "tile_cleaner": ("tile_cleaner.pdf", "🧱 TILE CLEANER"),
+    "paste_shoe_polish": ("shoe_polish.pdf", "👞 SHOE POLISH PASTE"),
+    "hair_conditioner": ("hair_conditioner.pdf", "💇 HAIR CONDITIONER"),
+    "washing_paste": ("washing_paste.pdf", "🧴 WASHING PASTE"),
+    "bath_soap": ("bath_soap.pdf", "🧼 BATH SOAP"),
+    "hair_shampoo": ("hair_shampoo.pdf", "🧴 HAIR SHAMPOO"),
+
+    # ===== DRINKS =====
+    "orange_drink": ("orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
+    "raspberry_drink": ("raspberry_drink.pdf", "🍓 RASPBERRY"),
+    "cream_soda": ("cream_soda.pdf", "🥤 CREAM SODA"),
+
+    # NEW
+    "freezits": ("freezits.pdf", "🧊 FREEZITS"),
+    "ice_cream": ("ice_cream.pdf", "🍦 ICE CREAM"),
+    "baobab_drink": ("baobab_drink.pdf", "🌳 BAOBAB DRINK"),
+    "juice_cascade": ("juice_cascade.pdf", "🧃 JUICE CASCADE")
+}
+
 STORE_ITEMS = {
     "sles": {
         "name": "SLES (Sodium Lauryl Ether Sulfate)",
@@ -784,30 +822,13 @@ def ai_faq_reply(msg):
 # ✅ MODIFIED (MODULE-AWARE AI)
 def ai_trainer_reply(question, allowed_modules):
 
-    pdf_text_blocks = []
+     pdf_text_blocks = []
 
-    module_pdf_map = {
-        "dishwash": "dishwash.pdf",
-        "thick_bleach": "thick_bleach.pdf",
-        "foam_bath": "foam_bath.pdf",
-        "pine_gel": "pine_gel.pdf",
-        "toilet_cleaner": "toilet_cleaner.pdf",
-        "engine_cleaner": "engine_cleaner.pdf",
-        "laundry_bar": "laundry_bar.pdf",
-        "fabric_softener": "fabric_softener.pdf",
-        "petroleum_jelly": "petroleum_jelly.pdf",
-        "floor_polish": "floor_polish.pdf",
-        "orange_drink": "orange_drink.pdf",
-        "raspberry_drink": "raspberry_drink.pdf",
-        "cream_soda": "cream_soda.pdf"
-    }
-    pdf_text_blocks = []
+     for module in allowed_modules:
+         lesson_text = get_lesson_from_db(module)
 
-    for module in allowed_modules:
-        lesson_text = get_lesson_from_db(module)
-
-        if lesson_text:
-            pdf_text_blocks.append(lesson_text)
+         if lesson_text:
+             pdf_text_blocks.append(lesson_text)
 
     combined_text = "\n\n".join(pdf_text_blocks)
     if not combined_text.strip():
@@ -881,7 +902,19 @@ def detect_module_from_question(question):
         return "petroleum_jelly"
     if "polish" in q:
         return "floor_polish"
-
+    if "car shampoo" in q: return "car_shampoo"
+    if "degreaser" in q: return "acidic_degreaser"
+    if "tyre" in q: return "tyre_polish"
+    if "shoe polish" in q: return "paste_shoe_polish"
+    if "tile" in q: return "tile_cleaner"
+    if "conditioner" in q: return "hair_conditioner"
+    if "washing paste" in q: return "washing_paste"
+    if "bath soap" in q: return "bath_soap"
+    if "hair shampoo" in q: return "hair_shampoo"
+    if "freezits" in q: return "freezits"
+    if "ice cream" in q: return "ice_cream"
+    if "baobab" in q: return "baobab_drink"
+    if "cascade" in q: return "juice_cascade"
     return None
 
 
@@ -970,18 +1003,28 @@ def webhook():
             set_state(phone, "detergent_menu")
             log_activity(phone, "open_menu", "detergents")
             send_message(phone,
-                "🧼 *DETERGENTS – PAID LESSONS*\n\n"
-                "1️⃣ Dishwash\n"
-                "2️⃣ Thick Bleach\n"
-                "3️⃣ Foam Bath\n"
-                "4️⃣ Pine Gel\n"
-                "5️⃣ Toilet Cleaner\n"
-                "6️⃣ Engine Cleaner\n"
-                "7️⃣ Laundry Bar Soap\n"
-                "8️⃣ Fabric Softener\n"
-                "9️⃣ Petroleum Jelly\n"
-                "🔟 Floor Polish\n\n"
-                "Nyora *MENU* kudzokera kumusoro"
+            "🧼 *DETERGENTS – PAID LESSONS*\n\n"
+            "1 Dishwash\n"
+            "2 Thick Bleach\n"
+            "3 Foam Bath\n"
+            "4 Pine Gel\n"
+            "5 Toilet Cleaner\n"
+            "6 Engine Cleaner\n"
+            "7 Laundry Bar Soap\n"
+            "8 Fabric Softener\n"
+            "9 Petroleum Jelly\n"
+            "10 Floor Polish\n"
+            "11 Car Shampoo\n"
+            "12 Acidic Metal Degreaser\n"
+            "13 Tyre Polish\n"
+            "14 Liquid Shoe Polish\n"
+            "15 Tile Cleaner\n"
+            "16 Shoe Polish Paste\n"
+            "17 Hair Conditioner\n"
+            "18 Washing Paste\n"
+            "19 Bath Soap\n"
+            "20 Hair Shampoo\n\n"
+            "Nyora *MENU* kudzokera"
             )
             return jsonify({"status": "ok"})
 
@@ -1265,33 +1308,26 @@ def webhook():
 
             send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
             return jsonify({"status": "ok"})
+         detergent_keys = [
+         "dishwash","thick_bleach","foam_bath","pine_gel","toilet_cleaner",
+         "engine_cleaner","laundry_bar","fabric_softener","petroleum_jelly","floor_polish",
+         "car_shampoo","acidic_degreaser","tyre_polish","liquid_shoe_polish","tile_cleaner",
+         "shoe_polish","hair_conditioner","washing_paste","bath_soap","hair_shampoo"
+         ]
 
-        modules = {
-            "1": ("dishwash", "dishwash.pdf", "🧼 DISHWASH"),
-            "2": ("thick_bleach", "thick_bleach.pdf", "🧴 THICK BLEACH"),
-            "3": ("foam_bath", "foam_bath.pdf", "📘 FOAM BATH"),
-            "4": ("pine_gel", "pine_gel.pdf", "🌲 PINE GEL"),
-            "5": ("toilet_cleaner", "toilet_cleaner.pdf", "🚽 TOILET CLEANER"),
-            "6": ("engine_cleaner", "engine_cleaner.pdf", "🛠 ENGINE CLEANER"),
-            "7": ("laundry_bar", "laundry_bar.pdf", "📘 LAUNDRY BAR"),
-            "8": ("fabric_softener", "fabric_softener.pdf", "🌲 FABRIC SOFTENER"),
-            "9": ("petroleum_jelly", "petroleum_jelly.pdf", "🚽 PETROLEUM JELLY"),
-            "10": ("floor_polish", "floor_polish.pdf", "🛠 FLOOR POLISH")
-        }
+        if incoming.isdigit() and 1 <= int(incoming) <= len(detergent_keys):
 
-        if incoming in modules:
-            module, pdf, label = modules[incoming]
+           module = detergent_keys[int(incoming)-1]
+           pdf, label = ALL_MODULES[module]
 
-            # record usage
-            update_metrics(phone, "module")
-            record_module_access(phone, module)
-            log_activity(phone, "open_module", module)
+           update_metrics(phone, "module")
+           record_module_access(phone, module)
 
-            # send lesson
-            pdf_url = f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}"
-            send_pdf(phone, pdf_url, label)
-
-            return jsonify({"status": "ok"})
+           send_pdf(phone,
+               f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+               label
+           )
+           return jsonify({"status": "ok"})
 
     elif user["state"] == "offline_intro":
 
@@ -1375,27 +1411,24 @@ def webhook():
             log_activity(phone, "blocked_access", "drink_modules")
             return jsonify({"status": "ok"})
 
-        drink_modules = {
-            "1": ("orange_drink", "orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
-            "2": ("raspberry_drink", "raspberry_drink.pdf", "🍓 RASPBERRY CONCENTRATE"),
-            "3": ("cream_soda", "cream_soda.pdf", "🥤 CREAM SODA")
-        }
+        drink_keys = [
+        "orange_drink","raspberry_drink","cream_soda",
+        "freezits","ice_cream","baobab_drink","juice_cascade"
+        ]
 
-        if incoming in drink_modules:
-            module, pdf, label = drink_modules[incoming]
+        if incoming.isdigit() and 1 <= int(incoming) <= len(drink_keys):
+
+             module = drink_keys[int(incoming)-1]
+            pdf, label = ALL_MODULES[module]
 
             record_module_access(phone, module)
-            log_activity(phone, "open_module", module)
             update_metrics(phone, "module")
 
-            send_pdf(
-                phone,
+            send_pdf(phone,
                 f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
                 label
             )
             return jsonify({"status": "ok"})
-
-   
 
     # =========================
     # AI TRAINER (MODULE RESTRICTED)
@@ -1678,6 +1711,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
