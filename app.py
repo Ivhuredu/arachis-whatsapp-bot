@@ -131,6 +131,10 @@ def init_db():
         last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_followup TIMESTAMP
+    """)
     
     
     conn.commit()
@@ -214,6 +218,10 @@ def get_unpaid_active_users():
     LEFT JOIN student_metrics s ON u.phone = s.phone
     WHERE u.is_paid = 0
     AND (s.total_messages > 2 OR s.modules_opened > 0)
+    AND (
+        u.last_followup IS NULL
+        OR u.last_followup < NOW() - INTERVAL '24 HOURS'
+    )
     """)
 
     rows = c.fetchall()
@@ -387,7 +395,7 @@ def clean_pdf_text(text: str) -> str:
 def save_pdf_to_db(module_name, pdf_filename):
     
     raw_text = extract_pdf_text(pdf_filename)
-    text = extract_pdf_text(pdf_filename)
+    text = clean_pdf_text(raw_text)
     
     if not text:
         print("No text extracted")
@@ -822,13 +830,13 @@ def ai_faq_reply(msg):
 # ✅ MODIFIED (MODULE-AWARE AI)
 def ai_trainer_reply(question, allowed_modules):
 
-     pdf_text_blocks = []
+    pdf_text_blocks = []
 
-     for module in allowed_modules:
-         lesson_text = get_lesson_from_db(module)
+    for module in allowed_modules:
+        lesson_text = get_lesson_from_db(module)
 
-         if lesson_text:
-             pdf_text_blocks.append(lesson_text)
+        if lesson_text:
+            pdf_text_blocks.append(lesson_text)
 
     combined_text = "\n\n".join(pdf_text_blocks)
     if not combined_text.strip():
@@ -1031,11 +1039,15 @@ def webhook():
         if incoming == "2":
             set_state(phone, "drink_menu")
             send_message(
-                phone,
+                 phone,
                 "🥤 *CONCENTRATE DRINKS – PAID LESSONS*\n\n"
                 "1️⃣ Orange Concentrate\n"
                 "2️⃣ Raspberry Concentrate\n"
-                "3️⃣ Cream Soda\n\n"
+                "3️⃣ Cream Soda\n"
+                "4️⃣ Freezits\n"
+                "5️⃣ Ice Cream\n"
+                "6️⃣ Baobab Drink\n"
+                "7️⃣ Juice Cascade\n\n"
                 "Nyora *MENU* kudzokera"
             )
             log_activity(phone, "open_menu", "drinks")
@@ -1308,11 +1320,12 @@ def webhook():
 
             send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
             return jsonify({"status": "ok"})
+            
          detergent_keys = [
          "dishwash","thick_bleach","foam_bath","pine_gel","toilet_cleaner",
          "engine_cleaner","laundry_bar","fabric_softener","petroleum_jelly","floor_polish",
          "car_shampoo","acidic_degreaser","tyre_polish","liquid_shoe_polish","tile_cleaner",
-         "shoe_polish","hair_conditioner","washing_paste","bath_soap","hair_shampoo"
+         "paste_shoe_polish","hair_conditioner","washing_paste","bath_soap","hair_shampoo"
          ]
 
         if incoming.isdigit() and 1 <= int(incoming) <= len(detergent_keys):
@@ -1322,6 +1335,7 @@ def webhook():
 
            update_metrics(phone, "module")
            record_module_access(phone, module)
+           log_activity(phone, "open_module", module)
 
            send_pdf(phone,
                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
@@ -1422,6 +1436,7 @@ def webhook():
             pdf, label = ALL_MODULES[module]
 
             record_module_access(phone, module)
+            log_activity(phone, "open_module", module)
             update_metrics(phone, "module")
 
             send_pdf(phone,
@@ -1687,11 +1702,23 @@ def approve_offline(phone):
 def followup_unpaid():
 
     users = get_unpaid_active_users()
+    conn = get_db()
+    c = conn.cursor()
 
     count = 0
     for phone in users:
         send_message(phone, followup_message())
+
+        c.execute("""
+        UPDATE users
+        SET last_followup = NOW()
+        WHERE phone = %s
+        """, (phone,))
+
         count += 1
+
+    conn.commit()
+    conn.close()
 
     return f"Sent followups to {count} users"
 
@@ -1711,6 +1738,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
