@@ -546,19 +546,26 @@ def get_dashboard_stats():
 
 
 # ✅ NEW (REQUIRED FOR AI RESTRICTION)
-def get_user_modules(phone):
+def get_user_modules(phone, message):
     conn = get_db()
     c = conn.cursor()
+
     c.execute(
-    "SELECT module FROM module_access WHERE phone=%s",
-    (phone,)
+        "SELECT module FROM module_access WHERE phone=%s",
+        (phone,)
     )
     rows = c.fetchall()
+    conn.close()
+
     user_modules = [r[0] for r in rows]
 
-    module = detect_module_from_question(user_message, user_modules)
-    conn.close()
-    return [r[0] for r in rows]
+    # detect which module question refers to
+    detected = detect_module_from_question(message, user_modules)
+
+    if detected:
+        return [detected]   # ← ONLY ONE MODULE (CRITICAL FIX)
+
+    return user_modules[-1:]  # fallback = last opened module
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -1575,7 +1582,7 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-        allowed_modules = get_user_modules(phone)
+        allowed_modules = get_user_modules(phone, incoming)
 
         if not allowed_modules:
             send_message(phone, "🔒 Tapota vhura module kutanga.")
@@ -1851,6 +1858,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
