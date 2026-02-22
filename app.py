@@ -993,45 +993,80 @@ def ai_trainer_reply(phone, question, allowed_modules):
     return answer
 
     return response.choices[0].message.content.strip()
+def detect_module_from_question(question, allowed_modules):
+    if not question:
+        return None
 
-
-def detect_module_from_question(question):
     q = question.lower()
 
-    if "dishwash" in q or "dish wash" in q:
-        return "dishwash"
-    if "bleach" in q:
-        return "thick_bleach"
-    if "foam" in q:
-        return "foam_bath"
-    if "pine" in q:
-        return "pine_gel"
-    if "toilet" in q:
-        return "toilet_cleaner"
-    if "engine" in q:
-        return "engine_cleaner"
-    if "laundry" in q or "soap" in q:
-        return "laundry_bar"
-    if "fabric" in q or "softener" in q:
-        return "fabric_softener"
-    if "petroleum" in q or "vaseline" in q:
-        return "petroleum_jelly"
-    if "polish" in q:
-        return "floor_polish"
-    if "car shampoo" in q: return "car_shampoo"
-    if "degreaser" in q: return "acidic_degreaser"
-    if "tyre" in q: return "tyre_polish"
-    if "shoe polish" in q: return "paste_shoe_polish"
-    if "tile" in q: return "tile_cleaner"
-    if "conditioner" in q: return "hair_conditioner"
-    if "washing paste" in q: return "washing_paste"
-    if "bath soap" in q: return "bath_soap"
-    if "hair shampoo" in q: return "hair_shampoo"
-    if "freezits" in q: return "freezits"
-    if "ice cream" in q: return "ice_cream"
-    if "baobab" in q: return "baobab_drink"
-    if "cascade" in q: return "juice_cascade"
-    return None
+    keyword_map = {
+        "dishwash": "dishwash",
+        "dish wash": "dishwash",
+
+        "bleach": "thick_bleach",
+        "jik": "thick_bleach",
+
+        "foam": "foam_bath",
+        "pine": "pine_gel",
+        "toilet": "toilet_cleaner",
+
+        "engine": "engine_cleaner",
+        "engine 2": "engine_cleaner2",
+
+        "laundry": "laundry_bar",
+        "bar soap": "laundry_bar",
+
+        "fabric": "fabric_softener",
+        "softener": "fabric_softener",
+
+        "petroleum": "petroleum_jelly",
+        "vaseline": "petroleum_jelly",
+
+        "floor polish": "floor_polish",
+
+        "car shampoo": "car_shampoo",
+        "car wash": "car_shampoo",
+
+        "degreaser": "acidic_metal_degreaser",
+        "acid": "acidic_metal_degreaser",
+
+        "tyre": "tyre_polish",
+
+        "shoe polish": "paste_shoe_polish",
+        "liquid polish": "liquid_shoe_polish",
+
+        "tile": "tile_cleaner",
+
+        "conditioner": "hair_conditioner",
+        "hair shampoo": "hair_shampoo",
+
+        "washing paste": "washing_paste",
+        "bath soap": "bath_soap",
+
+        "freezits": "freezits",
+        "ice cream": "ice_cream",
+
+        "baobab": "baobab_drink",
+        "cascade": "juice_cascade",
+        "orange drink": "orange_drink",
+        "raspberry": "raspberry_drink",
+        "cream soda": "cream_soda"
+    }
+
+    # 1️⃣ strict keyword match but only if user owns module
+    for key, module in keyword_map.items():
+        if key in q and module in allowed_modules:
+            return module
+
+    # 2️⃣ direct module name mention
+    for module in allowed_modules:
+        if module.replace("_", " ") in q:
+            return module
+
+    # 3️⃣ fallback = last opened module
+    return allowed_modules[-1] if allowed_modules else None
+
+
 
 
 # =========================
@@ -1858,6 +1893,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
