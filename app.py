@@ -438,6 +438,23 @@ def extract_pdf_text(pdf_filename):
         print("PDF READ ERROR:", e)
         return ""
 
+def detect_module_from_question(question, user_modules):
+    q = question.lower().replace("_"," ").strip()
+
+    for m in user_modules:
+        m_clean = m.lower().replace("_"," ")
+
+        # direct match
+        if m_clean in q:
+            return m
+
+        # partial keyword match
+        words = m_clean.split()
+        if any(w in q for w in words):
+            return m
+
+    return None
+
 def clean_pdf_text(text: str) -> str:
     if not text:
         return ""
@@ -533,10 +550,13 @@ def get_user_modules(phone):
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        "SELECT module FROM module_access WHERE phone=%s",
-        (phone,)
+    "SELECT module FROM module_access WHERE phone=%s",
+    (phone,)
     )
     rows = c.fetchall()
+    user_modules = [r[0] for r in rows]
+
+    module = detect_module_from_question(user_message, user_modules)
     conn.close()
     return [r[0] for r in rows]
 
@@ -1831,6 +1851,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
