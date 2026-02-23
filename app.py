@@ -1722,24 +1722,23 @@ def webhook():
             c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
             conn.commit()
             conn.close()
-            
             return jsonify({"status": "ok"})
 
 # =========================
 # AUTO PAYMENT DETECTOR
 # =========================
-if user["state"] == "awaiting_payment":
+    if user["state"] == "awaiting_payment":
 
-    success, reply = verify_and_apply_payment(phone, incoming)
+        success, reply = verify_and_apply_payment(phone, incoming)
 
-    if success:
-        set_state(phone, "main")
-        send_message(phone, reply)
-        send_message(phone, main_menu())
-        return jsonify({"status": "ok"})
-    else:
-        send_message(phone, reply)
-        return jsonify({"status": "ok"})
+        if success:
+            set_state(phone, "main")
+            send_message(phone, reply)
+            send_message(phone, main_menu())
+            return jsonify({"status": "ok"})
+        else:
+            send_message(phone, reply)
+            return jsonify({"status": "ok"})
 
     # =========================
     # AI TRAINER (MODULE RESTRICTED)
@@ -2051,6 +2050,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
