@@ -10,6 +10,11 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
+COURSE_PRICE = 5.0
+PAYMENT_TOLERANCE = 1.5   # allows EcoCash charges
+MIN_ACCEPTABLE = COURSE_PRICE
+MAX_ACCEPTABLE = COURSE_PRICE + PAYMENT_TOLERANCE
+
 # =========================
 # CONFIG
 # =========================
@@ -17,7 +22,10 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 
-ADMIN_NUMBER = "+263773208904"  # MUST include +
+ADMIN_NUMBERS = [
+    "+263773208904",
+    "+263719208904"   # backup admin
+]
 
 UPLOAD_FOLDER = "static/lessons"
 ALLOWED_EXTENSIONS = {"pdf"}
@@ -229,17 +237,18 @@ def send_admin_alert(title, body):
 
     text = f"🔔 {title}\n\n{body}"
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": ADMIN_NUMBER.replace("+",""),
-        "type": "text",
-        "text": {"body": text}
-    }
+    for admin in ADMIN_NUMBERS:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": admin.replace("+",""),
+            "type": "text",
+            "text": {"body": text}
+        }
 
-    try:
-        requests.post(url, headers=headers, json=payload, timeout=10)
-    except Exception as e:
-        print("ADMIN ALERT FAILED:", e)
+        try:
+            requests.post(url, headers=headers, json=payload, timeout=10)
+        except Exception as e:
+            print(f"ADMIN ALERT FAILED for {admin}:", e)
 
 def create_user(phone):
     conn = get_db()
@@ -435,10 +444,17 @@ def verify_and_apply_payment(phone, message):
         conn.close()
         return False, "Reference yakamboshandiswa kare."
 
-    # minimum fee
-    if not amount or amount < 10:
+    if not amount:
         conn.close()
-        return False, "Mari yatumwa ishoma kupfuura inodiwa ($10)."
+        return False, "Handina kuona mari yatumirwa muSMS."
+
+    if amount < MIN_ACCEPTABLE:
+        conn.close()
+        return False, f"Mari ishoma. Course iri ${COURSE_PRICE}."
+
+    if amount > MAX_ACCEPTABLE:
+        conn.close()
+        return False, f"Mari yakawandisa zvisina kujairika (${amount}). Bata admin."
 
     # save payment
     c.execute("""
@@ -454,7 +470,7 @@ def verify_and_apply_payment(phone, message):
 
     send_admin_alert(
         "AUTO PAYMENT APPROVED",
-        f"Phone: {phone}\nAmount: ${amount}\nRef: {reference}"
+        f"Phone: {phone}\nPaid: ${amount}\nCourse Price: ${COURSE_PRICE}\nRef: {reference}"
     )
 
     return True, "🎉 Payment confirmed automatically!\nWava kukwanisa kuvhura ma lessons ese."
@@ -1201,7 +1217,7 @@ def webhook():
         send_message(phone, faq)
         return jsonify({"status": "ok"})
 
-    if incoming == "admin" and phone == ADMIN_NUMBER:
+    if incoming == "admin" and phone in ADMIN_NUMBERS:
         conn = get_db()
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM users")
@@ -1212,7 +1228,7 @@ def webhook():
         send_message(phone, f"📊 *ADMIN DASHBOARD*\n\n👥 Users: {total}\n💰 Paid: {paid}")
         return jsonify({"status": "ok"})
 
-    if incoming.startswith("approve ") and phone == ADMIN_NUMBER:
+    if incoming.startswith("approve ") and phone in ADMIN_NUMBERS:
         target = normalize_phone(incoming.replace("approve ", ""))
         log_activity(target, "payment_approved", "admin")
         mark_paid(target)
@@ -1362,7 +1378,7 @@ def webhook():
                "Nyora izvi pafoni yako 👇\n\n"
                "*153*1*1*0773208904*10#\n\n"
                "👤 Recipient: *Beloved Nkomo*\n"
-               "💵 Amount: *$10*\n\n"
+               f"💵 Amount: *${COURSE_PRICE}*"
                "✔ Chibva waisa EcoCash PIN\n"
                "✔ Kana wapedza kubhadhara, tumira confirmation message yacho pano:"
             )
@@ -2001,6 +2017,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
