@@ -1228,7 +1228,7 @@ def webhook():
 
     # START OF YOUR OLD LOGIC
 
-    faq = ai_faq_reply(incoming)
+    faq = faq_engine(incoming)
     if faq and incoming not in ["1","2","3","4","5","6","menu","pay","join","admin"]:
         send_message(phone, faq)
         return jsonify({"status": "ok"})
@@ -1689,7 +1689,7 @@ def webhook():
     # =========================
 # DRINK MODULE MENU
 # =========================
-    if user["state"] == "drink_menu":
+    elif user["state"] == "drink_menu":
 
         fresh_user = get_user(phone)
 
@@ -1740,25 +1740,25 @@ def webhook():
             send_message(phone, reply)
             return jsonify({"status": "ok"})
 
-    # =========================
-    # AI TRAINER (MODULE RESTRICTED)
-    # =========================
-    # =========================
+# =========================
+# AI TRAINER (MODULE RESTRICTED)
+# =========================
+# =========================
 # UNPAID USER PROTECTION
 # =========================
-if not user["is_paid"]:
+    if not user["is_paid"]:
 
-    faq = faq_engine(incoming)
-    if faq:
-        send_message(phone, faq)
+        faq = faq_engine(incoming)
+        if faq:
+            send_message(phone, faq)
+            return jsonify({"status":"ok"})
+
+        # any other free-text → sales response
+        send_message(
+            phone,
+            "📚 Kuti uwane rubatsiro rweAI & maformula unofanira kunyoresa.\nNyora *PAY* kuti utange."
+        )
         return jsonify({"status":"ok"})
-
-    # any other free-text → sales response
-    send_message(
-        phone,
-        "📚 Kuti uwane rubatsiro rweAI & maformula unofanira kunyoresa.\nNyora *PAY* kuti utange."
-    )
-    return jsonify({"status":"ok"})
     
     blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
     
@@ -2050,6 +2050,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
