@@ -1012,13 +1012,29 @@ def free_lesson():
 # =========================
 # AI FAQ
 # =========================
-def ai_faq_reply(msg):
-    if any(k in msg for k in ["price", "cost", "fee", "marii"]):
-        return "💵 Full training: $10 once-off\nNyora *PAY*"
-    if "certificate" in msg:
-        return "🎓 Ehe — unowana certificate."
-    if "kupi" in msg:
-        return " Tinowanika kuMataga"
+def faq_engine(msg):
+
+    m = msg.lower()
+
+    faq_map = {
+        "ingredients": "Unogona kuwana ma ingredients kuma chemical suppliers. Nyora *9* paMENU uone supplier directory.",
+        "ndomawana kupi": "Nyora *9* paMENU uone vatengesi vemachemicals vari pedyo.",
+        "kubhadhara sei": "Kubhadhara nyora *PAY* wobva watevera mirairo yeEcoCash.",
+        "payment": "Nyora *PAY* kuti utange kubhadhara.",
+        "send payment": "Tumira EcoCash confirmation SMS pano kana wapedza.",
+        "course yacho inoita marii": f"Course irikungori ${COURSE_PRICE} once-off.",
+        "marii": f"Full course: ${COURSE_PRICE} once-off.",
+        "certificate": "Ehe, unopihwa certificate kana wapedza kudzidza.",
+        "imwe mari": "Kwete. Unobhadhara kamwe chete chete — hapana monthly fee.",
+        "refund": "Hatina refund nekuti ma lessons anobva avhurwa ipapo ipapo.",
+        "time": "Unodzidza paunoda, hapana nguva yakatarwa.",
+        "duration": "Unogona kupedza nekukurumidza kana zvishoma nezvishoma — self paced."
+    }
+
+    for key in faq_map:
+        if key in m:
+            return faq_map[key]
+
     return None
 
 # ✅ MODIFIED (MODULE-AWARE AI)
@@ -1727,8 +1743,25 @@ if user["state"] == "awaiting_payment":
     # =========================
     # AI TRAINER (MODULE RESTRICTED)
     # =========================
-    blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
+    # =========================
+# UNPAID USER PROTECTION
+# =========================
+if not user["is_paid"]:
 
+    faq = faq_engine(incoming)
+    if faq:
+        send_message(phone, faq)
+        return jsonify({"status":"ok"})
+
+    # any other free-text → sales response
+    send_message(
+        phone,
+        "📚 Kuti uwane rubatsiro rweAI & maformula unofanira kunyoresa.\nNyora *PAY* kuti utange."
+    )
+    return jsonify({"status":"ok"})
+    
+    blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
+    
     if incoming not in blocked_commands and user["is_paid"]:
                
         today_count = ai_questions_today(phone)
@@ -2017,6 +2050,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
