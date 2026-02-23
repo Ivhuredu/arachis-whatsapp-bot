@@ -1420,6 +1420,9 @@ def webhook():
                "3. Nastovert Chemicals\n"
                 "📞 +263774692352\n"
                 "📍 Harare\n\n" 
+                "4. MazChem\n"
+                "📞 +263772597141\n"
+                "📍 Harare\n\n"
                 "↩ Nyora *MENU* kudzokera."
             )
             return jsonify({"status": "ok"})
@@ -1893,6 +1896,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
