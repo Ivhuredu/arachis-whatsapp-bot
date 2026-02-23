@@ -205,7 +205,31 @@ def send_pdf(phone, pdf_url, caption):
     response = requests.post(url, headers=headers, json=payload)
     print(response.text)
 
+# =========================
+# ADMIN ALERTS
+# =========================
+def send_admin_alert(title, body):
 
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    text = f"🔔 {title}\n\n{body}"
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": ADMIN_NUMBER.replace("+",""),
+        "type": "text",
+        "text": {"body": text}
+    }
+
+    try:
+        requests.post(url, headers=headers, json=payload, timeout=10)
+    except Exception as e:
+        print("ADMIN ALERT FAILED:", e)
 
 def create_user(phone):
     conn = get_db()
@@ -1138,6 +1162,12 @@ def webhook():
 
     if incoming == "pay":
         set_state(phone, "pay_menu")
+
+        send_admin_alert(
+            "Customer opened payment menu",
+            f"Phone: {phone}\nStage: Payment interest"
+        )
+
         send_message(
            phone,
            "💳 *PAYMENT METHOD*\n\n"
@@ -1146,8 +1176,6 @@ def webhook():
            "Reply with 1 or 2"
         )
         return jsonify({"status": "ok"})
-
-
 
     if user["state"] == "main":
         if incoming == "1":
@@ -1256,6 +1284,12 @@ def webhook():
 
         if incoming == "1":
             set_state(phone, "awaiting_payment")
+
+            send_admin_alert(
+                "Customer requested payment instructions",
+                f"Phone: {phone}\nMethod: EcoCash"
+            )
+
             send_message(
                phone,
                "📲 *Bhadhara neEcoCash *\n\n"
@@ -1275,6 +1309,12 @@ def webhook():
 
     elif user["state"] == "awaiting_payment" and incoming == "done":
         set_payment_status(phone, "awaiting_approval")
+
+        send_admin_alert(
+            "USER SENT PAYMENT",
+            f"Phone: {phone}\nStatus: Awaiting verification"
+        )
+
         send_message(
             phone,
             "⏳ Payment noted.\n"
@@ -1896,6 +1936,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
