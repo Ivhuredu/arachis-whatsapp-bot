@@ -145,6 +145,16 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS payments (
+        id SERIAL PRIMARY KEY,
+        phone TEXT,
+        reference TEXT UNIQUE,
+        amount REAL,
+        raw_text TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
     
     
     conn.commit()
@@ -392,6 +402,62 @@ def log_activity(phone, action, details=""):
     """, (phone, action, details))
     conn.commit()
     conn.close()
+
+import re
+
+def extract_ecocash_details(text):
+
+    text = text.replace(",", "")
+
+    amount_match = re.search(r"\$?(\d+(\.\d{1,2})?)", text)
+    ref_match = re.search(r"(reference|ref|code)[:\s]*([A-Za-z0-9]{5,})", text, re.I)
+    phone_match = re.search(r"07\d{8}", text)
+
+    amount = float(amount_match.group(1)) if amount_match else None
+    reference = ref_match.group(2) if ref_match else None
+    sender = phone_match.group(0) if phone_match else None
+
+    return amount, reference, sender
+
+def verify_and_apply_payment(phone, message):
+
+    amount, reference, sender = extract_ecocash_details(message)
+
+    if not reference:
+        return False, "Handina kuona reference number mu message."
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # prevent reuse
+    c.execute("SELECT 1 FROM payments WHERE reference=%s", (reference,))
+    if c.fetchone():
+        conn.close()
+        return False, "Reference yakamboshandiswa kare."
+
+    # minimum fee
+    if not amount or amount < 10:
+        conn.close()
+        return False, "Mari yatumwa ishoma kupfuura inodiwa ($10)."
+
+    # save payment
+    c.execute("""
+        INSERT INTO payments (phone, reference, amount, raw_text)
+        VALUES (%s,%s,%s,%s)
+    """, (phone, reference, amount, message))
+
+    conn.commit()
+    conn.close()
+
+    # APPROVE USER
+    mark_paid(phone)
+
+    send_admin_alert(
+        "AUTO PAYMENT APPROVED",
+        f"Phone: {phone}\nAmount: ${amount}\nRef: {reference}"
+    )
+
+    return True, "🎉 Payment confirmed automatically!\nWava kukwanisa kuvhura ma lessons ese."
 
 # =========================
 # AI MEMORY SYSTEM
@@ -1298,7 +1364,7 @@ def webhook():
                "👤 Recipient: *Beloved Nkomo*\n"
                "💵 Amount: *$10*\n\n"
                "✔ Chibva waisa EcoCash PIN\n"
-               "✔ Kana wapedza kubhadhara, nyora: *DONE*"
+               "✔ Kana wapedza kubhadhara, tumira confirmation message yacho pano:"
             )
             return jsonify({"status": "ok"})
 
@@ -1307,23 +1373,6 @@ def webhook():
            send_message(phone, main_menu())
            return jsonify({"status": "ok"})
 
-    elif user["state"] == "awaiting_payment" and incoming == "done":
-        set_payment_status(phone, "awaiting_approval")
-
-        send_admin_alert(
-            "USER SENT PAYMENT",
-            f"Phone: {phone}\nStatus: Awaiting verification"
-        )
-
-        send_message(
-            phone,
-            "⏳ Payment noted.\n"
-            "Mirira zvishoma tiongorore.\n\n"
-            "Tichakuzivisa nekukurumidza ✅\n\n"
-             "↩ Nyora *MENU* kudzokera."
-        )
-
-        return jsonify({"status": "ok"})
 
     elif user["state"] == "store_category":
 
@@ -1643,6 +1692,22 @@ def webhook():
             conn.close()
             return jsonify({"status": "ok"})
 
+# =========================
+# AUTO PAYMENT DETECTOR
+# =========================
+if user["state"] == "awaiting_payment":
+
+    success, reply = verify_and_apply_payment(phone, incoming)
+
+    if success:
+        set_state(phone, "main")
+        send_message(phone, reply)
+        send_message(phone, main_menu())
+        return jsonify({"status": "ok"})
+    else:
+        send_message(phone, reply)
+        return jsonify({"status": "ok"})
+
     # =========================
     # AI TRAINER (MODULE RESTRICTED)
     # =========================
@@ -1936,6 +2001,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
