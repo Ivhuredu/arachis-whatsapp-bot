@@ -1722,6 +1722,7 @@ def webhook():
             c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
             conn.commit()
             conn.close()
+            
             return jsonify({"status": "ok"})
 
 # =========================
@@ -2050,6 +2051,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
