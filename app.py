@@ -443,6 +443,10 @@ def verify_and_apply_payment(phone, message):
     if c.fetchone():
         conn.close()
         return False, "Reference yakamboshandiswa kare."
+        
+    ecocash_keywords = ["ecocash", "transfer", "paid", "you have received", "transaction", "cash out"]
+    if not any(k in message.lower() for k in ecocash_keywords):
+        return False, "Tumira EcoCash confirmation SMS chaiyo."
 
     if not amount:
         conn.close()
@@ -543,23 +547,6 @@ def extract_pdf_text(pdf_filename):
     except Exception as e:
         print("PDF READ ERROR:", e)
         return ""
-
-def detect_module_from_question(question, user_modules):
-    q = question.lower().replace("_"," ").strip()
-
-    for m in user_modules:
-        m_clean = m.lower().replace("_"," ")
-
-        # direct match
-        if m_clean in q:
-            return m
-
-        # partial keyword match
-        words = m_clean.split()
-        if any(w in q for w in words):
-            return m
-
-    return None
 
 def clean_pdf_text(text: str) -> str:
     if not text:
@@ -1228,11 +1215,6 @@ def webhook():
 
     # START OF YOUR OLD LOGIC
 
-    faq = faq_engine(incoming)
-    if faq and incoming not in ["1","2","3","4","5","6","menu","pay","join","admin"]:
-        send_message(phone, faq)
-        return jsonify({"status": "ok"})
-
     if incoming == "admin" and phone in ADMIN_NUMBERS:
         conn = get_db()
         c = conn.cursor()
@@ -1323,7 +1305,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         elif incoming == "3":
-            send_message(phone, "💵 Full training: $10 once-off\nNyora *PAY*")
+            send_message(phone, "💵 Full training: $5 once-off\nNyora *PAY*")
             return jsonify({"status": "ok"})
 
         elif incoming == "4":
@@ -1392,9 +1374,9 @@ def webhook():
                phone,
                "📲 *Bhadhara neEcoCash *\n\n"
                "Nyora izvi pafoni yako 👇\n\n"
-               "*153*1*1*0773208904*10#\n\n"
+               "*153*1*1*0773208904*6#\n\n"
                "👤 Recipient: *Beloved Nkomo*\n"
-               f"💵 Amount: *${COURSE_PRICE}*"
+               f"💵 Amount: *${COURSE_PRICE}* add cashout charges"
                "✔ Chibva waisa EcoCash PIN\n"
                "✔ Kana wapedza kubhadhara, tumira confirmation message yacho pano:"
             )
@@ -1782,6 +1764,8 @@ def webhook():
 
         # If user has 2 or more modules → allow full cross-module AI
         if len(allowed_modules) >= 2:
+            # multi-module question → no memory
+            memory_messages = []
             ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")   # ← ADD THIS LINE
@@ -1972,14 +1956,6 @@ def admin_dashboard():
         
     return html
 
-    if status == "Paid":
-        mark_paid(phone)
-        send_message(phone, "✅ Payment received. You now have full access.")
-
-    return "OK", 200
-
-
-
 @app.route("/payment-result", methods=["POST"])
 def payment_result():
     return "OK", 200
@@ -2050,6 +2026,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
