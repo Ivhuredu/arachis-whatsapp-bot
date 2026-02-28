@@ -294,6 +294,29 @@ def followup_message():
         "Nyora *PAY* kuti utange kana *MENU* kuona zvirimo."
     )
 
+def send_template(phone, template_name):
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone.replace("+",""),
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": "en"}
+        }
+    }
+
+    r = requests.post(url, headers=headers, json=payload)
+
+    print("TEMPLATE STATUS:", r.status_code)
+    print("TEMPLATE RESPONSE:", r.text)
+
 def get_user(phone):
     conn = get_db()
     c = conn.cursor()
@@ -1995,7 +2018,7 @@ def followup_unpaid():
 
     count = 0
     for phone in users:
-        send_message(phone, followup_message())
+        send_template(phone, "reactivate_training")
 
         c.execute("""
         UPDATE users
@@ -2026,6 +2049,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
