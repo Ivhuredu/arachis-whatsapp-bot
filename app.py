@@ -289,25 +289,44 @@ def get_unpaid_active_users():
 def followup_message(stage):
 
     messages = {
-        0: "👋 Makadii! Munogona kutanga kugadzira dishwash, bleach & drinks muri kumba. Nyora PAY kuti utange.",
-        1: "Vanhu vakawanda vari kutotanga kugadzira ma detergents kumba. Course yacho ingori $5 once-off. Nyora PAY.",
-        2: "🎉 Students vari kutogadzira dishwash & cream soda kumba. Nyora PAY kuti utange.",
-        3: "⚠ Promotion ye $5 iri kupera manje manje. Nyora PAY kuti utange nhasi."
+        0: (
+            "👋 Makadii!\n\n"
+            "Makamboshandisa Arachis Training Bot asi hamusati majoina training.\n\n"
+            "Vanhu vazhinji vari kutotanga kugadzira dishwash & bleach kumba.\n\n"
+            "💵 Full training: $5 once-off.\n"
+            "Nyora *PAY* kuti utange."
+        ),
+
+        1: (
+            "🧼 Vanhu vakawanda vari kutotanga kugadzira ma detergents kumba.\n\n"
+            "Course ine:\n"
+            "✔ 20 detergent modules\n"
+            "✔ 6 drink modules\n"
+            "✔ Rubatsiro rweAI kana wasangana nedambudziko\n\n"
+            "Nyora *PAY* kuti utange kudzidza."
+        ),
+
+        2: (
+            "🎉 Ma Students akawanda ari kugadzira:\n"
+            "✔ Dishwash\n"
+            "✔ Bleach\n"
+            "✔ Cream soda\n\n"
+            "Unogonawo kutanga nhasi.\n\n"
+            "💵 Course: $5 once-off\n"
+            "Nyora *PAY* kuti utange."
+        ),
+
+        3: (
+            "⚠ Promotion ye $5 iri kupera nekukurumidza.\n\n"
+            "Course inosanganisira:\n"
+            "✔ 26 production lessons\n"
+            "✔ AI trainer\n"
+            "✔ Supplier directory\n\n"
+            "Nyora *PAY* kuti utange nhasi."
+        )
     }
 
     return messages.get(stage)
-
-def followup_message():
-    return (
-        "👋 Makadii!\n\n"
-        "Takaona makamboshandisa Arachis Training Bot asi hamusati mapedza kunyoresa.\n\n"
-        "Vanhu vazhinji vari kutotanga kugadzira dishwash & bleach vari kumba 🧼\n\n"
-        "💵 Full course: $5 once-off. Promotion iyi iri kupera musi wa 15 March\n"
-        "✔ 20 detergent modules\n"
-        "✔ 6 drink modules\n"
-        "✔ Rubatsiro rwe AI kana wasangana nedambudziko\n\n"
-        "Nyora *PAY* kuti utange kana *MENU* kuona zvirimo."
-    )
 
 def send_template(phone, template_name):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
@@ -2046,7 +2065,7 @@ def followup_unpaid():
         message = followup_message(stage)
 
         if message:
-            send_template(phone, "reactivate_training")
+            send_message(phone, message)
 
             c.execute("""
             UPDATE users
@@ -2078,6 +2097,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
