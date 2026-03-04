@@ -163,6 +163,10 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS followup_stage INTEGER DEFAULT 0
+    """)
     
     
     conn.commit()
@@ -281,6 +285,17 @@ def get_unpaid_active_users():
     conn.close()
 
     return [r[0] for r in rows]
+
+def followup_message(stage):
+
+    messages = {
+        0: "👋 Makadii! Munogona kutanga kugadzira dishwash, bleach & drinks muri kumba. Nyora PAY kuti utange.",
+        1: "Vanhu vakawanda vari kutotanga kugadzira ma detergents kumba. Course yacho ingori $5 once-off. Nyora PAY.",
+        2: "🎉 Students vari kutogadzira dishwash & cream soda kumba. Nyora PAY kuti utange.",
+        3: "⚠ Promotion ye $5 iri kupera manje manje. Nyora PAY kuti utange nhasi."
+    }
+
+    return messages.get(stage)
 
 def followup_message():
     return (
@@ -2012,26 +2027,40 @@ def approve_offline(phone):
 @app.route("/admin/followup-unpaid")
 def followup_unpaid():
 
-    users = get_unpaid_active_users()
     conn = get_db()
     c = conn.cursor()
 
+    c.execute("""
+    SELECT phone, followup_stage
+    FROM users
+    WHERE is_paid = 0
+    AND (last_followup IS NULL OR last_followup < NOW() - INTERVAL '24 HOURS')
+    """)
+
+    rows = c.fetchall()
+
     count = 0
-    for phone in users:
-        send_template(phone, "reactivate_training")
 
-        c.execute("""
-        UPDATE users
-        SET last_followup = NOW()
-        WHERE phone = %s
-        """, (phone,))
+    for phone, stage in rows:
 
-        count += 1
+        message = followup_message(stage)
+
+        if message:
+            send_template(phone, "reactivate_training")
+
+            c.execute("""
+            UPDATE users
+            SET last_followup = NOW(),
+                followup_stage = followup_stage + 1
+            WHERE phone=%s
+            """, (phone,))
+
+            count += 1
 
     conn.commit()
     conn.close()
 
-    return f"Sent followups to {count} users"
+    return f"Sent {count} followups"
 
 @app.route("/data-deletion")
 def data_deletion():
@@ -2049,6 +2078,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
