@@ -328,7 +328,8 @@ def followup_message(stage):
 
     return messages.get(stage)
 
-def send_template(phone, template_name):
+def send_template(phone, reactivate_training):
+
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
 
     headers = {
@@ -662,6 +663,36 @@ def get_lesson_from_db(module_name):
         return row[0]
 
     return ""
+
+def get_relevant_lesson_chunk(module, question):
+
+    lesson = get_lesson_from_db(module)
+
+    if not lesson:
+        return ""
+
+    # split lesson into chunks
+    chunks = lesson.split("\n")
+
+    question_words = question.lower().split()
+
+    best_chunk = ""
+    best_score = 0
+
+    for chunk in chunks:
+
+        text = chunk.lower()
+
+        score = sum(1 for w in question_words if w in text)
+
+        if score > best_score:
+            best_score = score
+            best_chunk = chunk
+
+    if best_chunk:
+        return best_chunk
+
+    return lesson[:1000]  # fallback
 
     
 def get_dashboard_stats():
@@ -1087,17 +1118,17 @@ def ai_trainer_reply(phone, question, allowed_modules):
     pdf_text_blocks = []
 
     for module in allowed_modules:
-        lesson_text = get_lesson_from_db(module)
 
-        if lesson_text:
-            pdf_text_blocks.append(lesson_text)
+        chunk = get_relevant_lesson_chunk(module, question)
+
+        if chunk:
+            pdf_text_blocks.append(chunk)
 
     combined_text = "\n\n".join(pdf_text_blocks)
     if not combined_text.strip():
         return "Ndapota vhura module rine chidzidzo ichi kutanga kuti ndikubatsire zvakarurama."
         
     # Limit lesson content size to prevent token overload
-    combined_text = combined_text[:12000]
     combined_text = combined_text.rsplit(".", 1)[0]
 
     # determine active module (latest opened)
@@ -1157,8 +1188,7 @@ def ai_trainer_reply(phone, question, allowed_modules):
     save_memory(phone, active_module, "assistant", answer)
 
     return answer
-
-    return response.choices[0].message.content.strip()
+    
 def detect_module_from_question(question, allowed_modules):
     if not question:
         return None
@@ -2097,6 +2127,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
