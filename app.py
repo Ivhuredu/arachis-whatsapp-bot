@@ -781,6 +781,9 @@ ALL_MODULES = {
     "orange_drink": ("orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
     "raspberry_drink": ("raspberry_drink.pdf", "🍓 RASPBERRY"),
     "cream_soda": ("cream_soda.pdf", "🥤 CREAM SODA"),
+    "low_cost_orange_syrup": ("low_cost_orange_syrup.pdf", "🍊 LOW COST ORANGE SYRUP"),
+    "low_cost_raspberry_drink": ("low_cost_raspberry_drink.pdf", "🍓 LOW COST RASPBERRY"),
+    "universal_cordial": ("universal_cordial.pdf", "🧃 UNIVERSAL CORDIAL"),
 
     # NEW
     "freezits": ("freezits.pdf", "🧊 FREEZITS"),
@@ -1246,7 +1249,15 @@ def detect_module_from_question(question, allowed_modules):
         "cascade": "juice_cascade",
         "orange drink": "orange_drink",
         "raspberry": "raspberry_drink",
-        "cream soda": "cream_soda"
+        "cream soda": "cream_soda",
+
+        "low cost orange": "low_cost_orange_syrup",
+        "orange syrup": "low_cost_orange_syrup",
+
+        "low cost raspberry": "low_cost_raspberry_drink",
+
+        "universal cordial": "universal_cordial",
+        "cordial": "universal_cordial" 
     }
 
     # 1️⃣ strict keyword match but only if user owns module
@@ -1385,7 +1396,10 @@ def webhook():
                 "4️⃣ Freezits\n"
                 "5️⃣ Ice Cream\n"
                 "6️⃣ Baobab Drink\n"
-                "7️⃣ Juice Cascade\n\n"
+                "7️⃣ Juice Cascade\n"
+                "8️⃣ Low Cost Orange Syrup\n"
+                "9️⃣ Low Cost Raspberry\n"
+                "🔟 Universal Cordial\n\n"
                 "Nyora *MENU* kudzokera"
             )
             log_activity(phone, "open_menu", "drinks")
@@ -1769,7 +1783,8 @@ def webhook():
 
         drink_keys = [
         "orange_drink","raspberry_drink","cream_soda",
-        "freezits","ice_cream","baobab_drink","juice_cascade"
+        "freezits","ice_cream","baobab_drink","juice_cascade","low_cost_orange_syrup","low_cost_raspberry_drink",
+        "universal_cordial"
         ]
 
         if incoming.isdigit() and 1 <= int(incoming) <= len(drink_keys):
@@ -2127,6 +2142,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
