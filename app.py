@@ -173,8 +173,11 @@ def init_db():
     conn.close()
 
 
-# ✅ call once only
+# initialize database
 init_db()
+
+# auto load lessons
+auto_sync_lessons()
 
     
 
@@ -621,6 +624,32 @@ def clean_pdf_text(text: str) -> str:
 
     return text
 
+def auto_sync_lessons():
+
+    folder = "static/lessons"
+
+    if not os.path.exists(folder):
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+
+    for file in os.listdir(folder):
+
+        if not file.endswith(".pdf"):
+            continue
+
+        module = file.replace(".pdf","")
+
+        c.execute("SELECT 1 FROM lesson_content WHERE module=%s",(module,))
+        exists = c.fetchone()
+
+        if not exists:
+            print("Auto learning lesson:", module)
+            save_pdf_to_db(module, file)
+
+    conn.close()
+
 def save_pdf_to_db(module_name, pdf_filename):
     
     raw_text = extract_pdf_text(pdf_filename)
@@ -751,46 +780,28 @@ def get_user_modules(phone, message):
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-ALL_MODULES = {
+def load_lessons():
 
-    # ===== DETERGENTS =====
-    "dishwash": ("dishwash.pdf", "🧼 DISHWASH"),
-    "thick_bleach": ("thick_bleach.pdf", "🧴 THICK BLEACH"),
-    "foam_bath": ("foam_bath.pdf", "🛁 FOAM BATH"),
-    "pine_gel": ("pine_gel.pdf", "🌲 PINE GEL"),
-    "toilet_cleaner": ("toilet_cleaner.pdf", "🚽 TOILET CLEANER"),
-    "engine_cleaner": ("engine_cleaner.pdf", "🛠 ENGINE CLEANER"),
-    "laundry_bar": ("laundry_bar.pdf", "🧱 LAUNDRY BAR"),
-    "fabric_softener": ("fabric_softener.pdf", "🧺 FABRIC SOFTENER"),
-    "petroleum_jelly": ("petroleum_jelly.pdf", "🧴 PETROLEUM JELLY"),
-    "floor_polish": ("floor_polish.pdf", "✨ FLOOR POLISH"),
+    lessons = {}
 
-    # NEW
-    "car_shampoo": ("car_shampoo.pdf", "🚗 CAR SHAMPOO"),
-    "acidic_degreaser": ("acidic_metal_degreaser.pdf", "⚙️ ACIDIC METAL DEGREASER"),
-    "tyre_polish": ("tyre_polish.pdf", "🛞 TYRE POLISH"),
-    "liquid_shoe_polish": ("liquid_shoe_polish.pdf", "👞 LIQUID SHOE POLISH"),
-    "tile_cleaner": ("tile_cleaner.pdf", "🧱 TILE CLEANER"),
-    "paste_shoe_polish": ("shoe_polish.pdf", "👞 SHOE POLISH PASTE"),
-    "hair_conditioner": ("hair_conditioner.pdf", "💇 HAIR CONDITIONER"),
-    "washing_paste": ("washing_paste.pdf", "🧴 WASHING PASTE"),
-    "bath_soap": ("bath_soap.pdf", "🧼 BATH SOAP"),
-    "hair_shampoo": ("hair_shampoo.pdf", "🧴 HAIR SHAMPOO"),
+    folder = "static/lessons"
 
-    # ===== DRINKS =====
-    "orange_drink": ("orange_drink.pdf", "🍊 ORANGE CONCENTRATE"),
-    "raspberry_drink": ("raspberry_drink.pdf", "🍓 RASPBERRY"),
-    "cream_soda": ("cream_soda.pdf", "🥤 CREAM SODA"),
-    "low_cost_orange_syrup": ("low_cost_orange_syrup.pdf", "🍊 LOW COST ORANGE SYRUP"),
-    "low_cost_raspberry_drink": ("low_cost_raspberry_drink.pdf", "🍓 LOW COST RASPBERRY"),
-    "universal_cordial": ("universal_cordial.pdf", "🧃 UNIVERSAL CORDIAL"),
+    if not os.path.exists(folder):
+        return lessons
 
-    # NEW
-    "freezits": ("freezits.pdf", "🧊 FREEZITS"),
-    "ice_cream": ("ice_cream.pdf", "🍦 ICE CREAM"),
-    "baobab_drink": ("baobab_drink.pdf", "🌳 BAOBAB DRINK"),
-    "juice_cascade": ("juice_cascade.pdf", "🧃 JUICE CASCADE")
-}
+    for file in os.listdir(folder):
+
+        if file.endswith(".pdf"):
+
+            module = file.replace(".pdf", "")
+
+            label = module.replace("_", " ").title()
+
+            lessons[module] = (file, f"📘 {label}")
+
+    return lessons
+
+ALL_MODULES = load_lessons()
 
 STORE_ITEMS = {
     "sles": {
@@ -1671,12 +1682,19 @@ def webhook():
             send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
             return jsonify({"status": "ok"})
             
-        detergent_keys = [
-         "dishwash","thick_bleach","foam_bath","pine_gel","toilet_cleaner",
-         "engine_cleaner","laundry_bar","fabric_softener","petroleum_jelly","floor_polish",
-         "car_shampoo","acidic_degreaser","tyre_polish","liquid_shoe_polish","tile_cleaner",
-         "paste_shoe_polish","hair_conditioner","washing_paste","bath_soap","hair_shampoo"
-         ]
+        detergent_keys = [k for k in ALL_MODULES.keys() if k not in drink_keys]
+
+        menu = "🧼 *DETERGENTS – PAID LESSONS*\n\n"
+
+        for i, key in enumerate(detergent_keys, start=1):
+
+            label = ALL_MODULES[key][1]
+
+            menu += f"{i}️⃣ {label}\n"
+
+        menu += "\nNyora *MENU* kudzokera"
+
+        send_message(phone, menu)
 
         if incoming.isdigit() and 1 <= int(incoming) <= len(detergent_keys):
 
@@ -1781,11 +1799,19 @@ def webhook():
             log_activity(phone, "blocked_access", "drink_modules")
             return jsonify({"status": "ok"})
 
-        drink_keys = [
-        "orange_drink","raspberry_drink","cream_soda",
-        "freezits","ice_cream","baobab_drink","juice_cascade","low_cost_orange_syrup","low_cost_raspberry_drink",
-        "universal_cordial"
-        ]
+        drink_keys = [k for k in ALL_MODULES.keys() if "drink" in k or "syrup" in k or "cordial" in k]
+
+        menu = "🥤 *CONCENTRATE DRINKS – PAID LESSONS*\n\n"
+
+        for i, key in enumerate(drink_keys, start=1):
+
+            label = ALL_MODULES[key][1]
+
+            menu += f"{i}️⃣ {label}\n"
+
+        menu += "\nNyora *MENU* kudzokera"
+
+        send_message(phone, menu)
 
         if incoming.isdigit() and 1 <= int(incoming) <= len(drink_keys):
 
@@ -2142,6 +2168,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
