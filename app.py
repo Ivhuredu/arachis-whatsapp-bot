@@ -1098,6 +1098,20 @@ def free_lesson():
         "↩ Nyora *MENU* kudzokera kumusoro."
     )
 
+def welcome_message():
+    return (
+        "👋 Makadini!\n\n"
+        "Mazvita mauya! Vanhu vakawanda vari kutotanga kugadzira ma deregents nemadrins vachibatsirwa nekosi ino:\n\n"
+        "✔ Dishwash\n"
+        "✔ Thick Bleach\n"
+        "✔ Cream Soda\n"
+        "✔ Concentrate Drinks\n\n"
+        "🏠 Unogona kutanga kutodzidza izvozvi pafoni pako uye kutanga bhizinesi rako uri kumba.\n\n"
+        "📚 Full training: $5 once-off kuti udzidze ma formula ese ari 30\n\n"
+        "🏠 Kana une zvimwe zvaungada kuziva kana kubatsirwa taura naAdmin wedu pa +263773208904.\n\n"
+        "Reply *PAY* kuti ubhadhare uye utange kudzidza."
+    )
+
 # =========================
 # AI FAQ
 # =========================
@@ -1343,12 +1357,37 @@ def webhook():
         send_message(phone, f"✅ Approved: {target}")
         return jsonify({"status": "ok"})
 
-    if incoming in ["menu", "start", "makadini", "hie",]:
-        set_state(phone, "main")
-        send_message(phone, main_menu())
-        log_activity(phone, "open_menu", "main")
-        return jsonify({"status": "ok"})
+    if incoming in ["menu", "start", "makadini", "hie"]:
 
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            SELECT total_messages 
+            FROM student_metrics 
+            WHERE phone=%s
+        """, (phone,))
+
+        row = c.fetchone()
+        conn.close()
+
+        # If user is new or has few messages → show sales message
+        if not row or row[0] < 3:
+
+            set_state(phone, "main")
+            send_message(phone, welcome_message())
+
+            log_activity(phone, "open_menu", "welcome")
+
+        else:
+
+            set_state(phone, "main")
+            send_message(phone, main_menu())
+
+            log_activity(phone, "open_menu", "main")
+
+        return jsonify({"status": "ok"})
+    
     if incoming == "pay":
         set_state(phone, "pay_menu")
 
@@ -2168,6 +2207,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
