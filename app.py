@@ -615,6 +615,32 @@ def clean_pdf_text(text: str) -> str:
 
     return text
 
+def save_pdf_to_db(module_name, pdf_filename):
+
+    raw_text = extract_pdf_text(pdf_filename)
+    text = clean_pdf_text(raw_text)
+
+    if not text:
+        print("No text extracted")
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+
+    text = text[:120000]
+
+    c.execute("""
+        INSERT INTO lesson_content (module, content)
+        VALUES (%s, %s)
+        ON CONFLICT (module)
+        DO UPDATE SET content = EXCLUDED.content
+    """, (module_name, text))
+
+    conn.commit()
+    conn.close()
+
+    print(f"Saved {module_name} to database")
+
 def auto_sync_lessons():
 
     folder = "static/lessons"
@@ -641,36 +667,13 @@ def auto_sync_lessons():
 
     conn.close()
 
-# initialize database
-init_db()
+try:
+    init_db()
+    auto_sync_lessons()
+    print("Database initialized and lessons synced")
+except Exception as e:
+    print("Startup error:", e)
 
-# auto load lessons
-auto_sync_lessons()
-
-def save_pdf_to_db(module_name, pdf_filename):
-    
-    raw_text = extract_pdf_text(pdf_filename)
-    text = clean_pdf_text(raw_text)
-    
-    if not text:
-        print("No text extracted")
-        return
-
-    conn = get_db()
-    c = conn.cursor()
-    text = text[:120000]  # prevent huge context pollution
-
-    c.execute("""
-        INSERT INTO lesson_content (module, content)
-        VALUES (%s, %s)
-        ON CONFLICT (module)
-        DO UPDATE SET content = EXCLUDED.content
-    """, (module_name, text))
-
-    conn.commit()
-    conn.close()
-
-    print(f"Saved {module_name} to database")
 
 def get_lesson_from_db(module_name):
 
@@ -2203,8 +2206,16 @@ def data_deletion():
 def home():
     return "Arachis WhatsApp Bot Running"
 
+try:
+    init_db()
+    auto_sync_lessons()
+    print("Startup successful")
+except Exception as e:
+    print("Startup error:", e)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
