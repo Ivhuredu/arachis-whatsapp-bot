@@ -3,6 +3,7 @@ import requests
 from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
 import psycopg2
+from psycopg2 import pool
 from urllib.parse import urlparse
 import os
 from werkzeug.utils import secure_filename
@@ -37,23 +38,28 @@ openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # DATABASE
 # =========================
 def get_db():
-    database_url = os.getenv("DATABASE_URL")
 
-    if not database_url:
-        raise Exception("DATABASE_URL not set")
+    global DATABASE_POOL
 
-    url = urlparse(database_url)
+    if DATABASE_POOL is None:
 
-    conn = psycopg2.connect(
-        dbname=url.path[1:],
-        user=url.username,
-        password=url.password,
-        host=url.hostname,
-        port=url.port,
-        sslmode="require"
-    )
+        database_url = os.getenv("DATABASE_URL")
 
-    return conn
+        url = urlparse(database_url)
+
+        DATABASE_POOL = psycopg2.pool.SimpleConnectionPool(
+            1,
+            10,
+            dbname=url.path[1:],
+            user=url.username,
+            password=url.password,
+            host=url.hostname,
+            port=url.port,
+            sslmode="require"
+        )
+
+    return DATABASE_POOL.getconn()
+    
 def init_db():
     conn = get_db()
     c = conn.cursor()
@@ -170,7 +176,7 @@ def init_db():
     
     
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
 
 # =========================
@@ -257,7 +263,7 @@ def create_user(phone):
         ON CONFLICT (phone) DO NOTHING
     """, (phone,))
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
 def get_unpaid_active_users():
     conn = get_db()
@@ -276,7 +282,7 @@ def get_unpaid_active_users():
     """)
 
     rows = c.fetchall()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     return [r[0] for r in rows]
 
@@ -351,7 +357,7 @@ def get_user(phone):
     c = conn.cursor()
     c.execute("SELECT phone, state, payment_status, is_paid FROM users WHERE phone=%s", (phone,))
     row = c.fetchone()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     if not row:
         return None
@@ -368,7 +374,7 @@ def set_state(phone, state):
     c = conn.cursor()
     c.execute("UPDATE users SET state=%s WHERE phone=%s", (state, phone))
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     log_activity(phone, "state_change", state)
 
@@ -408,14 +414,14 @@ def update_metrics(phone, event):
         """, (phone,))
 
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
 def set_payment_status(phone, status):
     conn = get_db()
     c = conn.cursor()
     c.execute("UPDATE users SET payment_status=%s WHERE phone=%s", (status, phone))
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
 def mark_paid(phone):
     conn = get_db()
@@ -425,7 +431,7 @@ def mark_paid(phone):
         (phone,)
     )
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
 def ai_questions_today(phone):
     conn = get_db()
@@ -439,7 +445,7 @@ def ai_questions_today(phone):
     """, (phone,))
 
     count = c.fetchone()[0]
-    conn.close()
+    DATABASE_POOL.putconn(conn)
     return count
 
    
@@ -452,7 +458,7 @@ def record_module_access(phone, module):
         ON CONFLICT (phone, module) DO NOTHING
     """, (phone, module))
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
         
 def log_activity(phone, action, details=""):
     conn = get_db()
@@ -462,7 +468,7 @@ def log_activity(phone, action, details=""):
         VALUES (%s, %s, %s)
     """, (phone, action, details))
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
 import re
 
@@ -493,7 +499,7 @@ def verify_and_apply_payment(phone, message):
     # prevent reuse
     c.execute("SELECT 1 FROM payments WHERE reference=%s", (reference,))
     if c.fetchone():
-        conn.close()
+        DATABASE_POOL.putconn(conn)
         return False, "Reference yakamboshandiswa kare."
         
     ecocash_keywords = ["ecocash", "transfer", "paid", "you have received", "transaction", "cash out"]
@@ -501,15 +507,15 @@ def verify_and_apply_payment(phone, message):
         return False, "Tumira EcoCash confirmation SMS chaiyo."
 
     if not amount:
-        conn.close()
+        DATABASE_POOL.putconn(conn)
         return False, "Handina kuona mari yatumirwa muSMS."
 
     if amount < MIN_ACCEPTABLE:
-        conn.close()
+        DATABASE_POOL.putconn(conn)
         return False, f"Mari ishoma. Course iri ${COURSE_PRICE}."
 
     if amount > MAX_ACCEPTABLE:
-        conn.close()
+        DATABASE_POOL.putconn(conn)
         return False, f"Mari yakawandisa zvisina kujairika (${amount}). Bata admin."
 
     # save payment
@@ -519,7 +525,7 @@ def verify_and_apply_payment(phone, message):
     """, (phone, reference, amount, message))
 
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     # APPROVE USER
     mark_paid(phone)
@@ -559,7 +565,7 @@ def save_memory(phone, module, role, message):
     """, (phone, module, MAX_MEMORY_MESSAGES, phone, module))
 
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
 
 def get_memory(phone, module):
@@ -574,7 +580,7 @@ def get_memory(phone, module):
     """, (phone, module))
 
     rows = c.fetchall()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     memory = []
     for r in rows:
@@ -637,7 +643,7 @@ def save_pdf_to_db(module_name, pdf_filename):
     """, (module_name, text))
 
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     print(f"Saved {module_name} to database")
 
@@ -665,15 +671,7 @@ def auto_sync_lessons():
             print("Auto learning lesson:", module)
             save_pdf_to_db(module, file)
 
-    conn.close()
-
-try:
-    init_db()
-    auto_sync_lessons()
-    print("Database initialized and lessons synced")
-except Exception as e:
-    print("Startup error:", e)
-
+    DATABASE_POOL.putconn(conn)
 
 def get_lesson_from_db(module_name):
 
@@ -686,7 +684,7 @@ def get_lesson_from_db(module_name):
     )
 
     row = c.fetchone()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     if row:
         return row[0]
@@ -765,7 +763,7 @@ def get_user_modules(phone, message):
         (phone,)
     )
     rows = c.fetchall()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     user_modules = [r[0] for r in rows]
 
@@ -803,7 +801,23 @@ def load_lessons():
 
 ALL_MODULES = load_lessons()
 
-drink_keys = [k for k in ALL_MODULES.keys() if "drink" in k or "syrup" in k or "cordial" in k]
+def get_drink_modules():
+
+    modules = load_lessons()
+
+    return [
+        k for k in modules
+        if "drink" in k or "syrup" in k or "cordial" in k
+    ]
+
+
+def get_detergent_modules():
+
+    modules = load_lessons()
+
+    drinks = get_drink_modules()
+
+    return [k for k in modules if k not in drinks]
 
 STORE_ITEMS = {
     "sles": {
@@ -1347,7 +1361,7 @@ def webhook():
         total = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM users WHERE is_paid=1")
         paid = c.fetchone()[0]
-        conn.close()
+        DATABASE_POOL.putconn(conn)
         send_message(phone, f"📊 *ADMIN DASHBOARD*\n\n👥 Users: {total}\n💰 Paid: {paid}")
         return jsonify({"status": "ok"})
 
@@ -1371,7 +1385,7 @@ def webhook():
         """, (phone,))
 
         row = c.fetchone()
-        conn.close()
+        DATABASE_POOL.putconn(conn)
 
         # If user is new or has few messages → show sales message
         if not row or row[0] < 3:
@@ -1587,7 +1601,7 @@ def webhook():
                 DO UPDATE SET item = EXCLUDED.item
             """, (phone, pack["name"]))
             conn.commit()
-            conn.close()
+            DATABASE_POOL.putconn(conn)
 
             items_list = "\n".join([f"✔ {i}" for i in pack["items"]])
 
@@ -1623,7 +1637,7 @@ def webhook():
         c = conn.cursor()
         c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
         order = c.fetchone()
-        conn.close()
+        DATABASE_POOL.putconn(conn)
 
         if not order:
             send_message(phone, "❌ Order not found. Nyora *MENU*")
@@ -1723,14 +1737,13 @@ def webhook():
             send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
             return jsonify({"status": "ok"})
             
-        detergent_keys = [k for k in ALL_MODULES.keys() if k not in drink_keys]
+        modules = load_lessons()
+        detergent_keys = get_detergent_modules()
 
         menu = "🧼 *DETERGENTS – PAID LESSONS*\n\n"
 
         for i, key in enumerate(detergent_keys, start=1):
-
-            label = ALL_MODULES[key][1]
-
+            label = modules[key][1]
             menu += f"{i}️⃣ {label}\n"
 
         menu += "\nNyora *MENU* kudzokera"
@@ -1755,7 +1768,7 @@ def webhook():
            c = conn.cursor()
            c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
            conn.commit()
-           conn.close() 
+           DATABASE_POOL.putconn(conn)
            return jsonify({"status": "ok"})
 
     elif user["state"] == "offline_intro":
@@ -1777,7 +1790,7 @@ def webhook():
             DO UPDATE SET full_name = EXCLUDED.full_name
         """, (phone, incoming.title()))
         conn.commit()
-        conn.close()
+        DATABASE_POOL.putconn(conn)
 
         set_state(phone, "offline_location")
         send_message(phone, "📍 Enter your *Town / Area*")
@@ -1794,7 +1807,7 @@ def webhook():
             WHERE phone = %s
         """, (incoming.title(), phone))
         conn.commit()
-        conn.close()
+        DATABASE_POOL.putconn(conn)
 
         set_state(phone, "offline_choice")
         send_message(
@@ -1815,7 +1828,7 @@ def webhook():
             WHERE phone = %s
         """, (incoming.title(), phone))
         conn.commit()
-        conn.close()
+        DATABASE_POOL.putconn(conn)
 
         set_state(phone, "main")
         send_message(
@@ -1841,17 +1854,20 @@ def webhook():
             return jsonify({"status": "ok"})
 
 
+        modules = load_lessons()
+        drink_keys = get_drink_modules()
+
         menu = "🥤 *CONCENTRATE DRINKS – PAID LESSONS*\n\n"
 
         for i, key in enumerate(drink_keys, start=1):
-
-            label = ALL_MODULES[key][1]
-
+            label = modules[key][1]
             menu += f"{i}️⃣ {label}\n"
 
         menu += "\nNyora *MENU* kudzokera"
 
-        send_message(phone, menu)
+        if not incoming.isdigit():
+            send_message(phone, menu)
+            return jsonify({"status": "ok"})
 
         if incoming.isdigit() and 1 <= int(incoming) <= len(drink_keys):
 
@@ -1871,7 +1887,7 @@ def webhook():
             c = conn.cursor()
             c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
             conn.commit()
-            conn.close()
+            DATABASE_POOL.putconn(conn)
             return jsonify({"status": "ok"})
 
 # =========================
@@ -2019,7 +2035,11 @@ def admin_dashboard():
     WHERE action='blocked_access'
     GROUP BY phone
     ORDER BY COUNT(*) DESC
+    LIMIT 20
     """)
+
+    blocked_users = c.fetchall()
+    
     c.execute("""
     SELECT phone, total_messages, ai_questions, modules_opened, last_active
     FROM student_metrics
@@ -2029,7 +2049,7 @@ def admin_dashboard():
     students = c.fetchall() 
 
 
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     html = "<h2>Arachis Admin Dashboard</h2>"
 
@@ -2045,8 +2065,11 @@ def admin_dashboard():
     </ul>
     <hr>
     """
-    
+    html += "<hr><h3>🚫 Users Blocked From Modules</h3>"
 
+    for b in blocked_users:
+        html += f"{b[0]} | Attempts: {b[1]}<br>"
+    
     # ===== UPLOAD =====
     html += """
     <h3>📤 Upload Lesson PDF</h3>
@@ -2188,7 +2211,7 @@ def followup_unpaid():
             count += 1
 
     conn.commit()
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     return f"Sent {count} followups"
 
@@ -2215,6 +2238,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
