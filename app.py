@@ -173,15 +173,6 @@ def init_db():
     conn.close()
 
 
-# initialize database
-init_db()
-
-# auto load lessons
-auto_sync_lessons()
-
-    
-
-
 # =========================
 # HELPERS
 # =========================
@@ -650,6 +641,12 @@ def auto_sync_lessons():
 
     conn.close()
 
+# initialize database
+init_db()
+
+# auto load lessons
+auto_sync_lessons()
+
 def save_pdf_to_db(module_name, pdf_filename):
     
     raw_text = extract_pdf_text(pdf_filename)
@@ -802,6 +799,8 @@ def load_lessons():
     return lessons
 
 ALL_MODULES = load_lessons()
+
+drink_keys = [k for k in ALL_MODULES.keys() if "drink" in k or "syrup" in k or "cordial" in k]
 
 STORE_ITEMS = {
     "sles": {
@@ -1838,7 +1837,6 @@ def webhook():
             log_activity(phone, "blocked_access", "drink_modules")
             return jsonify({"status": "ok"})
 
-        drink_keys = [k for k in ALL_MODULES.keys() if "drink" in k or "syrup" in k or "cordial" in k]
 
         menu = "🥤 *CONCENTRATE DRINKS – PAID LESSONS*\n\n"
 
@@ -2207,6 +2205,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
