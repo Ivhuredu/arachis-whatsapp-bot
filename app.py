@@ -309,14 +309,17 @@ def get_unpaid_active_users():
     DATABASE_POOL.putconn(conn)
 
     return [r[0] for r in rows]
-
+    
 def followup_message(stage):
 
+    stage = stage % 7   # 🔁 recycle messages forever
+
     messages = {
+
         0: (
             "👋 Makadii!\n\n"
             "Makamboshandisa Arachis Training Bot asi hamusati majoina training.\n\n"
-            "Vanhu vazhinji vari kutotanga kugadzira dishwash & bleach kumba.\n\n"
+            "Vanhu vakawanda vari kutotanga kugadzira dishwash & bleach kumba.\n\n"
             "💵 Full training: $5 once-off.\n"
             "Nyora *PAY* kuti utange."
         ),
@@ -325,28 +328,53 @@ def followup_message(stage):
             "🧼 Vanhu vakawanda vari kutotanga kugadzira ma detergents kumba.\n\n"
             "Course ine:\n"
             "✔ 20 detergent modules\n"
-            "✔ 6 drink modules\n"
-            "✔ Rubatsiro rweAI kana wasangana nedambudziko\n\n"
+            "✔ 10 drink modules\n"
+            "✔ Rubatsiro rwe AI kana product yako ikakanganisika\n\n"
             "Nyora *PAY* kuti utange kudzidza."
         ),
 
         2: (
-            "🎉 Ma Students akawanda ari kugadzira:\n"
+            "🎉 Ma students akawanda ari kutotanga mabhizinesi madiki.\n\n"
+            "Vamwe vari kutengesa:\n"
             "✔ Dishwash\n"
             "✔ Bleach\n"
             "✔ Cream soda\n\n"
-            "Unogonawo kutanga nhasi.\n\n"
-            "💵 Course: $5 once-off\n"
-            "Nyora *PAY* kuti utange."
+            "Unogonawo kutanga.\n"
+            "Nyora *PAY* kuti utange course."
         ),
 
         3: (
-            "⚠ Promotion ye $5 iri kupera nekukurumidza.\n\n"
-            "Course inosanganisira:\n"
-            "✔ 26 production lessons\n"
+            "🤖 Course iyi ine *AI trainer*.\n\n"
+            "Kana formula yako yakanganisika unogona kubvunza bot.\n\n"
+            "Inokuudza:\n"
+            "✔ chii chakanganisika\n"
+            "✔ kuti ugadzirise sei\n\n"
+            "Nyora *PAY* kuti uvhure course."
+        ),
+
+        4: (
+            "💰 Bhizinesi re madetergents rinogona kutangwa nemari shoma.\n\n"
+            "Example:\n"
+            "20L Dishwash inogona kugadzirwa nemari isingapfuuri $15\n"
+            "wozoitengesa mari ingasvia $25.\n\n"
+            "Nyora *PAY* kuti udzidze maformula."
+        ),
+
+        5: (
+            "📚 Course yedu inosanganisira:\n\n"
+            "✔ 30 production lessons\n"
             "✔ AI trainer\n"
-            "✔ Supplier directory\n\n"
-            "Nyora *PAY* kuti utange nhasi."
+            "✔ Supplier directory\n"
+            "✔ Business guidance\n\n"
+            "💵 Only $5 once-off.\n"
+            "Nyora *PAY* kuti utange."
+        ),
+
+        6: (
+            "⚠ *Reminder*\n\n"
+            "Course ichiri $5 chete asi promotion iyi inogona kupera mumazuva mashoma anotevera.\n\n"
+            "Kana uchida kudzidza kugadzira detergents nemadrinks,\n"
+            "Nyora *PAY* kuti utange."
         )
     }
 
@@ -2264,6 +2292,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
