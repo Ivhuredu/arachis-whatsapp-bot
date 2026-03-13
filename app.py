@@ -13,8 +13,8 @@ from flask import Response
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 def check_auth(username, password):
-    return password == ADMIN_PASSWORD
-
+    return username == "admin" and password == ADMIN_PASSWORD
+    
 def authenticate():
     return Response(
         'Login required', 401,
@@ -1370,8 +1370,7 @@ def detect_module_from_question(question, allowed_modules):
 
     # 3️⃣ fallback = last opened module
     return allowed_modules[-1] if allowed_modules else None
-    return None 
-
+    
 # =========================
 # WEBHOOK
 # =========================
@@ -2137,12 +2136,13 @@ def admin_dashboard():
             🕒 Last: {s[4]}
             <br>
             """    
-            html += """
-            <hr>
-            <h3>📣 Marketing</h3>
-            <a href="/admin/followup-unpaid">Send follow-up to unpaid users</a>
-            <hr>
-            """
+
+        html += """
+        <hr>
+        <h3>📣 Marketing</h3>
+        <a href="/admin/followup-unpaid">Send follow-up to unpaid users</a>
+        <hr>
+        """
 
     html += "<hr><h3>📜 Activity Feed (Latest 1000)</h3>"
 
@@ -2292,6 +2292,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
