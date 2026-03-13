@@ -2068,18 +2068,16 @@ def admin_dashboard():
     if not followups:
         html += "<p>No users in follow-up funnel.</p>"
     else:
-        html += f"""
-        📱 {phone} |
-        Stage: {stage} |
-        Last Followup: {last} |
-        <a href="/admin/send-followup/{phone}">📤 Send Message</a>
-        <br>
-        """
+        for f in followups:
+            phone = f[0]
+            stage = f[1]
+            last = f[2]
 
             html += f"""
             📱 {phone} |
             Stage: {stage} |
-            Last Followup: {last}
+            Last Followup: {last} |
+            <a href="/admin/send-followup/{phone}">📤 Send Message</a>
             <br>
             """
     html += "<hr><h3>🧑🏽‍🏫 Offline Registrations</h3>"
@@ -2269,6 +2267,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
