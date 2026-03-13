@@ -2068,10 +2068,13 @@ def admin_dashboard():
     if not followups:
         html += "<p>No users in follow-up funnel.</p>"
     else:
-        for f in followups:
-            phone = f[0]
-            stage = f[1]
-            last = f[2]
+        html += f"""
+        📱 {phone} |
+        Stage: {stage} |
+        Last Followup: {last} |
+        <a href="/admin/send-followup/{phone}">📤 Send Message</a>
+        <br>
+        """
 
             html += f"""
             📱 {phone} |
@@ -2203,6 +2206,46 @@ def followup_unpaid():
 
     return f"Sent {count} followups"
 
+@app.route("/admin/send-followup/<phone>")
+def admin_send_followup(phone):
+
+    phone = normalize_phone(phone)
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+    SELECT followup_stage
+    FROM users
+    WHERE phone=%s
+    """, (phone,))
+
+    row = c.fetchone()
+
+    if not row:
+        DATABASE_POOL.putconn(conn)
+        return "User not found"
+
+    stage = row[0]
+
+    message = followup_message(stage)
+
+    if message:
+        send_message(phone, message)
+
+        c.execute("""
+        UPDATE users
+        SET last_followup = NOW(),
+            followup_stage = followup_stage + 1
+        WHERE phone=%s
+        """, (phone,))
+
+        conn.commit()
+
+    DATABASE_POOL.putconn(conn)
+
+    return redirect(url_for("admin_dashboard"))
+
 @app.route("/data-deletion")
 def data_deletion():
     return """
@@ -2226,6 +2269,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
