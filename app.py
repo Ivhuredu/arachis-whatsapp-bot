@@ -1993,6 +1993,23 @@ def admin_dashboard():
     """)
 
     blocked_users = c.fetchall()
+
+    c.execute("""
+    SELECT phone, followup_stage, last_followup
+    FROM users
+    WHERE is_paid = 0
+    AND followup_stage > 0
+    ORDER BY last_followup DESC
+    """)
+
+    followups = c.fetchall()
+    c.execute("""
+    SELECT COUNT(*)
+    FROM users
+    WHERE last_followup::date = CURRENT_DATE
+    """)
+
+    followups_today = c.fetchone()[0]
     
     c.execute("""
     SELECT phone, total_messages, ai_questions, modules_opened, last_active
@@ -2045,6 +2062,23 @@ def admin_dashboard():
         {phone} | Paid: {is_paid} | Status: {payment_status}
         | <a href='/admin/approve/{phone}'>Approve</a><br>
         """
+
+    html += "<hr><h3>📣 Follow-Up Funnel</h3>"
+
+    if not followups:
+        html += "<p>No users in follow-up funnel.</p>"
+    else:
+        for f in followups:
+            phone = f[0]
+            stage = f[1]
+            last = f[2]
+
+            html += f"""
+            📱 {phone} |
+            Stage: {stage} |
+            Last Followup: {last}
+            <br>
+            """
     html += "<hr><h3>🧑🏽‍🏫 Offline Registrations</h3>"
 
     if not offline_regs:
@@ -2192,6 +2226,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
