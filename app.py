@@ -1119,15 +1119,15 @@ DEFAULT_DELIVERY_FEE = 7  # if town not listed
 def main_menu():
     return (
         "👋 *TINOKUGAMUCHIRAI KU ARACHIS ONLINE TRAINING*\n\n"
-        "1️⃣ Detergents\n"
-        "2️⃣ Concentrate Drinks\n"
-        "3️⃣ Mitengo & Kubhadhara\n"
-        "4️⃣ Free Lesson\n"
-        "5️⃣ Join Full Online Training\n"
-        "6️⃣ Register for Offline Classes\n"
-        "7️⃣ Online Store (Chemicals)\n"
-        "8️⃣ Tsvaga Rubatsiro\n"
-        "9️⃣ Supplier Directory")
+        "1️⃣ Course Lessons\n"
+        "2️⃣ Mitengo & Kubhadhara\n"
+        "3️⃣ Free Lesson\n"
+        "4️⃣ Join Full Online Training\n"
+        "5️⃣ Register for Offline Classes\n"
+        "6️⃣ Online Store (Chemicals)\n"
+        "7️⃣ Tsvaga Rubatsiro\n"
+        "8️⃣ Supplier Directory"
+    )
     
 def free_lesson():
     return (
@@ -1451,56 +1451,69 @@ def webhook():
         )
         return jsonify({"status": "ok"})
 
-    if user["state"] == "main":
-        if incoming == "1":
-            set_state(phone, "detergent_menu")
-            log_activity(phone, "open_menu", "detergents")
-            send_message(phone,
-            "🧼 *DETERGENTS – PAID LESSONS*\n\n"
-            "1 Dishwash\n"
-            "2 Thick Bleach\n"
-            "3 Foam Bath\n"
-            "4 Pine Gel\n"
-            "5 Toilet Cleaner\n"
-            "6 Engine Cleaner\n"
-            "7 Laundry Bar Soap\n"
-            "8 Fabric Softener\n"
-            "9 Petroleum Jelly\n"
-            "10 Floor Polish\n"
-            "11 Car Shampoo\n"
-            "12 Acidic Metal Degreaser\n"
-            "13 Tyre Polish\n"
-            "14 Liquid Shoe Polish\n"
-            "15 Tile Cleaner\n"
-            "16 Shoe Polish Paste\n"
-            "17 Hair Conditioner\n"
-            "18 Washing Paste\n"
-            "19 Bath Soap\n"
-            "20 Hair Shampoo\n\n"
-            "Nyora *MENU* kudzokera"
-            )
+   if incoming == "1":
+
+        fresh_user = get_user(phone)
+
+        if not fresh_user["is_paid"]:
+            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+            log_activity(phone, "blocked_access", "course_lessons")
             return jsonify({"status": "ok"})
 
-        if incoming == "2":
-            set_state(phone, "drink_menu")
-            send_message(
-                 phone,
-                "🥤 *CONCENTRATE DRINKS – PAID LESSONS*\n\n"
-                "1️⃣ Orange Concentrate\n"
-                "2️⃣ Raspberry Concentrate\n"
-                "3️⃣ Cream Soda\n"
-                "4️⃣ Freezits\n"
-                "5️⃣ Ice Cream\n"
-                "6️⃣ Baobab Drink\n"
-                "7️⃣ Juice Cascade\n"
-                "8️⃣ Low Cost Orange Syrup\n"
-                "9️⃣ Low Cost Raspberry\n"
-                "🔟 Universal Cordial\n\n"
-                "Nyora *MENU* kudzokera"
-            )
-            log_activity(phone, "open_menu", "drinks")
+        set_state(phone, "course_lessons")
+
+        modules = load_lessons()
+
+        menu = "📚 *COURSE LESSONS*\n\n"
+
+        for i, key in enumerate(modules, start=1):
+            label = modules[key][1]
+            menu += f"{i}️⃣ {label}\n"
+
+        menu += "\nNyora *MENU* kudzokera."
+
+        send_message(phone, menu)
+        return jsonify({"status": "ok"})
+
+       
+        elif user["state"] == "course_lessons":
+
+        fresh_user = get_user(phone)
+
+        if not fresh_user["is_paid"]:
+            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
             return jsonify({"status": "ok"})
 
+        modules = load_lessons()
+        module_keys = list(modules.keys())
+
+        if not incoming.isdigit():
+            send_message(phone, "Nyora number ye lesson.")
+            return jsonify({"status": "ok"})
+
+        if incoming.isdigit() and 1 <= int(incoming) <= len(module_keys):
+
+            module = module_keys[int(incoming)-1]
+            pdf, label = modules[module]
+
+            record_module_access(phone, module)
+            log_activity(phone, "open_module", module)
+            update_metrics(phone, "module")
+
+            send_pdf(
+                phone,
+                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+                label
+            )
+
+            # reset AI memory for module
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            return jsonify({"status": "ok"})
         elif incoming == "3":
             send_message(phone, "💵 Full training: $5 once-off\nNyora *PAY*")
             return jsonify({"status": "ok"})
@@ -2269,6 +2282,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
