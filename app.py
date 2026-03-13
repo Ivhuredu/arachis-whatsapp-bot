@@ -1771,49 +1771,7 @@ def webhook():
             )
             return jsonify({"status": "ok"})
         
-    elif user["state"] == "detergent_menu":
-
-        fresh_user = get_user(phone)
-
-        if not fresh_user["is_paid"]:
-
-            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-            return jsonify({"status": "ok"})
-            
-        modules = load_lessons()
-        detergent_keys = get_detergent_modules()
-
-        menu = "🧼 *DETERGENTS – PAID LESSONS*\n\n"
-
-        for i, key in enumerate(detergent_keys, start=1):
-            label = modules[key][1]
-            menu += f"{i}️⃣ {label}\n"
-
-        menu += "\nNyora *MENU* kudzokera"
-
-        send_message(phone, menu)
-
-        if incoming.isdigit() and 1 <= int(incoming) <= len(detergent_keys):
-
-           module = detergent_keys[int(incoming)-1]
-           pdf, label = ALL_MODULES[module]
-
-           update_metrics(phone, "module")
-           record_module_access(phone, module)
-           log_activity(phone, "open_module", module)
-
-           send_pdf(phone,
-               f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
-               label
-           )
-           # ===== RESET AI MEMORY FOR THIS MODULE =====
-           conn = get_db()
-           c = conn.cursor()
-           c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
-           conn.commit()
-           DATABASE_POOL.putconn(conn)
-           return jsonify({"status": "ok"})
-
+    
     elif user["state"] == "offline_intro":
 
         if incoming == "yes":
@@ -1882,56 +1840,6 @@ def webhook():
             "We will confirm your seat after approval."
         )
         return jsonify({"status": "ok"})
-
-
-    # =========================
-# DRINK MODULE MENU
-# =========================
-    elif user["state"] == "drink_menu":
-
-        fresh_user = get_user(phone)
-
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-            log_activity(phone, "blocked_access", "drink_modules")
-            return jsonify({"status": "ok"})
-
-
-        modules = load_lessons()
-        drink_keys = get_drink_modules()
-
-        menu = "🥤 *CONCENTRATE DRINKS – PAID LESSONS*\n\n"
-
-        for i, key in enumerate(drink_keys, start=1):
-            label = modules[key][1]
-            menu += f"{i}️⃣ {label}\n"
-
-        menu += "\nNyora *MENU* kudzokera"
-
-        if not incoming.isdigit():
-            send_message(phone, menu)
-            return jsonify({"status": "ok"})
-
-        if incoming.isdigit() and 1 <= int(incoming) <= len(drink_keys):
-
-            module = drink_keys[int(incoming)-1]
-            pdf, label = ALL_MODULES[module]
-
-            record_module_access(phone, module)
-            log_activity(phone, "open_module", module)
-            update_metrics(phone, "module")
-
-            send_pdf(phone,
-                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
-                label
-            )
-            # ===== RESET AI MEMORY FOR THIS MODULE =====
-            conn = get_db()
-            c = conn.cursor()
-            c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
-            conn.commit()
-            DATABASE_POOL.putconn(conn)
-            return jsonify({"status": "ok"})
 
 # =========================
 # AUTO PAYMENT DETECTOR
@@ -2282,6 +2190,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
