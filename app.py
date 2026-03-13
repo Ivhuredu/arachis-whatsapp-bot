@@ -7,6 +7,28 @@ from psycopg2 import pool
 from urllib.parse import urlparse
 import os
 from werkzeug.utils import secure_filename
+from functools import wraps
+from flask import Response
+
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+def check_auth(username, password):
+    return password == ADMIN_PASSWORD
+
+def authenticate():
+    return Response(
+        'Login required', 401,
+        {'WWW-Authenticate': 'Basic realm="Admin Login"'}
+    )
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
 
 DATABASE_POOL = None
 
@@ -743,7 +765,7 @@ def get_dashboard_stats():
     c.execute("SELECT COUNT(*) FROM activity_log WHERE action='blocked_access'")
     blocked_attempts = c.fetchone()[0]
 
-    conn.close()
+    DATABASE_POOL.putconn(conn)
 
     return {
         "total_users": total_users,
@@ -1308,6 +1330,12 @@ def detect_module_from_question(question, allowed_modules):
         if key in q and module in allowed_modules:
             return module
 
+    # if no keyword match → stay in last module
+    if allowed_modules:
+        return allowed_modules[-1]
+
+    return None
+
     # 2️⃣ direct module name mention
     for module in allowed_modules:
         if module.replace("_", " ") in q:
@@ -1545,7 +1573,7 @@ def webhook():
                "Nyora izvi pafoni yako 👇\n\n"
                "*153*1*1*0773208904*6#\n\n"
                "👤 Recipient: *Beloved Nkomo*\n"
-               f"💵 Amount: *${COURSE_PRICE}* add cashout charges"
+               f"💵 Amount: *${COURSE_PRICE}* add cashout charges\n"
                "✔ Chibva waisa EcoCash PIN\n"
                "✔ Kana wapedza kubhadhara, tumira confirmation message yacho pano:"
             )
@@ -1914,20 +1942,20 @@ def webhook():
 # =========================
 # UNPAID USER PROTECTION
 # =========================
-    if not user["is_paid"]:
+   if not user["is_paid"]:
 
         faq = faq_engine(incoming)
+
         if faq:
             send_message(phone, faq)
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
-        # any other free-text → sales response
-        send_message(
-            phone,
-            "📚 Kuti uwane rubatsiro rweAI & maformula unofanira kunyoresa.\nNyora *PAY* kuti utange."
-        )
-        return jsonify({"status":"ok"})
-    
+        if incoming not in ["menu","start","pay","1","2","3","4","5","6","7","8","9"]:
+            send_message(
+                phone,
+                "📚 AI trainer & ma formula anovhurwa kune vakabhadhara chete.\nNyora *PAY* kuti utange."
+            )
+            return jsonify({"status":"ok"}) 
     blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
     
     if incoming not in blocked_commands and user["is_paid"]:
@@ -1977,6 +2005,7 @@ def webhook():
 # ADMIN WEB DASHBOARD
 # =========================
 @app.route("/admin", methods=["GET", "POST"])
+@requires_auth
 def admin_dashboard():
 
     if request.method == "POST":
@@ -2240,6 +2269,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
