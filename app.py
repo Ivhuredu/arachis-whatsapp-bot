@@ -1334,7 +1334,6 @@ def detect_module_from_question(question, allowed_modules):
     if allowed_modules:
         return allowed_modules[-1]
 
-    return None
 
     # 2️⃣ direct module name mention
     for module in allowed_modules:
@@ -1343,9 +1342,7 @@ def detect_module_from_question(question, allowed_modules):
 
     # 3️⃣ fallback = last opened module
     return allowed_modules[-1] if allowed_modules else None
-
-
-
+    return None 
 
 # =========================
 # WEBHOOK
@@ -2267,6 +2264,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
