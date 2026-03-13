@@ -1451,69 +1451,72 @@ def webhook():
         )
         return jsonify({"status": "ok"})
 
-   if incoming == "1":
+    if user["state"] == "main":
 
-        fresh_user = get_user(phone)
+        if incoming == "1":
 
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-            log_activity(phone, "blocked_access", "course_lessons")
+            fresh_user = get_user(phone)
+
+            if not fresh_user["is_paid"]:
+                send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+                log_activity(phone, "blocked_access", "course_lessons")
+                return jsonify({"status": "ok"})
+
+            set_state(phone, "course_lessons")
+
+            modules = load_lessons()
+
+            menu = "📚 *COURSE LESSONS*\n\n"
+
+            for i, key in enumerate(modules, start=1):
+                label = modules[key][1]
+                menu += f"{i}️⃣ {label}\n"
+
+            menu += "\nNyora *MENU* kudzokera."
+
+            send_message(phone, menu)
             return jsonify({"status": "ok"})
 
-        set_state(phone, "course_lessons")
-
-        modules = load_lessons()
-
-        menu = "📚 *COURSE LESSONS*\n\n"
-
-        for i, key in enumerate(modules, start=1):
-            label = modules[key][1]
-            menu += f"{i}️⃣ {label}\n"
-
-        menu += "\nNyora *MENU* kudzokera."
-
-        send_message(phone, menu)
-        return jsonify({"status": "ok"})
-
-       
         elif user["state"] == "course_lessons":
 
-        fresh_user = get_user(phone)
+            fresh_user = get_user(phone)
 
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-            return jsonify({"status": "ok"})
+            if not fresh_user["is_paid"]:
+                send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+                return jsonify({"status": "ok"})
 
-        modules = load_lessons()
-        module_keys = list(modules.keys())
+            modules = load_lessons()
+            module_keys = list(modules.keys())
 
-        if not incoming.isdigit():
-            send_message(phone, "Nyora number ye lesson.")
-            return jsonify({"status": "ok"})
+            if not incoming.isdigit():
+                send_message(phone, "Nyora number ye lesson.")
+                return jsonify({"status": "ok"})
 
-        if incoming.isdigit() and 1 <= int(incoming) <= len(module_keys):
+            if 1 <= int(incoming) <= len(module_keys):
 
-            module = module_keys[int(incoming)-1]
-            pdf, label = modules[module]
+                module = module_keys[int(incoming)-1]
+                pdf, label = modules[module]
 
-            record_module_access(phone, module)
-            log_activity(phone, "open_module", module)
-            update_metrics(phone, "module")
+                record_module_access(phone, module)
+                log_activity(phone, "open_module", module)
+                update_metrics(phone, "module")
 
-            send_pdf(
-                phone,
-                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
-                label
-            )
+                send_pdf(
+                    phone,
+                    f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+                    label
+                )
 
-            # reset AI memory for module
-            conn = get_db()
-            c = conn.cursor()
-            c.execute("DELETE FROM ai_memory WHERE phone=%s AND module=%s", (phone, module))
-            conn.commit()
-            DATABASE_POOL.putconn(conn)
+                conn = get_db()
+                c = conn.cursor()
+                c.execute(
+                    "DELETE FROM ai_memory WHERE phone=%s AND module=%s",
+                    (phone, module)
+                )
+                conn.commit()
+                DATABASE_POOL.putconn(conn)
 
-            return jsonify({"status": "ok"})
+                return jsonify({"status": "ok"})
         elif incoming == "3":
             send_message(phone, "💵 Full training: $5 once-off\nNyora *PAY*")
             return jsonify({"status": "ok"})
@@ -1858,12 +1861,9 @@ def webhook():
             return jsonify({"status": "ok"})
 
 # =========================
-# AI TRAINER (MODULE RESTRICTED)
-# =========================
-# =========================
 # UNPAID USER PROTECTION
 # =========================
-if not user["is_paid"]:
+    if not user["is_paid"]:
 
         faq = faq_engine(incoming)
 
@@ -2190,6 +2190,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
