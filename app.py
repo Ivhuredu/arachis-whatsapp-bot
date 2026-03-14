@@ -6,6 +6,7 @@ import psycopg2
 from psycopg2 import pool
 from urllib.parse import urlparse
 import os
+import base64
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask import Response
@@ -1307,8 +1308,12 @@ def ai_trainer_reply(phone, question, allowed_modules):
 
 def ai_analyze_product(image_path, question=""):
 
+    import base64
+
     with open(image_path, "rb") as img:
         image_bytes = img.read()
+
+    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
 
     response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
@@ -1323,9 +1328,16 @@ def ai_analyze_product(image_path, question=""):
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": question or "Analyze this detergent product."},
-                    {"type": "image_url",
-                     "image_url": {"url": f"data:image/jpeg;base64,{image_bytes.hex()}"}}
+                    {
+                        "type": "text",
+                        "text": question or "Analyze this detergent product."
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_base64}"
+                        }
+                    }
                 ]
             }
         ],
