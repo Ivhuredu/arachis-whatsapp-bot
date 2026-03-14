@@ -1557,9 +1557,9 @@ def webhook():
                "Example:\n"
                "Why is my thick bleach thin?\n\n"
                "↩ Nyora *MENU* kudzokera."
-           )
+            )
 
-           return jsonify({"status": "ok"})
+            return jsonify({"status": "ok"})
 
         elif incoming == "8":
             set_state(phone, "supplier_directory")
@@ -1586,6 +1586,19 @@ def webhook():
         module_keys = list(modules.keys())
 
         if not incoming.isdigit():
+
+            allowed_modules = get_user_modules(phone, incoming)
+
+            if allowed_modules:
+                ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+
+                send_message(phone, ai_answer)
+
+                log_activity(phone, "ai_question", incoming)
+                update_metrics(phone, "ai")
+
+                return jsonify({"status": "ok"})
+
             send_message(phone, "Nyora number ye lesson.")
             return jsonify({"status": "ok"})
 
