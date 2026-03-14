@@ -1153,7 +1153,7 @@ def main_menu():
         "4️⃣ Join Full Online Training\n"
         "5️⃣ Register for Offline Classes\n"
         "6️⃣ Online Store (Chemicals)\n"
-        "7️⃣ Tsvaga Rubatsiro\n"
+        "7️⃣ 🤖 Ask AI Trainer\n"
         "8️⃣ Supplier Directory"
     )
     
@@ -1542,8 +1542,24 @@ def webhook():
             return jsonify({"status": "ok"})
 
         elif incoming == "7":
-            send_message(phone, "📝 Kana une dambudziko raungada rubatsiro — Taura nesu pa *+263719208904*")
-            return jsonify({"status": "ok"})
+
+            set_state(phone, "ai_chat")
+
+            send_message(
+                phone,
+               "🤖 *AI TRAINER*\n\n"
+               "Bvunza mubvunzo wako nezve:\n"
+               "• Dishwash\n"
+               "• Thick Bleach\n"
+               "• Pine Gel\n"
+               "• Drinks\n"
+               "• Soap\n\n"
+               "Example:\n"
+               "Why is my thick bleach thin?\n\n"
+               "↩ Nyora *MENU* kudzokera."
+           )
+
+           return jsonify({"status": "ok"})
 
         elif incoming == "8":
             set_state(phone, "supplier_directory")
@@ -1799,6 +1815,28 @@ def webhook():
                 "↩ Nyora *MENU* kudzokera."
             )
             return jsonify({"status": "ok"})
+
+    elif user["state"] == "ai_chat":
+
+        if incoming == "menu":
+            set_state(phone, "main")
+            send_message(phone, main_menu())
+            return jsonify({"status": "ok"})
+
+        allowed_modules = get_user_modules(phone, incoming)
+
+        if not allowed_modules:
+            send_message(phone, "📚 Tapota vhura lesson kutanga kuti AI ikubatsire.")
+            return jsonify({"status": "ok"})
+
+        ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+
+        send_message(phone, ai_answer)
+
+        log_activity(phone, "ai_question", incoming)
+        update_metrics(phone, "ai")
+
+        return jsonify({"status": "ok"})
         
     
     elif user["state"] == "offline_intro":
