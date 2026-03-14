@@ -229,6 +229,26 @@ def send_message(phone, text):
     print("STATUS:", response.status_code)
     print("RESPONSE:", response.text)
 
+def download_whatsapp_image(media_id):
+
+    url = f"https://graph.facebook.com/v18.0/{media_id}"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}"
+    }
+
+    r = requests.get(url, headers=headers)
+    media_url = r.json()["url"]
+
+    image = requests.get(media_url, headers=headers)
+
+    path = f"/tmp/{media_id}.jpg"
+
+    with open(path, "wb") as f:
+        f.write(image.content)
+
+    return path
+
 
 def send_pdf(phone, pdf_url, caption):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
@@ -1284,6 +1304,35 @@ def ai_trainer_reply(phone, question, allowed_modules):
     save_memory(phone, active_module, "assistant", answer)
 
     return answer
+
+def ai_analyze_product(image_path, question=""):
+
+    with open(image_path, "rb") as img:
+        image_bytes = img.read()
+
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content":
+                "You are an industrial detergent trainer. "
+                "Analyze the product in the photo and diagnose problems. "
+                "Explain the issue and give exact measurable fixes."
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": question or "Analyze this detergent product."},
+                    {"type": "image_url",
+                     "image_url": {"url": f"data:image/jpeg;base64,{image_bytes.hex()}"}}
+                ]
+            }
+        ],
+        max_tokens=500
+    )
+
+    return response.choices[0].message.content
     
 def detect_module_from_question(question, allowed_modules):
     if not question:
@@ -1370,6 +1419,8 @@ def detect_module_from_question(question, allowed_modules):
 
     # 3️⃣ fallback = last opened module
     return allowed_modules[-1] if allowed_modules else None
+
+
     
 # =========================
 # WEBHOOK
@@ -1394,9 +1445,17 @@ def webhook():
     try:
         message = data["entry"][0]["changes"][0]["value"]["messages"][0]
         phone = normalize_phone(message["from"])
-        incoming = message["text"]["body"].strip().lower()
+
+        msg_type = message["type"]
+
+        if msg_type == "text":
+            incoming = message["text"]["body"].strip().lower()
+        else:
+            incoming = ""
+
         update_metrics(phone, "message")
-        log_activity(phone, "incoming_message", incoming)
+        log_activity(phone, "incoming_message", msg_type)
+
     except Exception:
         return "OK", 200
 
@@ -1404,6 +1463,48 @@ def webhook():
     user = get_user(phone)
     if not user:
         return "OK", 200
+
+    if msg_type == "image":
+
+        if not user["is_paid"]:
+            send_message(
+                phone,
+                "📷 Photo analysis is available to paid students only.\nNyora *PAY* kuti utange."
+            )
+            return jsonify({"status": "ok"})
+
+        media_id = message["image"]["id"]
+
+        image_path = download_whatsapp_image(media_id)
+
+        # store image path temporarily
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO temp_orders (phone, item)
+            VALUES (%s,%s)
+            ON CONFLICT (phone)
+            DO UPDATE SET item = EXCLUDED.item
+        """, (phone, image_path))
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "photo_details")
+
+        send_message(
+            phone,
+            "📷 *PHOTO RECEIVED*\n\n"
+            "Ndibatsirei ne information iyi:\n\n"
+            "1️⃣ Product name (example: Thick Bleach)\n"
+            "2️⃣ Ingredients used\n"
+            "3️⃣ Batch size\n\n"
+            "Example:\n"
+            "Thick bleach\n"
+            "SLES + Hypo + Caustic\n"
+            "20 litres"
+        )
+
+        return jsonify({"status": "ok"})
 
 
     # START OF YOUR OLD LOGIC
@@ -1547,16 +1648,15 @@ def webhook():
 
             send_message(
                 phone,
-               "🤖 *AI TRAINER*\n\n"
-               "Bvunza mubvunzo wako nezve:\n"
-               "• Dishwash\n"
-               "• Thick Bleach\n"
-               "• Pine Gel\n"
-               "• Drinks\n"
-               "• Soap\n\n"
-               "Example:\n"
-               "Why is my thick bleach thin?\n\n"
-               "↩ Nyora *MENU* kudzokera."
+                "🤖 *AI TRAINER*\n\n"
+                "Unogona:\n"
+                "✔ Kubvunza mubvunzo\n"
+                "✔ Kutumira photo ye product yako\n\n"
+                "Example questions:\n"
+                "• Thick Bleach yangu yakoresa ndoita sei?\n"
+                "• Dishwash yangu haisi kupupuma?\n\n"
+                "📷 Kana product yakanganisika tumira *PHOTO*.\n\n"
+                "↩ Nyora *MENU* kudzokera."
             )
 
             return jsonify({"status": "ok"})
@@ -1850,8 +1950,35 @@ def webhook():
         update_metrics(phone, "ai")
 
         return jsonify({"status": "ok"})
-        
-    
+
+    elif user["state"] == "photo_details":
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
+        row = c.fetchone()
+
+        DATABASE_POOL.putconn(conn)
+
+        if not row:
+            send_message(phone, "❌ Image not found. Send photo again.")
+            return jsonify({"status": "ok"})
+
+        image_path = row[0]
+
+        send_message(phone, "🔍 Ndiri kuongorora product yako...")
+
+        ai_result = ai_analyze_product(image_path, incoming)
+
+        send_message(phone, ai_result)
+
+        log_activity(phone, "ai_photo_analysis", incoming)
+
+        set_state(phone, "ai_chat")
+
+        return jsonify({"status": "ok"})
+
     elif user["state"] == "offline_intro":
 
         if incoming == "yes":
