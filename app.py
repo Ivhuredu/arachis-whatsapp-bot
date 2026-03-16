@@ -880,6 +880,7 @@ def get_user_modules(phone, message):
         return [user_modules[-1]]
 
     return []
+    
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -1355,9 +1356,6 @@ You must diagnose the product failure and give EXACT rescue steps.
 STUDENT DESCRIPTION:
 {student_details}
 
-STUDENT BATCH INFORMATION:
-{student_details}
-
 RULES:
 
 1. Use ONLY chemicals from the lesson formula.
@@ -1392,35 +1390,6 @@ RULES:
     )
 
     return response.choices[0].message.content
-
-def parse_batch_details(text):
-
-    details = {
-        "product": "",
-        "ingredients": "",
-        "batch_size": "",
-        "problem": ""
-    }
-
-    lines = text.split("\n")
-
-    for line in lines:
-
-        l = line.lower()
-
-        if "product" in l:
-            details["product"] = line.split(":",1)[-1].strip()
-
-        elif "ingredient" in l:
-            details["ingredients"] = line.split(":",1)[-1].strip()
-
-        elif "batch" in l:
-            details["batch_size"] = line.split(":",1)[-1].strip()
-
-        elif "problem" in l:
-            details["problem"] = line.split(":",1)[-1].strip()
-
-    return details
     
 def detect_module_from_question(question, allowed_modules):
     if not question:
@@ -2057,16 +2026,6 @@ def webhook():
 
         send_message(phone, "🔍 Ndiri kuongorora product yako...")
 
-        # run full analysis
-        details = parse_batch_details(incoming)
-
-        student_details = f"""
-        Product: {details['product']}
-        Ingredients: {details['ingredients']}
-        Batch Size: {details['batch_size']}
-        Problem: {details['problem']}
-        """
-        
         ai_result = ai_analyze_product(image_path, student_details)
         
         send_message(phone, ai_result)
