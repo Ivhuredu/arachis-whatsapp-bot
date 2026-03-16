@@ -1222,13 +1222,13 @@ def free_lesson():
 def welcome_message():
     return (
         "👋 Makadini!\n\n"
-        "Mazvita mauya! Vanhu vakawanda vari kutotanga kugadzira ma deregents nemadrins vachibatsirwa nekosi ino:\n\n"
+        "Mazvita mauya! Vanhu vakawanda vari kutotanga kugadzira ma detergents nemadrinks vachibatsirwa nekosi ino. Nemiwo munogona kudzidza kugadzira:\n\n"
         "✔ Dishwash\n"
         "✔ Thick Bleach\n"
-        "✔ Cream Soda\n"
-        "✔ Concentrate Drinks\n\n"
+        "✔ Ice Cream\n"
+        "✔ Concentrate Drinks nezvimwe\n\n"
         "🏠 Unogona kutanga kutodzidza izvozvi pafoni pako uye kutanga bhizinesi rako uri kumba.\n\n"
-        "📚 Full training: $5 once-off kuti udzidze ma formula ese ari 30\n\n"
+        "📚 Full training: $5 once-off kuti udzidze ma formula ese, pari zvino anosvika 30\n\n"
         "🏠 Kana une zvimwe zvaungada kuziva kana kubatsirwa taura naAdmin wedu pa +263773208904.\n\n"
         "Reply *PAY* kuti ubhadhare uye utange kudzidza."
     )
