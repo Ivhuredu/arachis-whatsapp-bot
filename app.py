@@ -1338,11 +1338,9 @@ def ai_trainer_reply(phone, question, allowed_modules):
 
     return answer
 
-def ai_analyze_product(phone, image_path, student_details, module):
+def ai_analyze_product(image_path, student_details):
 
     import base64
-
-    lesson_text = get_lesson_from_db(module)
 
     with open(image_path, "rb") as img:
         image_bytes = img.read()
@@ -1354,8 +1352,8 @@ You are a PROFESSIONAL detergent production trainer.
 
 You must diagnose the product failure and give EXACT rescue steps.
 
-LESSON FORMULA:
-{lesson_text[:2000]}
+STUDENT DESCRIPTION:
+{student_details}
 
 STUDENT BATCH INFORMATION:
 {student_details}
@@ -1394,45 +1392,6 @@ RULES:
     )
 
     return response.choices[0].message.content
-
-def detect_product_from_image(image_path):
-
-    import base64
-
-    with open(image_path, "rb") as img:
-        image_bytes = img.read()
-
-    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-
-    response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content":
-                "You are a detergent manufacturing expert. "
-                "Look at the photo and identify which product it is. "
-                "Return ONLY one of these words:\n"
-                "dishwash, thick_bleach, pine_gel, foam_bath, toilet_cleaner, fabric_softener.\n"
-                "If uncertain return: unknown."
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Identify this product."},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_base64}"
-                        }
-                    }
-                ]
-            }
-        ],
-        max_tokens=10
-    )
-
-    return response.choices[0].message.content.strip().lower()
 
 def parse_batch_details(text):
 
@@ -2071,13 +2030,7 @@ def webhook():
             send_message(phone, main_menu())
             return jsonify({"status": "ok"})
 
-        allowed_modules = get_user_modules(phone, incoming)
-
-        if not allowed_modules:
-            send_message(phone, "📚 Tapota vhura lesson kutanga kuti AI ikubatsire.")
-            return jsonify({"status": "ok"})
-
-        ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+        ai_answer = ai_trainer_reply(phone, incoming, [])
 
         send_message(phone, ai_answer)
 
@@ -2104,22 +2057,6 @@ def webhook():
 
         send_message(phone, "🔍 Ndiri kuongorora product yako...")
 
-        # detect product type
-        detected_product = detect_product_from_image(image_path)
-
-        if detected_product != "unknown":
-
-            conn = get_db()
-            c = conn.cursor()
-
-            c.execute(
-                "UPDATE users SET active_module=%s WHERE phone=%s",
-                (detected_product, phone)
-            )
-
-            conn.commit()
-            DATABASE_POOL.putconn(conn)
-
         # run full analysis
         details = parse_batch_details(incoming)
 
@@ -2129,13 +2066,8 @@ def webhook():
         Batch Size: {details['batch_size']}
         Problem: {details['problem']}
         """
-
-        module = detect_product_from_image(image_path)
-
-        if module == "unknown":
-            module = "dishwash"
-
-        ai_result = ai_analyze_product(phone, image_path, student_details, module)
+        
+        ai_result = ai_analyze_product(image_path, student_details)
         
         send_message(phone, ai_result)
 
