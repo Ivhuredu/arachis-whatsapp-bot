@@ -175,6 +175,10 @@ def init_db():
     ADD COLUMN IF NOT EXISTS last_followup TIMESTAMP
     """)
     c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS active_module TEXT
+    """)
+    c.execute("""
     CREATE TABLE IF NOT EXISTS ai_memory (
         id SERIAL PRIMARY KEY,
         phone TEXT,
@@ -377,7 +381,7 @@ def followup_message(stage):
             "💰 Bhizinesi re madetergents rinogona kutangwa nemari shoma.\n\n"
             "Example:\n"
             "20L Dishwash inogona kugadzirwa nemari isingapfuuri $15\n"
-            "wozoitengesa mari ingasvia $25.\n\n"
+            "wozoitengesa mari ingasvika $25.\n\n"
             "Nyora *PAY* kuti udzidze maformula."
         ),
 
@@ -832,22 +836,35 @@ def get_user_modules(phone, message):
     c = conn.cursor()
 
     c.execute(
-        "SELECT module FROM module_access WHERE phone=%s",
+        "SELECT active_module FROM users WHERE phone=%s",
         (phone,)
     )
-    rows = c.fetchall()
+
+    row = c.fetchone()
     DATABASE_POOL.putconn(conn)
 
-    user_modules = [r[0] for r in rows]
+    if row and row[0]:
+        return [row[0]]
+
+    return user_modules[-1:] if user_modules else []
 
     # detect which module question refers to
     detected = detect_module_from_question(message, user_modules)
 
     if detected:
-        return [detected]   # ← ONLY ONE MODULE (CRITICAL FIX)
 
-    return user_modules[-1:]  # fallback = last opened module
+        conn = get_db()
+        c = conn.cursor()
 
+        c.execute(
+            "UPDATE users SET active_module=%s WHERE phone=%s",
+            (detected, phone)
+        )
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        return [detected]
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
