@@ -1671,7 +1671,7 @@ def webhook():
         DATABASE_POOL.putconn(conn)
 
         # If user is new or has few messages → show sales message
-        if not row or row[0] < 3:
+        if not row or row[0] < 1:
 
             set_state(phone, "main")
             send_message(phone, welcome_message())
@@ -2143,7 +2143,7 @@ def webhook():
 
         set_state(phone, "ai_chat")
 
-return jsonify({"status": "ok"})
+        return jsonify({"status": "ok"})
 
     elif user["state"] == "offline_intro":
 
