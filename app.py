@@ -832,23 +832,33 @@ def get_dashboard_stats():
 
 # ✅ NEW (REQUIRED FOR AI RESTRICTION)
 def get_user_modules(phone, message):
+
     conn = get_db()
     c = conn.cursor()
 
+    # get modules user opened
+    c.execute(
+        "SELECT module FROM module_access WHERE phone=%s",
+        (phone,)
+    )
+
+    rows = c.fetchall()
+    user_modules = [r[0] for r in rows]
+
+    # get active module
     c.execute(
         "SELECT active_module FROM users WHERE phone=%s",
         (phone,)
     )
 
     row = c.fetchone()
+
     DATABASE_POOL.putconn(conn)
 
     if row and row[0]:
         return [row[0]]
 
-    return user_modules[-1:] if user_modules else []
-
-    # detect which module question refers to
+    # detect module from question
     detected = detect_module_from_question(message, user_modules)
 
     if detected:
@@ -865,6 +875,11 @@ def get_user_modules(phone, message):
         DATABASE_POOL.putconn(conn)
 
         return [detected]
+
+    if user_modules:
+        return [user_modules[-1]]
+
+    return []
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -1323,7 +1338,64 @@ def ai_trainer_reply(phone, question, allowed_modules):
 
     return answer
 
-def ai_analyze_product(image_path, question=""):
+def ai_analyze_product(phone, image_path, student_details, module):
+
+    import base64
+
+    lesson_text = get_lesson_from_db(module)
+
+    with open(image_path, "rb") as img:
+        image_bytes = img.read()
+
+    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    prompt = f"""
+You are a PROFESSIONAL detergent production trainer.
+
+You must diagnose the product failure and give EXACT rescue steps.
+
+LESSON FORMULA:
+{lesson_text[:2000]}
+
+STUDENT BATCH INFORMATION:
+{student_details}
+
+RULES:
+
+1. Use ONLY chemicals from the lesson formula.
+2. Diagnose the MOST LIKELY cause.
+3. Give STEP-BY-STEP rescue instructions.
+4. Use exact measurements (grams, ml).
+5. Include mixing time and waiting time.
+6. Explain briefly WHY the failure happened.
+7. Then give prevention advice for next batch.
+8. Use correct grammatical shona where applicable.
+"""
+
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": prompt},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Analyze this product."},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_base64}"
+                        }
+                    }
+                ]
+            }
+        ],
+        max_tokens=600,
+        temperature=0.3
+    )
+
+    return response.choices[0].message.content
+
+def detect_product_from_image(image_path):
 
     import base64
 
@@ -1338,17 +1410,16 @@ def ai_analyze_product(image_path, question=""):
             {
                 "role": "system",
                 "content":
-                "You are an industrial detergent trainer. "
-                "Analyze the product in the photo and diagnose problems. "
-                "Explain the issue and give exact measurable fixes."
+                "You are a detergent manufacturing expert. "
+                "Look at the photo and identify which product it is. "
+                "Return ONLY one of these words:\n"
+                "dishwash, thick_bleach, pine_gel, foam_bath, toilet_cleaner, fabric_softener.\n"
+                "If uncertain return: unknown."
             },
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": question or "Analyze this detergent product."
-                    },
+                    {"type": "text", "text": "Identify this product."},
                     {
                         "type": "image_url",
                         "image_url": {
@@ -1358,10 +1429,39 @@ def ai_analyze_product(image_path, question=""):
                 ]
             }
         ],
-        max_tokens=500
+        max_tokens=10
     )
 
-    return response.choices[0].message.content
+    return response.choices[0].message.content.strip().lower()
+
+def parse_batch_details(text):
+
+    details = {
+        "product": "",
+        "ingredients": "",
+        "batch_size": "",
+        "problem": ""
+    }
+
+    lines = text.split("\n")
+
+    for line in lines:
+
+        l = line.lower()
+
+        if "product" in l:
+            details["product"] = line.split(":",1)[-1].strip()
+
+        elif "ingredient" in l:
+            details["ingredients"] = line.split(":",1)[-1].strip()
+
+        elif "batch" in l:
+            details["batch_size"] = line.split(":",1)[-1].strip()
+
+        elif "problem" in l:
+            details["problem"] = line.split(":",1)[-1].strip()
+
+    return details
     
 def detect_module_from_question(question, allowed_modules):
     if not question:
@@ -1523,14 +1623,13 @@ def webhook():
         send_message(
             phone,
             "📷 *PHOTO RECEIVED*\n\n"
-            "Ndibatsirei ne information iyi:\n\n"
-            "1️⃣ Product name (example: Thick Bleach)\n"
-            "2️⃣ Ingredients used\n"
-            "3️⃣ Batch size\n\n"
-            "Example:\n"
-            "Thick bleach\n"
-            "SLES + Hypo + Caustic\n"
-            "20 litres"
+            "Ndibatsirei ne details idzi kuti ndi diagnose problem:\n\n"
+            "Nyora seizvi:\n\n"
+            "Product: Thick Bleach\n"
+            "Ingredients: SLES + Hypo + Caustic\n"
+            "Batch size: 20 litres\n"
+            "Problem: very watery\n\n"
+            "Tumira message yako seizvi."
         )
 
         return jsonify({"status": "ok"})
@@ -1748,14 +1847,21 @@ def webhook():
 
             conn = get_db()
             c = conn.cursor()
+
+            # clear old AI memory for this module
             c.execute(
                 "DELETE FROM ai_memory WHERE phone=%s AND module=%s",
                 (phone, module)
             )
+
+            # set the active module for follow-up questions
+            c.execute(
+                "UPDATE users SET active_module=%s WHERE phone=%s",
+                (module, phone)
+            )
+
             conn.commit()
             DATABASE_POOL.putconn(conn)
-
-            return jsonify({"status": "ok"})
 
     elif user["state"] == "pay_menu":
 
@@ -1998,15 +2104,46 @@ def webhook():
 
         send_message(phone, "🔍 Ndiri kuongorora product yako...")
 
-        ai_result = ai_analyze_product(image_path, incoming)
+        # detect product type
+        detected_product = detect_product_from_image(image_path)
 
+        if detected_product != "unknown":
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute(
+                "UPDATE users SET active_module=%s WHERE phone=%s",
+                (detected_product, phone)
+            )
+
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+        # run full analysis
+        details = parse_batch_details(incoming)
+
+        student_details = f"""
+        Product: {details['product']}
+        Ingredients: {details['ingredients']}
+        Batch Size: {details['batch_size']}
+        Problem: {details['problem']}
+        """
+
+        module = detect_product_from_image(image_path)
+
+        if module == "unknown":
+            module = "dishwash"
+
+        ai_result = ai_analyze_product(phone, image_path, student_details, module)
+        
         send_message(phone, ai_result)
 
         log_activity(phone, "ai_photo_analysis", incoming)
 
         set_state(phone, "ai_chat")
 
-        return jsonify({"status": "ok"})
+return jsonify({"status": "ok"})
 
     elif user["state"] == "offline_intro":
 
