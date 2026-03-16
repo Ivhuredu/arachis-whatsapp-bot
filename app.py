@@ -2026,6 +2026,8 @@ def webhook():
 
         send_message(phone, "🔍 Ndiri kuongorora product yako...")
 
+        student_details = incoming
+        
         ai_result = ai_analyze_product(image_path, student_details)
         
         send_message(phone, ai_result)
