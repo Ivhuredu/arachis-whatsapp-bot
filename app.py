@@ -1790,6 +1790,8 @@ def webhook():
 
             conn.commit()
             DATABASE_POOL.putconn(conn)
+            
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "pay_menu":
 
@@ -2142,7 +2144,7 @@ def webhook():
             return jsonify({"status":"ok"}) 
     blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
     
-    if incoming not in blocked_commands and user["is_paid"]:
+    if not incoming.isdigit() and user["is_paid"]:
                
         today_count = ai_questions_today(phone)
 
