@@ -2020,7 +2020,7 @@ def webhook():
         send_message(phone, main_menu())
         return jsonify({"status": "ok"})
 
-       # FREE lesson only
+    # FREE lesson only
     if incoming == "1":
         send_message(
             phone,
@@ -2044,12 +2044,10 @@ def webhook():
             "💵 Full Laundry Bar Training + All formulas: $5\n\n"
             "Nyora *PAY* kuti uvhure."
         )
-        return jsonify({"status": "ok"}) 
+        return jsonify({"status": "ok"})
 
     lessons = {
-
-        
-      "2": (
+        "2": (
             "⚠ *DAY 2: SAFETY*\n\n"
             "✔ Always add caustic soda into water\n"
             "✔ Do not touch fresh soap\n"
