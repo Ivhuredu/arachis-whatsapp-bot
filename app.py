@@ -1671,11 +1671,11 @@ def webhook():
                 "✔ Budget bar\n"
                 "✔ Ultra cheap bar\n\n"
                 "Choose lesson:\n\n"
-                "1️⃣ Day 1: Basics\n"
-                "2️⃣ Day 2: Safety\n"
-                "3️⃣ Day 3: Premium Bar\n"
-                "4️⃣ Day 4: Budget Bars\n"
-                "5️⃣ Day 5: Ultra Cheap + Business\n\n"
+                "1️⃣ Day 1: Basics (FREE)\n"
+                "2️⃣ Day 2: Safety 🔒\n"
+                "3️⃣ Day 3: Premium Bar 🔒\n"
+                "4️⃣ Day 4: Budget Bars 🔒\n"
+                "5️⃣ Day 5: Ultra Cheap + Business 🔒\n"
                 "Reply with number.\n"
                 "↩ Nyora *MENU* kudzokera."
             )
@@ -2048,19 +2048,8 @@ def webhook():
 
     lessons = {
 
-        "1": (
-            "📘 *DAY 1: BASICS*\n\n"
-            "Soap is made when:\n"
-            "👉 Caustic soda reacts with oil/fat\n\n"
-            "Ingredients:\n"
-            "✔ Tallow/Oil → structure\n"
-            "✔ Caustic soda → makes soap\n"
-            "✔ Sulphonic acid → cleaning\n"
-            "✔ Fillers → profit\n\n"
-            "Reply 2 for next lesson"
-        ),
-
-        "2": (
+        
+      "2": (
             "⚠ *DAY 2: SAFETY*\n\n"
             "✔ Always add caustic soda into water\n"
             "✔ Do not touch fresh soap\n"
