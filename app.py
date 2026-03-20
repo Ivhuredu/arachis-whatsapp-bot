@@ -933,6 +933,32 @@ ALL_MODULES = load_lessons()
 def get_audio_url(module):
     return f"https://arachis-whatsapp-bot-2.onrender.com/static/audio/{module}.ogg"
 
+def send_audio_series(phone, module):
+
+    base_url = "https://arachis-whatsapp-bot-2.onrender.com/static/audio"
+
+    # Try single file first (e.g. laundry_bar.ogg)
+    single_url = f"{base_url}/{module}.ogg"
+
+    r = requests.get(single_url)
+
+    if r.status_code == 200:
+        send_voice(phone, single_url)
+        return
+
+    # If no single file → try parts (module_1, module_2...)
+    for i in range(1, 10):
+
+        part_url = f"{base_url}/{module}_{i}.ogg"
+
+        r = requests.get(part_url)
+
+        if r.status_code == 200:
+            send_message(phone, f"▶️ Part {i}")   # 👈 ADD HERE
+            send_voice(phone, part_url)
+        else:
+            break
+
 def get_drink_modules():
 
     modules = load_lessons()
@@ -1815,12 +1841,13 @@ def webhook():
             # 📘 Send lesson title first
             send_message(
                 phone,
-                f"{label}\n\n🎧 Teerera voice lesson wobva waona notes 👇"
+                f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
             )
 
-            # 🎧 Send voice lesson
-            audio_url = get_audio_url(module)
-            send_voice(phone, audio_url)
+            # 🎧 Send voice lesson(s)
+            send_message(phone, "🎧 Lesson audio (listen in order) 👇")
+
+            send_audio_series(phone, module)
 
             # 📄 Send PDF
             send_pdf(
