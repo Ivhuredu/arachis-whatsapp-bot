@@ -295,7 +295,9 @@ def send_voice(phone, audio_url):
     }
 
     response = requests.post(url, headers=headers, json=payload)
-    print("VOICE:", response.text)
+
+    print("VOICE STATUS:", response.status_code)
+    print("VOICE RESPONSE:", response.text)
 
 # =========================
 # ADMIN ALERTS
@@ -927,6 +929,9 @@ def load_lessons():
     return lessons
 
 ALL_MODULES = load_lessons()
+
+def get_audio_url(module):
+    return f"https://arachis-whatsapp-bot-2.onrender.com/static/audio/{module}.ogg"
 
 def get_drink_modules():
 
@@ -1807,12 +1812,28 @@ def webhook():
             log_activity(phone, "open_module", module)
             update_metrics(phone, "module")
 
+            # 📘 Send lesson title first
+            send_message(
+                phone,
+                f"{label}\n\n🎧 Teerera voice lesson wobva waona notes 👇"
+            )
+
+            # 🎧 Send voice lesson
+            audio_url = get_audio_url(module)
+            send_voice(phone, audio_url)
+
+            # 📄 Send PDF
             send_pdf(
                 phone,
                 f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
                 label
             )
 
+            # 🤖 Encourage AI use
+            send_message(
+                phone,
+                "Kana pane chausinganzwisise, bvunza pano 🤖"
+            )
             conn = get_db()
             c = conn.cursor()
 
