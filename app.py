@@ -299,6 +299,41 @@ def send_voice(phone, audio_url):
     print("VOICE STATUS:", response.status_code)
     print("VOICE RESPONSE:", response.text)
 
+import time
+
+def send_audio_series(phone, module):
+
+    base_url = "https://arachis-whatsapp-bot-2.onrender.com/static/audio"
+
+    found = False
+
+    for i in range(1, 10):
+
+        # file WITHOUT cache first
+        clean_url = f"{base_url}/{module}_{i}.ogg"
+
+        r = requests.get(clean_url)
+
+        if r.status_code == 200:
+            found = True
+
+            # tell user which part
+            send_message(phone, f"▶️ Part {i}")
+
+            # 🔥 CACHE FIX (VERY IMPORTANT)
+            versioned_url = clean_url + f"?v={int(time.time())}"
+
+            send_voice(phone, versioned_url)
+
+        else:
+            break
+
+    # fallback (if no parts exist)
+    if not found:
+        clean_url = f"{base_url}/{module}.ogg"
+        versioned_url = clean_url + f"?v={int(time.time())}"
+        send_voice(phone, versioned_url)
+
 # =========================
 # ADMIN ALERTS
 # =========================
@@ -932,31 +967,6 @@ ALL_MODULES = load_lessons()
 
 def get_audio_url(module):
     return f"https://arachis-whatsapp-bot-2.onrender.com/static/audio/{module}.ogg"
-
-def send_audio_series(phone, module):
-
-    base_url = "https://arachis-whatsapp-bot-2.onrender.com/static/audio"
-
-    found = False
-
-    # ✅ FIRST: check for parts
-    for i in range(1, 10):
-
-        part_url = f"{base_url}/{module}_{i}.ogg"
-
-        r = requests.get(part_url)
-
-        if r.status_code == 200:
-            found = True
-            send_message(phone, f"▶️ Part {i}")
-            send_voice(phone, part_url)
-        else:
-            break
-
-    # ✅ ONLY if no parts → send single
-    if not found:
-        single_url = f"{base_url}/{module}.ogg"
-        send_voice(phone, single_url)
 
 def get_drink_modules():
 
