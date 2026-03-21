@@ -937,16 +937,9 @@ def send_audio_series(phone, module):
 
     base_url = "https://arachis-whatsapp-bot-2.onrender.com/static/audio"
 
-    # Try single file first (e.g. laundry_bar.ogg)
-    single_url = f"{base_url}/{module}.ogg"
+    found = False
 
-    r = requests.get(single_url)
-
-    if r.status_code == 200:
-        send_voice(phone, single_url)
-        return
-
-    # If no single file → try parts (module_1, module_2...)
+    # ✅ FIRST: check for parts
     for i in range(1, 10):
 
         part_url = f"{base_url}/{module}_{i}.ogg"
@@ -954,10 +947,16 @@ def send_audio_series(phone, module):
         r = requests.get(part_url)
 
         if r.status_code == 200:
-            send_message(phone, f"▶️ Part {i}")   # 👈 ADD HERE
+            found = True
+            send_message(phone, f"▶️ Part {i}")
             send_voice(phone, part_url)
         else:
             break
+
+    # ✅ ONLY if no parts → send single
+    if not found:
+        single_url = f"{base_url}/{module}.ogg"
+        send_voice(phone, single_url)
 
 def get_drink_modules():
 
