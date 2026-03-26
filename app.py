@@ -2441,6 +2441,103 @@ def webhook():
 
         set_state(phone, "main")
         return jsonify({"status": "ok"})
+
+    elif user["state"] == "calc_quick_raw":
+
+        raw_cost = float(incoming)
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO temp_orders (phone, item)
+            VALUES (%s, %s)
+            ON CONFLICT (phone)
+            DO UPDATE SET item = %s
+        """, (phone, str(raw_cost), str(raw_cost)))
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "calc_quick_units")
+
+        send_message(phone, "Enter number of units:")
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "calc_quick_units":
+
+        units = float(incoming)
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""
+            UPDATE temp_orders SET quantity=%s WHERE phone=%s
+        """, (units, phone))
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "calc_quick_packaging")
+
+        send_message(phone, "Enter packaging cost per unit:")
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "calc_quick_packaging":
+
+        packaging = float(incoming)
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("SELECT item, quantity FROM temp_orders WHERE phone=%s", (phone,))
+        row = c.fetchone()
+
+        raw_cost = float(row[0])
+        units = float(row[1])
+
+        c.execute("""
+            UPDATE temp_orders SET item=%s WHERE phone=%s
+        """, (f"{raw_cost}|{packaging}|{units}", phone))
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "calc_quick_price")
+
+        send_message(phone, "Enter selling price per unit:")
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "calc_quick_price":
+
+        selling_price = float(incoming)
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
+        row = c.fetchone()
+
+        raw_cost, packaging, units = map(float, row[0].split("|"))
+
+        packaging_total = packaging * units
+        total_cost = raw_cost + packaging_total
+        cost_per_unit = total_cost / units
+        revenue = selling_price * units
+        profit = revenue - total_cost
+        profit_per_unit = selling_price - cost_per_unit
+
+        DATABASE_POOL.putconn(conn)
+
+        send_message(
+            phone,
+            f"📊 *QUICK RESULTS*\n\n"
+            f"💵 Total Cost: ${total_cost:.2f}\n"
+            f"💲 Cost per Unit: ${cost_per_unit:.2f}\n\n"
+            f"📈 Revenue: ${revenue:.2f}\n\n"
+            f"🔥 Profit: ${profit:.2f}\n"
+            f"📊 Profit per Unit: ${profit_per_unit:.2f}"
+        )
+
+        set_state(phone, "main")
+        return jsonify({"status": "ok"})
+        
 # =========================
 # AUTO PAYMENT DETECTOR
 # =========================
