@@ -1264,7 +1264,7 @@ def main_menu():
         "👋 *TINOKUGAMUCHIRAI KU ARACHIS ONLINE TRAINING*\n\n"
         "1️⃣ Course Lessons\n"
         "2️⃣ 🧼 Laundry Bar Training (NEW)\n"
-        "3️⃣ Free Lesson\n"
+        "3️⃣ 📊 Production Cost Calculator\n"
         "4️⃣ Join Full Online Training\n"
         "5️⃣ Register for Offline Classes\n"
         "6️⃣ Online Store (Chemicals)\n"
@@ -1744,7 +1744,16 @@ def webhook():
             return jsonify({"status": "ok"})
 
         elif incoming == "3":
-            send_message(phone, free_lesson())
+            set_state(phone, "calc_menu")
+
+            send_message(
+                phone,
+                "📊 *PRODUCTION COST CALCULATOR*\n\n"
+                "Choose option:\n\n"
+                "1️⃣ Detailed (ingredients step-by-step)\n"
+                "2️⃣ Quick (fast calculation)\n\n"
+                "Reply with 1 or 2"
+            )
             return jsonify({"status": "ok"})
 
         elif incoming == "4":
@@ -2305,6 +2314,133 @@ def webhook():
         )
         return jsonify({"status": "ok"})
 
+    elif user["state"] == "calc_menu":
+
+        if incoming == "1":
+            set_state(phone, "calc_detailed_units")
+
+            # initialize temp storage
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO temp_orders (phone, item, quantity)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (phone)
+                DO UPDATE SET item = '', quantity = 0
+            """, (phone, "", 0))
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            send_message(phone, "Enter total units produced (e.g. 40):")
+            return jsonify({"status": "ok"})
+
+        elif incoming == "2":
+            set_state(phone, "calc_quick_raw")
+
+            send_message(phone, "Enter total raw material cost:")
+            return jsonify({"status": "ok"})
+
+    elif user["state"] == "calc_detailed_units":
+
+        units = float(incoming)
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""
+            UPDATE temp_orders SET quantity=%s WHERE phone=%s
+        """, (units, phone))
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "calc_detailed_raw")
+
+        send_message(phone, "Enter total raw material cost:")
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "calc_detailed_raw":
+
+        raw_cost = float(incoming)
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""
+            UPDATE temp_orders SET item=%s WHERE phone=%s
+        """, (str(raw_cost), phone))
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "calc_detailed_packaging")
+
+        send_message(phone, "Enter packaging cost per unit:")
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "calc_detailed_packaging":
+
+        packaging = float(incoming)
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("SELECT item, quantity FROM temp_orders WHERE phone=%s", (phone,))
+        row = c.fetchone()
+
+        raw_cost = float(row[0])
+        units = float(row[1])
+
+        packaging_total = packaging * units
+        total_cost = raw_cost + packaging_total
+        cost_per_unit = total_cost / units
+
+        # store temp values
+        c.execute("""
+            UPDATE temp_orders SET item=%s WHERE phone=%s
+        """, (f"{raw_cost}|{packaging}|{units}", phone))
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "calc_detailed_price")
+
+        send_message(phone, "Enter selling price per unit:")
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "calc_detailed_price":
+
+        selling_price = float(incoming)
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
+        row = c.fetchone()
+
+        raw_cost, packaging, units = map(float, row[0].split("|"))
+
+        packaging_total = packaging * units
+        total_cost = raw_cost + packaging_total
+        cost_per_unit = total_cost / units
+        revenue = selling_price * units
+        profit = revenue - total_cost
+        profit_per_unit = selling_price - cost_per_unit
+
+        DATABASE_POOL.putconn(conn)
+
+        send_message(
+            phone,
+            f"📊 *PRODUCTION SUMMARY*\n\n"
+            f"🧾 Raw Materials: ${raw_cost:.2f}\n"
+            f"📦 Packaging: ${packaging_total:.2f}\n"
+            f"💵 Total Cost: ${total_cost:.2f}\n\n"
+            f"📦 Units: {units}\n"
+            f"💲 Cost per Unit: ${cost_per_unit:.2f}\n\n"
+            f"💰 Selling Price: ${selling_price:.2f}\n"
+            f"📈 Revenue: ${revenue:.2f}\n\n"
+            f"🔥 Profit: ${profit:.2f}\n"
+            f"📊 Profit per Unit: ${profit_per_unit:.2f}"
+        )
+
+        set_state(phone, "main")
+        return jsonify({"status": "ok"})
 # =========================
 # AUTO PAYMENT DETECTOR
 # =========================
