@@ -1750,8 +1750,8 @@ def webhook():
                 phone,
                 "📊 *PRODUCTION COST CALCULATOR*\n\n"
                 "Choose option:\n\n"
-                "1️⃣ Detailed (ingredients step-by-step)\n"
-                "2️⃣ Quick (fast calculation)\n\n"
+                "1️⃣ Detailed (Ingredients Step-By-Step)\n"
+                "2️⃣ Quick (Fast Calculation)\n\n"
                 "Reply with 1 or 2"
             )
             return jsonify({"status": "ok"})
@@ -2331,13 +2331,13 @@ def webhook():
             conn.commit()
             DATABASE_POOL.putconn(conn)
 
-            send_message(phone, "Enter total units produced (e.g. 40):")
+            send_message(phone, "Enter total units produced/ Wagadzira zvingani (e.g. 40):")
             return jsonify({"status": "ok"})
 
         elif incoming == "2":
             set_state(phone, "calc_quick_raw")
 
-            send_message(phone, "Enter total raw material cost:")
+            send_message(phone, "Enter total raw material cost/ Maingedients acho Wamatenga Marii:")
             return jsonify({"status": "ok"})
 
     elif user["state"] == "calc_detailed_units":
@@ -2354,7 +2354,7 @@ def webhook():
 
         set_state(phone, "calc_detailed_raw")
 
-        send_message(phone, "Enter total raw material cost:")
+        send_message(phone, "Enter total raw material cost/ Maingredients Wamatenga Marii:")
         return jsonify({"status": "ok"})
 
     elif user["state"] == "calc_detailed_raw":
@@ -2371,7 +2371,7 @@ def webhook():
 
         set_state(phone, "calc_detailed_packaging")
 
-        send_message(phone, "Enter packaging cost per unit:")
+        send_message(phone, "Enter packaging cost per unit/ Zvigubhu Zvekuisira Zvaita Mari Chimwe Chete:")
         return jsonify({"status": "ok"})
 
     elif user["state"] == "calc_detailed_packaging":
@@ -2401,7 +2401,7 @@ def webhook():
 
         set_state(phone, "calc_detailed_price")
 
-        send_message(phone, "Enter selling price per unit:")
+        send_message(phone, "Enter selling price per unit/ Uchatengesa chigubhu Chimwe chete Marii:")
         return jsonify({"status": "ok"})
 
     elif user["state"] == "calc_detailed_price":
@@ -2459,7 +2459,7 @@ def webhook():
 
         set_state(phone, "calc_quick_units")
 
-        send_message(phone, "Enter number of units:")
+        send_message(phone, "Enter number of units/ Wapeka Zvigubhu Zvingani:")
         return jsonify({"status": "ok"})
 
     elif user["state"] == "calc_quick_units":
@@ -2476,7 +2476,7 @@ def webhook():
 
         set_state(phone, "calc_quick_packaging")
 
-        send_message(phone, "Enter packaging cost per unit:")
+        send_message(phone, "Enter packaging cost per unit/ Chigubhu Chekuisira Chinoita Marii Chimwe Chete:")
         return jsonify({"status": "ok"})
 
     elif user["state"] == "calc_quick_packaging":
@@ -2501,7 +2501,7 @@ def webhook():
 
         set_state(phone, "calc_quick_price")
 
-        send_message(phone, "Enter selling price per unit:")
+        send_message(phone, "Enter selling price per unit/ Uchatengesa Marii Chigubhu Chimwe Chete:")
         return jsonify({"status": "ok"})
 
     elif user["state"] == "calc_quick_price":
