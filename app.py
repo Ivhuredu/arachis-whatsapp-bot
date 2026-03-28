@@ -1402,7 +1402,11 @@ def ai_trainer_reply(phone, question, allowed_modules):
 
     response = openai_client.chat.completions.create(
         model=model_to_use,
-        
+        messages=messages,
+        temperature=0.4,
+        max_tokens=600
+    )
+
     answer = response.choices[0].message.content.strip()
 
     # save conversation
