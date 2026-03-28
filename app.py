@@ -833,28 +833,23 @@ def get_relevant_lesson_chunk(module, question):
     if not lesson:
         return ""
 
-    # split lesson into chunks
     chunks = lesson.split("\n")
-
     question_words = question.lower().split()
 
-    best_chunk = ""
-    best_score = 0
+    scored_chunks = []
 
     for chunk in chunks:
-
         text = chunk.lower()
-
         score = sum(1 for w in question_words if w in text)
 
-        if score > best_score:
-            best_score = score
-            best_chunk = chunk
+        if score > 0:
+            scored_chunks.append((score, chunk))
 
-    if best_chunk:
-        return best_chunk
+    scored_chunks.sort(reverse=True)
 
-    return lesson[:1000]  # fallback
+    top_chunks = [c[1] for c in scored_chunks[:3]]
+
+    return "\n".join(top_chunks) if top_chunks else lesson[:1000]
 
     
 def get_dashboard_stats():
@@ -1339,8 +1334,7 @@ def ai_trainer_reply(phone, question, allowed_modules):
     if not combined_text.strip():
         return "Ndapota vhura module rine chidzidzo ichi kutanga kuti ndikubatsire zvakarurama."
         
-    # Limit lesson content size to prevent token overload
-    combined_text = combined_text.rsplit(".", 1)[0]
+    combined_text = combined_text[:3000]
 
     # determine active module (latest opened)
     active_module = allowed_modules[-1]
@@ -1349,34 +1343,38 @@ def ai_trainer_reply(phone, question, allowed_modules):
 
     
     prompt = f"""
-    You are an INDUSTRIAL PRACTICAL TRAINER teaching a paid student.
-    You MUST STRICTLY follow the lesson material below.
-    You are NOT allowed to introduce chemicals, methods, or formulas not present in the lesson.
+    You are a practical detergent and business trainer helping a paid student in Zimbabwe.
 
-    LESSON MATERIAL:
-    ----------------
+    PRIMARY RULE:
+    Use the lesson material as your MAIN source of truth.
+
+    FLEXIBILITY RULE:
+    You may use general knowledge ONLY to:
+    - clarify explanations
+    - complete missing steps
+    - improve understanding
+
+    DO NOT:
+    - contradict the lesson
+    - introduce completely unrelated chemicals
+
+    RESPONSE STYLE:
+
+    1. Be clear and step-by-step using correct gramatical Shona
+    2. Give exact actions (ml, grams, time)
+    3. Avoid vague statements
+    4. Speak like you are guiding someone practically
+    5. If fixing a product:
+       - Start with the problem cause
+       - Give exact fix steps
+       - Then prevention
+
+    CONTEXT:
     {combined_text}
-    ----------------
-
-    RULES (VERY IMPORTANT):
-
-    1) If a chemical is not in the lesson → DO NOT mention it.
-    2) If the student asks something outside lesson → explain using closest concept FROM lesson only.
-    3) If fixing a product → give rescue steps FIRST using only lesson chemicals.
-    4) Always give exact measurable actions:
-       - teaspoons
-       - grams
-       - ml
-       - mixing time
-       - waiting time
-    5) Never give vague advice like "adjust slowly" — be specific.
-    6) After fixing, give prevention advice for next batch.
-    7) Speak like a hands-on trainer guiding someone next to you.
-    8) No theory unless student asks WHY,use only correct grammatical shona.
 
     STUDENT QUESTION:
     {question}
-    """   
+    """ 
 
     messages = [
     {"role": "system", "content": prompt}
@@ -1384,14 +1382,27 @@ def ai_trainer_reply(phone, question, allowed_modules):
 
     messages.extend(memory_messages)
     messages.append({"role": "user", "content": question})
+    
+    def is_complex_question(question):
+        keywords = [
+            "why", "explain", "difference", "problem",
+            "fix", "improve", "formula", "business",
+            "profit", "cost", "calculate"
+        ]
+
+        q = question.lower()
+
+        return any(k in q for k in keywords) or len(question.split()) > 10
+    
+
+    model_to_use = "gpt-4o-mini"
+
+    if is_complex_question(question):
+        model_to_use = "gpt-5.1"
 
     response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        max_tokens=600,
-        temperature=0.5
-    )
-
+        model=model_to_use,
+        
     answer = response.choices[0].message.content.strip()
 
     # save conversation
@@ -2065,6 +2076,9 @@ def webhook():
                 "4. MazChem\n"
                 "📞 +263772597141\n"
                 "📍 Harare\n\n"
+                "4. ArrowChem\n"
+                "📞 +263780381618\n"
+                "📍 Bulawayo/ Gweru\n\n"
                 "↩ Nyora *MENU* kudzokera."
             )
             return jsonify({"status": "ok"})
