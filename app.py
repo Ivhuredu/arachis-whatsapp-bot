@@ -1677,8 +1677,16 @@ def webhook():
         # If user is new or has few messages → show sales message
         if not row or row[0] < 1:
 
-            set_state(phone, "main")
-            send_message(phone, welcome_message())
+            set_state(phone, "qualify")
+
+            send_message(
+                phone,
+                "👋 Welcome to ARACHIS Training\n\n"
+                "Nei uchida kudzidza kosi iyi:\n\n"
+                "1️⃣ Ndinoda kutanga bhizinesi\n"
+                "2️⃣ Ndinoda kugadzira zvekushandisa ini pachangu\n\n"
+                "Reply with 1 or 2"
+            )
 
             log_activity(phone, "open_menu", "welcome")
 
@@ -1732,6 +1740,56 @@ def webhook():
             menu += "\nNyora *MENU* kudzokera."
 
             send_message(phone, menu)
+            return jsonify({"status": "ok"})
+
+        elif user["state"] == "qualify":
+
+            if incoming == "1":
+                set_state(phone, "pitch")
+
+                send_message(
+                    phone,
+                    "🔥 Zvakanaka!\n\n"
+                    "Vanhu vakawanda vakadzidza mukosi iyi vari kutotengesa:\n"
+                    "✔ Dishwash\n"
+                    "✔ Bleach\n"
+                    "✔ Drinks\n\n"
+                    "Kosi ino inokudzidzisa ma formulas anoshandisika + kuti ungatengesa sei zvigadzirwa zvako.\n\n"
+                    "💵 Full course: $5 once-off\n\n"
+                    "Ungada kutotanga kudzidza nhasi here?\n\n"
+                    "Reply YES to continue"
+                )
+
+            elif incoming == "2":
+                set_state(phone, "pitch")
+
+                send_message(
+                    phone,
+                    "👌 Zvakanaka!\n\n"
+                    "Mukosi ino uchadzidza kugadzira maproducts akanaka uye anoshanda zvakanaka.\n\n"
+                    "💵 Full course: $5 once-off\n\n"
+                    "Reply YES to continue"
+                )
+
+            return jsonify({"status": "ok"})
+
+        elif user["state"] == "pitch":
+
+            if incoming in ["yes", "ok", "ready", "start"]:
+
+                set_state(phone, "pay_prompt")
+
+                send_message(
+                    phone,
+                    "💳 Tanga kudzidza:\n\n"
+                    "Course fee: $5\n\n"
+                    "You will receive:\n"
+                    "✔ All formulas\n"
+                    "✔ Full lessons\n"
+                    "✔ AI support\n\n"
+                    "Reply PAY utange kubhadhara"
+                )
+
             return jsonify({"status": "ok"})
 
         
