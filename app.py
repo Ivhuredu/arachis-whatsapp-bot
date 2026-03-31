@@ -36,7 +36,8 @@ DATABASE_POOL = None
 
 app = Flask(__name__)
 
-COURSE_PRICE = 5.0
+BASIC_PRICE = 5.0
+PREMIUM_PRICE = 10.0
 PAYMENT_TOLERANCE = 1.5   # allows EcoCash charges
 MIN_ACCEPTABLE = COURSE_PRICE
 MAX_ACCEPTABLE = COURSE_PRICE + PAYMENT_TOLERANCE
@@ -58,6 +59,28 @@ ALLOWED_EXTENSIONS = {"pdf"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+PACKAGES = {
+    "basic": {
+        "price": 5.0,
+        "modules": [
+            "dishwash",
+            "liquid_laundry_soap",
+            "fabric_softener",
+            "thick_bleach",
+            "washing_paste",
+            "petroleum_jelly",
+            "hair_shampoo",
+            "drink_concentrates",
+            "freezits",
+            "baobab_drink"
+        ]
+    },
+    "premium": {
+        "price": 10.0,
+        "modules": "ALL"
+    }
+}
 
 # =========================
 # DATABASE
@@ -202,10 +225,14 @@ def init_db():
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS followup_stage INTEGER DEFAULT 0
     """)
-    
+    c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS package TEXT DEFAULT 'none'
+    """)
     
     conn.commit()
     DATABASE_POOL.putconn(conn)
+    
 
 
 # =========================
@@ -645,13 +672,18 @@ def verify_and_apply_payment(phone, message):
         DATABASE_POOL.putconn(conn)
         return False, "Handina kuona mari yatumirwa muSMS."
 
-    if amount < MIN_ACCEPTABLE:
+    if amount < BASIC_PRICE:
+    DATABASE_POOL.putconn(conn)
+    return False, "Mari ishoma. Basic $5 kana Premium $10."
+    
+    # detect package
+    if BASIC_PRICE <= amount < PREMIUM_PRICE:
+        package = "basic"
+    elif amount >= PREMIUM_PRICE:
+        package = "premium"
+    else:
         DATABASE_POOL.putconn(conn)
-        return False, f"Mari ishoma. Course iri ${COURSE_PRICE}."
-
-    if amount > MAX_ACCEPTABLE:
-        DATABASE_POOL.putconn(conn)
-        return False, f"Mari yakawandisa zvisina kujairika (${amount}). Bata admin."
+        return False, "Mari haisi correct."
 
     # save payment
     c.execute("""
@@ -665,12 +697,21 @@ def verify_and_apply_payment(phone, message):
     # APPROVE USER
     mark_paid(phone)
 
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE users SET package=%s WHERE phone=%s",
+        (package, phone)
+    )
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
     send_admin_alert(
         "AUTO PAYMENT APPROVED",
         f"Phone: {phone}\nPaid: ${amount}\nCourse Price: ${COURSE_PRICE}\nRef: {reference}"
     )
 
-    return True, "🎉 Payment confirmed automatically!\nWava kukwanisa kuvhura ma lessons ese."
+    return True, f"🎉 Payment confirmed!\nPackage: {package.upper()}\nWava kukwanisa kuvhura ma lessons."
 
 # =========================
 # AI MEMORY SYSTEM
@@ -1285,7 +1326,7 @@ def welcome_message():
         "✔ Ice Cream\n"
         "✔ Concentrate Drinks nezvimwe\n\n"
         "🏠 Unogona kutanga kutodzidza izvozvi pafoni pako uye kutanga bhizinesi rako uri kumba.\n\n"
-        "📚 Full training: $5 once-off kuti udzidze ma formula ese, pari zvino anosvika 30\n\n"
+        "📚 Full training:"Basic $5 | Premium $10" \n\n"
         "🏠 Kana une zvimwe zvaungada kuziva kana kubatsirwa taura naAdmin wedu pa +263773208904.\n\n"
         "Reply *PAY* kuti ubhadhare uye utange kudzidza."
     )
@@ -1653,11 +1694,34 @@ def webhook():
         return jsonify({"status": "ok"})
 
     if incoming.startswith("approve ") and phone in ADMIN_NUMBERS:
-        target = normalize_phone(incoming.replace("approve ", ""))
-        log_activity(target, "payment_approved", "admin")
-        mark_paid(target)
-        send_message(target, "🎉 Payment Approved!\nYou now have full access.")
-        send_message(phone, f"✅ Approved: {target}")
+
+        parts = incoming.split()
+
+        if len(parts) < 3:
+            send_message(phone, "Use: approve +2637xxxx basic OR premium")
+            return jsonify({"status": "ok"})
+
+        target = normalize_phone(parts[1])
+        package = parts[2].lower()
+
+        if package not in ["basic", "premium"]:
+            send_message(phone, "Package must be 'basic' or 'premium'")
+            return jsonify({"status": "ok"})
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute(
+            "UPDATE users SET is_paid=1, payment_status='approved', package=%s WHERE phone=%s",
+            (package, target)
+        )
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        send_message(target, f"🎉 Payment Approved!\nPackage: {package.upper()}")
+        send_message(phone, f"✅ Approved: {target} ({package})")
+
         return jsonify({"status": "ok"})
 
     if incoming in ["menu", "start", "makadini", "hie"]:
@@ -1709,9 +1773,9 @@ def webhook():
 
         send_message(
            phone,
-           "💳 *PAYMENT METHOD*\n\n"
-           "1️⃣ EcoCash\n"
-           "2️⃣ Cancel\n\n"
+           "💳 *SELECT PACKAGE*\n\n"
+           "1️⃣ Basic – $5 (PDF only)\n"
+           "2️⃣ Premium – $10 (Full training + audio + business)\n\n"
            "Reply with 1 or 2"
         )
         return jsonify({"status": "ok"})
@@ -1730,6 +1794,12 @@ def webhook():
             set_state(phone, "course_lessons")
 
             modules = load_lessons()
+
+            user_package = fresh_user.get("package", "none")
+
+            if user_package == "basic":
+                allowed = PACKAGES["basic"]["modules"]
+                modules = {k: v for k, v in modules.items() if k in allowed}
 
             menu = "📚 *COURSE LESSONS*\n\n"
 
@@ -1755,7 +1825,7 @@ def webhook():
                     "✔ Bleach\n"
                     "✔ Drinks\n\n"
                     "Kosi ino inokudzidzisa ma formulas anoshandisika + kuti ungatengesa sei zvigadzirwa zvako.\n\n"
-                    "💵 Full course: $5 once-off\n\n"
+                    "💵 Full course:"Basic $5 | Premium $10" \n\n"
                     "Ungada kutotanga kudzidza nhasi here?\n\n"
                     "Reply YES to continue"
                 )
@@ -1767,7 +1837,7 @@ def webhook():
                     phone,
                     "👌 Zvakanaka!\n\n"
                     "Mukosi ino uchadzidza kugadzira maproducts akanaka uye anoshanda zvakanaka.\n\n"
-                    "💵 Full course: $5 once-off\n\n"
+                    "💵 Full course:"Basic $5 | Premium $10" \n\n"
                     "Reply YES to continue"
                 )
 
@@ -1925,6 +1995,26 @@ def webhook():
             module = module_keys[int(incoming)-1]
             pdf, label = modules[module]
 
+            user_package = fresh_user.get("package", "none")
+
+            if user_package == "basic":
+                allowed = PACKAGES["basic"]["modules"]
+
+                if module not in allowed:
+                    set_state(phone, "upgrade_offer")
+
+                    send_message(
+                        phone,
+                        "🔒 *PREMIUM CONTENT*\n\n"
+                        "Uri pa *Basic package ($5)*.\n\n"
+                        "Kuti uvhure module iyi + mamwe ma advanced products:\n\n"
+                        "🔥 Upgrade ku *Premium* for ONLY *$5 more*\n\n"
+                        "1️⃣ Upgrade now\n"
+                        "2️⃣ Back to lessons"
+                    )
+
+                    return jsonify({"status": "ok"})
+
             record_module_access(phone, module)
             log_activity(phone, "open_module", module)
             update_metrics(phone, "module")
@@ -1975,24 +2065,37 @@ def webhook():
     elif user["state"] == "pay_menu":
 
         if incoming == "1":
-            set_state(phone, "awaiting_payment")
+            selected_package = "basic"
+            price = BASIC_PRICE
 
-            send_admin_alert(
-                "Customer requested payment instructions",
-                f"Phone: {phone}\nMethod: EcoCash"
-            )
-
-            send_message(
-               phone,
-               "📲 *Bhadhara neEcoCash *\n\n"
-               "Nyora izvi pafoni yako 👇\n\n"
-               "*153*1*1*0773208904*6#\n\n"
-               "👤 Recipient: *Beloved Nkomo*\n"
-               f"💵 Amount: *${COURSE_PRICE}* add cashout charges\n"
-               "✔ Chibva waisa EcoCash PIN\n"
-               "✔ Kana wapedza kubhadhara, tumira confirmation message yacho pano:"
-            )
+        elif incoming == "2":
+            selected_package = "premium"
+            price = PREMIUM_PRICE
+        else:
+            send_message(phone, "Sarudza 1 or 2")
             return jsonify({"status": "ok"})
+
+        # save selection
+        conn = get_db()
+        c = conn.cursor()
+        c.execute(
+            "UPDATE users SET package=%s WHERE phone=%s",
+            (selected_package, phone)
+        )
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "awaiting_payment")
+
+        send_message(
+           phone,
+           "📲 *Bhadhara neEcoCash*\n\n"
+           "*153*1*1*0773208904*6#\n\n"
+           "👤 Recipient: Beloved Nkomo\n"
+           f"💵 Amount: ${price} + charges\n\n"
+           "Send confirmation SMS here"
+        )
+        return jsonify({"status": "ok"})
 
         elif incoming == "2":
            set_state(phone, "main")
@@ -2390,6 +2493,25 @@ def webhook():
         )
         return jsonify({"status": "ok"})
 
+   elif user["state"] == "upgrade_offer":
+
+        if incoming == "1":
+            set_state(phone, "awaiting_upgrade_payment")
+
+            send_message(
+                phone,
+                "📲 *UPGRADE PAYMENT*\n\n"
+                "Pay ONLY difference: *$5*\n\n"
+                "*153*1*1*0773208904*6#\n\n"
+                "Send EcoCash confirmation SMS here."
+            )
+            return jsonify({"status": "ok"})
+
+        elif incoming == "2":
+            set_state(phone, "course_lessons")
+            send_message(phone, "📚 Dzokera kuma lessons.")
+            return jsonify({"status": "ok"}) 
+
     elif user["state"] == "calc_menu":
 
         if incoming == "1":
@@ -2625,6 +2747,30 @@ def webhook():
             set_state(phone, "main")
             send_message(phone, reply)
             send_message(phone, main_menu())
+            return jsonify({"status": "ok"})
+        else:
+            send_message(phone, reply)
+            return jsonify({"status": "ok"})
+            
+    if user["state"] == "awaiting_upgrade_payment":
+
+        success, reply = verify_and_apply_payment(phone, incoming)
+
+        if success:
+
+            conn = get_db()
+            c = conn.cursor()
+            c.execute(
+                "UPDATE users SET package='premium' WHERE phone=%s",
+                (phone,)
+            )
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            send_message(phone, "🎉 Upgrade successful! Wava pa Premium.")
+            set_state(phone, "main")
+            send_message(phone, main_menu())
+
             return jsonify({"status": "ok"})
         else:
             send_message(phone, reply)
