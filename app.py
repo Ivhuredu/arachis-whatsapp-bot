@@ -2104,7 +2104,7 @@ def webhook():
         send_message(
            phone,
            "📲 *Bhadhara neEcoCash*\n\n"
-           "*153*1*1*0773208904*6#\n\n"
+           "*153*1*1*0773208904*Ammount#\n\n"
            "👤 Recipient: Beloved Nkomo\n"
            f"💵 Amount: ${price} + charges\n\n"
            "Send confirmation SMS here"
