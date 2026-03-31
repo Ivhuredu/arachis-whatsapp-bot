@@ -708,7 +708,7 @@ def verify_and_apply_payment(phone, message):
 
     send_admin_alert(
         "AUTO PAYMENT APPROVED",
-        f"Phone: {phone}\nPaid: ${amount}\nCourse Price: ${COURSE_PRICE}\nRef: {reference}"
+        f"Phone: {phone}\nPaid: ${amount}\nPackage: {package.upper()}\nRef: {reference}"
     )
 
     return True, f"🎉 Payment confirmed!\nPackage: {package.upper()}\nWava kukwanisa kuvhura ma lessons."
@@ -2501,7 +2501,7 @@ def webhook():
         )
         return jsonify({"status": "ok"})
 
-   elif user["state"] == "upgrade_offer":
+    elif user["state"] == "upgrade_offer":
 
         if incoming == "1":
             set_state(phone, "awaiting_upgrade_payment")
