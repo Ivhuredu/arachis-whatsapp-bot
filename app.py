@@ -39,8 +39,8 @@ app = Flask(__name__)
 BASIC_PRICE = 5.0
 PREMIUM_PRICE = 10.0
 PAYMENT_TOLERANCE = 1.5   # allows EcoCash charges
-MIN_ACCEPTABLE = COURSE_PRICE
-MAX_ACCEPTABLE = COURSE_PRICE + PAYMENT_TOLERANCE
+MIN_ACCEPTABLE = BASIC_PRICE
+MAX_ACCEPTABLE = PREMIUM_PRICE + PAYMENT_TOLERANCE
 
 # =========================
 # CONFIG
@@ -673,8 +673,8 @@ def verify_and_apply_payment(phone, message):
         return False, "Handina kuona mari yatumirwa muSMS."
 
     if amount < BASIC_PRICE:
-    DATABASE_POOL.putconn(conn)
-    return False, "Mari ishoma. Basic $5 kana Premium $10."
+        DATABASE_POOL.putconn(conn)
+        return False, "Mari ishoma. Basic $5 kana Premium $10."
     
     # detect package
     if BASIC_PRICE <= amount < PREMIUM_PRICE:
@@ -1326,7 +1326,7 @@ def welcome_message():
         "✔ Ice Cream\n"
         "✔ Concentrate Drinks nezvimwe\n\n"
         "🏠 Unogona kutanga kutodzidza izvozvi pafoni pako uye kutanga bhizinesi rako uri kumba.\n\n"
-        "📚 Full training:"Basic $5 | Premium $10" \n\n"
+        "📚 Full training:Basic $5 | Premium $10\n\n"
         "🏠 Kana une zvimwe zvaungada kuziva kana kubatsirwa taura naAdmin wedu pa +263773208904.\n\n"
         "Reply *PAY* kuti ubhadhare uye utange kudzidza."
     )
@@ -1825,7 +1825,7 @@ def webhook():
                     "✔ Bleach\n"
                     "✔ Drinks\n\n"
                     "Kosi ino inokudzidzisa ma formulas anoshandisika + kuti ungatengesa sei zvigadzirwa zvako.\n\n"
-                    "💵 Full course:"Basic $5 | Premium $10" \n\n"
+                    "💵 Full course:Basic $5 | Premium $10 \n\n"
                     "Ungada kutotanga kudzidza nhasi here?\n\n"
                     "Reply YES to continue"
                 )
@@ -1837,7 +1837,7 @@ def webhook():
                     phone,
                     "👌 Zvakanaka!\n\n"
                     "Mukosi ino uchadzidza kugadzira maproducts akanaka uye anoshanda zvakanaka.\n\n"
-                    "💵 Full course:"Basic $5 | Premium $10" \n\n"
+                    "💵 Full course:Basic $5 | Premium $10 \n\n"
                     "Reply YES to continue"
                 )
 
@@ -1851,8 +1851,9 @@ def webhook():
 
                 send_message(
                     phone,
-                    "💳 Tanga kudzidza:\n\n"
-                    "Course fee: $5\n\n"
+                    "💳 Choose your package:\n\n"
+                    "Basic – $5\n"
+                    "Premium – $10\n\n"
                     "You will receive:\n"
                     "✔ All formulas\n"
                     "✔ Full lessons\n"
@@ -1932,19 +1933,32 @@ def webhook():
 
         elif incoming == "7":
 
+            fresh_user = get_user(phone)
+
+            if fresh_user.get("package") == "basic":
+                set_state(phone, "upgrade_offer")
+
+                send_message(
+                    phone,
+                    "🤖 *AI Trainer iri mu Premium chete*\n\n"
+                    "Upgrade uone:\n"
+                    "✔ Full AI help\n"
+                    "✔ Product fixing\n"
+                    "✔ Business advice\n\n"
+                    "Pay only $5 more\n\n"
+                    "1️⃣ Upgrade now\n"
+                    "2️⃣ Later"
+                )
+                return jsonify({"status": "ok"})
+
             set_state(phone, "ai_chat")
 
             send_message(
                 phone,
                 "🤖 *AI TRAINER*\n\n"
-                "Unogona:\n"
-                "✔ Kubvunza mubvunzo\n"
-                "✔ Kutumira photo ye product yako\n\n"
-                "Example questions:\n"
-                "• Thick Bleach yangu yakoresa ndoita sei?\n"
-                "• Dishwash yangu haisi kupupuma?\n\n"
-                "📷 Kana product yakanganisika tumira *PHOTO*.\n\n"
-                "↩ Nyora *MENU* kudzokera."
+                "Unogona kubvunza chero mubvunzo.\n"
+                "Tumira PHOTO kana product yakanganisika.\n\n"
+                "↩ Nyora MENU kudzokera."
             )
 
             return jsonify({"status": "ok"})
@@ -2096,12 +2110,6 @@ def webhook():
            "Send confirmation SMS here"
         )
         return jsonify({"status": "ok"})
-
-        elif incoming == "2":
-           set_state(phone, "main")
-           send_message(phone, main_menu())
-           return jsonify({"status": "ok"})
-
 
     elif user["state"] == "store_category":
 
