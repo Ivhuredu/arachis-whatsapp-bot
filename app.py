@@ -1445,7 +1445,7 @@ def ai_trainer_reply(phone, question, allowed_modules):
         model=model_to_use,
         messages=messages,
         temperature=0.4,
-        max_tokens=600
+        max_completion_tokens=600
     )
 
     answer = response.choices[0].message.content.strip()
@@ -1502,7 +1502,7 @@ RULES:
                 ]
             }
         ],
-        max_tokens=600,
+        max_completion_tokens=600,
         temperature=0.3
     )
 
