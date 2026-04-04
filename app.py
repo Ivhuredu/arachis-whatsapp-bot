@@ -1970,7 +1970,8 @@ def webhook():
                 "🏭 *SUPPLIER DIRECTORY*\n\n"
                 "1️⃣ Detergent Ingredients\n"
                 "2️⃣ Drink Ingredients\n"
-                "3️⃣ Containers & Bottles\n\n"
+                "3️⃣ Containers & Bottles\n"
+                "4️⃣ Ph Paper\n\n"
                 "Reply with 1, 2 or 3.\n"
                 "↩ Nyora *MENU* kudzokera."
             )
@@ -2249,7 +2250,7 @@ def webhook():
                 "4. MazChem\n"
                 "📞 +263772597141\n"
                 "📍 Harare\n\n"
-                "4. ArrowChem\n"
+                "5. ArrowChem\n"
                 "📞 +263780381618\n"
                 "📍 Bulawayo/ Gweru\n\n"
                 "↩ Nyora *MENU* kudzokera."
@@ -2286,6 +2287,24 @@ def webhook():
                 "↩ Nyora *MENU* kudzokera."
             )
             return jsonify({"status": "ok"})
+            
+            elif incoming == "4":
+            send_message(
+                phone,
+                "🧴 *PH PAPER*\n\n"
+                "1. Reditek Chemicals\n"
+                "📞 +263773903806\n"
+                "📍 Bulawayo\n\n"
+                "2. Graniteside Chemicals\n"
+                "📞 +263774547609\n"
+                "📍 Harare\n\n"
+                "3. Mega Mark Scientific\n"
+                "📞 +263771263978\n"
+                "📍 Bulawayo\n\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
+
 
     elif user["state"] == "laundry_course_menu":
 
