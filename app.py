@@ -2288,7 +2288,7 @@ def webhook():
             )
             return jsonify({"status": "ok"})
             
-            elif incoming == "4":
+        elif incoming == "4":
             send_message(
                 phone,
                 "🧴 *PH PAPER*\n\n"
