@@ -1627,6 +1627,21 @@ def webhook():
         else:
             incoming = ""
 
+        # 🔥 HANDLE TEMPLATE REPLIES (VERY IMPORTANT)
+        if incoming in ["yes", "ok", "sure", "interested"]:
+
+            send_message(
+                phone,
+                "🔥 Great!\n\n"
+                "Choose your package:\n\n"
+                "1️⃣ Basic – $5\n"
+                "2️⃣ Premium – $10\n\n"
+                "Reply 1 or 2"
+            )
+
+            set_state(phone, "pay_menu")
+            return jsonify({"status": "ok"})
+
         update_metrics(phone, "message")
         log_activity(phone, "incoming_message", msg_type)
 
@@ -3130,7 +3145,7 @@ def followup_unpaid():
         message = followup_message(stage)
 
         if message:
-            send_message(phone, message)
+            send_template(phone, "reactivate_training")
 
             c.execute("""
             UPDATE users
@@ -3171,7 +3186,7 @@ def admin_send_followup(phone):
     message = followup_message(stage)
 
     if message:
-        send_message(phone, message)
+        send_template(phone, "reactivate_training")
 
         c.execute("""
         UPDATE users
