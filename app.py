@@ -490,10 +490,7 @@ def followup_message(stage):
 
     return messages.get(stage)
 
-def send_template(phone, template_name, variables=None):
-
-    if variables is None:
-        variables = []
+def send_template(phone, reactivate_training, variables=None):
 
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
 
@@ -502,35 +499,29 @@ def send_template(phone, template_name, variables=None):
         "Content-Type": "application/json"
     }
 
-    components = []
+    template_data = {
+        "name": reactivate_training,
+        "language": {"code": "en"}
+    }
 
     if variables:
-        components = [{
+        template_data["components"] = [{
             "type": "body",
-            "parameters": [
-                {"type": "text", "text": v} for v in variables
-            ]
+            "parameters": [{"type": "text", "text": v} for v in variables]
         }]
 
     payload = {
         "messaging_product": "whatsapp",
         "to": phone.replace("+",""),
         "type": "template",
-        "template": {
-            "name": template_name,
-            "language": {"code": "en"},
-            "components": components
-        }
+        "template": template_data
     }
-
-    print("SENDING TEMPLATE TO:", phone)
-    print("TEMPLATE NAME:", template_name)
-    print("VARIABLES:", variables)
 
     r = requests.post(url, headers=headers, json=payload)
 
-    print("TEMPLATE STATUS:", r.status_code)
-    print("TEMPLATE RESPONSE:", r.text)
+    print("STATUS:", r.status_code)
+    print("RESPONSE:", r.text)
+    
 def get_user(phone):
     conn = get_db()
     c = conn.cursor()
@@ -3240,15 +3231,14 @@ except Exception as e:
 @app.route("/test-template")
 def test_template():
 
-    my_number = "+263773208904"  # 🔥 PUT YOUR NUMBER HERE
+    my_number = "+26377XXXXXXX"
 
     send_template(
         my_number,
-        "reactivate_training",   # 🔥 EXACT template name
-        ["Arachis Training", "Start now"]  # 🔥 variables (if your template has {{1}}, {{2}})
+        "reactivate_training"
     )
 
-    return "Template sent to yourself"
+    return "Template sent"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
