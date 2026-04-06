@@ -490,7 +490,7 @@ def followup_message(stage):
 
     return messages.get(stage)
 
-def send_template(phone, reactivate_training, variables=None):
+def send_template(phone, template_name, variables=None):
 
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
 
@@ -500,7 +500,7 @@ def send_template(phone, reactivate_training, variables=None):
     }
 
     template_data = {
-        "name": reactivate_training,
+        "name": template_name,
         "language": {"code": "en"}
     }
 
@@ -3231,12 +3231,11 @@ except Exception as e:
 @app.route("/test-template")
 def test_template():
 
-    my_number = "+263773208904"
+    phone = "+263773208904"  # ⚠️ NOT your bot number
 
-    send_template(
-        my_number,
-        "reactivate_training"
-    )
+    print("🚀 TEST TEMPLATE TRIGGERED")
+
+    send_template(phone, "reactivate_training")
 
     return "Template sent"
 
