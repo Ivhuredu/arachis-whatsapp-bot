@@ -490,7 +490,10 @@ def followup_message(stage):
 
     return messages.get(stage)
 
-def send_template(phone, reactivate_training):
+def send_template(phone, template_name, variables=None):
+
+    if variables is None:
+        variables = []
 
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
 
@@ -499,21 +502,35 @@ def send_template(phone, reactivate_training):
         "Content-Type": "application/json"
     }
 
+    components = []
+
+    if variables:
+        components = [{
+            "type": "body",
+            "parameters": [
+                {"type": "text", "text": v} for v in variables
+            ]
+        }]
+
     payload = {
         "messaging_product": "whatsapp",
         "to": phone.replace("+",""),
         "type": "template",
         "template": {
-            "name": reactivate_training,
-            "language": {"code": "en"}
+            "name": template_name,
+            "language": {"code": "en"},
+            "components": components
         }
     }
+
+    print("SENDING TEMPLATE TO:", phone)
+    print("TEMPLATE NAME:", template_name)
+    print("VARIABLES:", variables)
 
     r = requests.post(url, headers=headers, json=payload)
 
     print("TEMPLATE STATUS:", r.status_code)
     print("TEMPLATE RESPONSE:", r.text)
-
 def get_user(phone):
     conn = get_db()
     c = conn.cursor()
