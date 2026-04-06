@@ -3220,6 +3220,19 @@ try:
 except Exception as e:
     print("Startup error:", e)
 
+@app.route("/test-template")
+def test_template():
+
+    my_number = "+263773208904"  # 🔥 PUT YOUR NUMBER HERE
+
+    send_template(
+        my_number,
+        "reactivate_training",   # 🔥 EXACT template name
+        ["Arachis Training", "Start now"]  # 🔥 variables (if your template has {{1}}, {{2}})
+    )
+
+    return "Template sent to yourself"
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
