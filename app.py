@@ -3231,7 +3231,7 @@ except Exception as e:
 @app.route("/test-template")
 def test_template():
 
-    my_number = "+26377XXXXXXX"
+    my_number = "+263773208904"
 
     send_template(
         my_number,
