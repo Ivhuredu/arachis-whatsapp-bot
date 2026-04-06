@@ -1344,8 +1344,6 @@ def faq_engine(msg):
         "kubhadhara sei": "Kubhadhara nyora *PAY* wobva watevera mirairo yeEcoCash.",
         "payment": "Nyora *PAY* kuti utange kubhadhara.",
         "send payment": "Tumira EcoCash confirmation SMS pano kana wapedza.",
-        "course yacho inoita marii": f"Course irikungori ${COURSE_PRICE} once-off.",
-        "marii": f"Full course: ${COURSE_PRICE} once-off.",
         "certificate": "Ehe, unopihwa certificate kana wapedza kudzidza.",
         "imwe mari": "Kwete. Unobhadhara kamwe chete chete — hapana monthly fee.",
         "refund": "Hatina refund nekuti ma lessons anobva avhurwa ipapo ipapo.",
