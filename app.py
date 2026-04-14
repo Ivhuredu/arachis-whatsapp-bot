@@ -2467,7 +2467,6 @@ def webhook():
     send_message(phone, "Sarudza 1–5 kana nyora MENU")
     return jsonify({"status": "ok"})
 
-    
     elif user["state"] == "ai_chat":
 
         if incoming == "menu":
