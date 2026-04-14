@@ -2900,13 +2900,13 @@ def webhook():
 
         if not allowed_modules:
 
-        # Allow business questions even without module
-        business_keywords = ["profit", "price", "sell", "business", "market"]
+            # Allow business questions even without module
+            business_keywords = ["profit", "price", "sell", "business", "market"]
 
-        if any(k in question.lower() for k in business_keywords):
-            combined_text = ""
-        else:
-            return "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
+            if any(k in question.lower() for k in business_keywords):
+                combined_text = ""
+            else:
+                return "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
 
         # If user has 2 or more modules → allow full cross-module AI
         if len(allowed_modules) >= 2:
