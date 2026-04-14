@@ -1378,14 +1378,25 @@ def ai_trainer_reply(phone, question, allowed_modules):
     # determine active module (latest opened)
     active_module = allowed_modules[-1]
 
-    memory_messages = get_memory(phone, active_module)
+    memory_messages = get_memory(phone, active_module if allowed_modules else "business")
 
     
     prompt = f"""
-    You are a practical detergent and business trainer helping a paid student in Zimbabwe.
+    You are a PRACTICAL DETERGENT + BUSINESS TRAINER in Zimbabwe.
 
+    You help students:
+    ✔ Make products
+    ✔ Fix products
+    ✔ Price products
+    ✔ Sell products
+    ✔ Grow small businesses
+    
     PRIMARY RULE:
     Use the lesson material as your MAIN source of truth.
+     ALWAYS give PRACTICAL answers (step-by-step)
+     ALWAYS include NUMBERS when talking about money
+     ALWAYS relate answers to Zimbabwe market
+     DO NOT be theoretical — be actionable 
 
     FLEXIBILITY RULE:
     You may use general knowledge ONLY to:
@@ -1407,6 +1418,42 @@ def ai_trainer_reply(phone, question, allowed_modules):
        - Start with the problem cause
        - Give exact fix steps
        - Then prevention
+       
+    IF QUESTION IS ABOUT BUSINESS / MONEY:
+
+    You MUST include:
+
+    ✔ Cost example
+    ✔ Selling price example
+    ✔ Profit calculation
+    ✔ Simple selling strategy
+
+    Example format:
+
+    "Example:
+    20L Dishwash
+    Cost: $15
+    Sell: $1 per 750ml
+    Revenue: $26
+    Profit: $11"
+
+    IF QUESTION IS ABOUT SELLING:
+
+    Give:
+    ✔ Where to sell (kombis, tuckshops, WhatsApp)
+    ✔ How to approach customers
+    ✔ Simple script
+
+    ----------------------------------
+
+    IF QUESTION IS ABOUT GROWTH:
+
+    Explain:
+    ✔ Start small
+    ✔ Reinvest profits
+    ✔ Increase batch size
+
+    -----------
 
     CONTEXT:
     {combined_text}
@@ -1423,15 +1470,18 @@ def ai_trainer_reply(phone, question, allowed_modules):
     messages.append({"role": "user", "content": question})
     
     def is_complex_question(question):
+
         keywords = [
             "why", "explain", "difference", "problem",
-            "fix", "improve", "formula", "business",
-            "profit", "cost", "calculate"
+            "fix", "improve", "formula",
+            "profit", "cost", "price", "sell",
+            "business", "market", "customers",
+            "how to sell", "how to price", "how to start"
         ]
 
         q = question.lower()
 
-        return any(k in q for k in keywords) or len(question.split()) > 10
+        return any(k in q for k in keywords) or len(question.split()) > 8
     
 
     model_to_use = "gpt-4o-mini"
@@ -1964,9 +2014,16 @@ def webhook():
 
             send_message(
                 phone,
-                "🤖 *AI TRAINER*\n\n"
-                "Unogona kubvunza chero mubvunzo.\n"
-                "Tumira PHOTO kana product yakanganisika.\n\n"
+                "🤖 *AI TRAINER (PRODUCTION + BUSINESS)*\n\n"
+                "Bvunza chero chinhu:\n\n"
+                "✔ Kugadzira ma products\n"
+                "✔ Kugadzirisa problem\n"
+                "✔ Pricing & profit\n"
+                "✔ Kuti utengese kupi\n"
+                "✔ Kutanga bhizinesi\n\n"
+                "Example:\n"
+                "👉 Dishwash inotengeswa marii?\n"
+                "👉 Ndotangira papi kutengesa?\n\n"
                 "↩ Nyora MENU kudzokera."
             )
 
@@ -2330,9 +2387,9 @@ def webhook():
             "Example:\n"
             "Dishwash 20L\n"
             "Cost: $15\n"
-            "Sell: $1 per 500ml\n\n"
-            "Revenue: $40\n"
-            "Profit: $25\n\n"
+            "Sell: $1 per 750ml\n\n"
+            "Revenue: $26\n"
+            "Profit: $11\n\n"
             "Rule:\n"
             "✔ Always know your cost\n"
             "✔ Always price for profit\n\n"
@@ -2843,8 +2900,14 @@ def webhook():
         allowed_modules = get_user_modules(phone, incoming)
 
         if not allowed_modules:
-            send_message(phone, "🔒 Tapota vhura module kutanga.")
-            return jsonify({"status": "ok"})
+
+        # Allow business questions even without module
+        business_keywords = ["profit", "price", "sell", "business", "market"]
+
+        if any(k in question.lower() for k in business_keywords):
+            combined_text = ""
+        else:
+            return "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
 
         # If user has 2 or more modules → allow full cross-module AI
         if len(allowed_modules) >= 2:
