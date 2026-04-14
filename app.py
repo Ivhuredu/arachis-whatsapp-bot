@@ -1299,7 +1299,7 @@ def main_menu():
     return (
         "👋 *TINOKUGAMUCHIRAI KU ARACHIS ONLINE TRAINING*\n\n"
         "1️⃣ Course Lessons\n"
-        "2️⃣ 🧼 Laundry Bar Training (NEW)\n"
+        "2️⃣ 💼 Business Training (NEW)\n"
         "3️⃣ 📊 Production Cost Calculator\n"
         "4️⃣ Join Full Online Training\n"
         "5️⃣ Register for Offline Classes\n"
@@ -1879,27 +1879,23 @@ def webhook():
         
         elif incoming == "2":
 
-            set_state(phone, "laundry_course_menu")
+            set_state(phone, "business_training_menu")
 
             send_message(
                 phone,
-                "🧼 *LAUNDRY BAR TRAINING*\n\n"
-                "Learn how to make:\n"
-                "✔ Premium bar\n"
-                "✔ Budget bar\n"
-                "✔ Ultra cheap bar\n\n"
-                "Choose lesson:\n\n"
-                "1️⃣ Day 1: Basics (FREE)\n"
-                "2️⃣ Day 2: Safety 🔒\n"
-                "3️⃣ Day 3: Premium Bar 🔒\n"
-                "4️⃣ Day 4: Budget Bars 🔒\n"
-                "5️⃣ Day 5: Ultra Cheap + Business 🔒\n"
+                "💼 *BUSINESS TRAINING*\n\n"
+                "Learn how to make money from your products:\n\n"
+                "1️⃣ Pricing & Profit (FREE)\n"
+                "2️⃣ Packaging & Branding 🔒\n"
+                "3️⃣ Where to Sell 🔒\n"
+                "4️⃣ Scaling Your Business 🔒\n"
+                "5️⃣ Real Zimbabwe Strategy 🔒\n\n"
                 "Reply with number.\n"
                 "↩ Nyora *MENU* kudzokera."
             )
 
             return jsonify({"status": "ok"})
-
+            
         elif incoming == "3":
             set_state(phone, "calc_menu")
 
@@ -2319,105 +2315,102 @@ def webhook():
             return jsonify({"status": "ok"})
 
 
-    elif user["state"] == "laundry_course_menu":
+    elif user["state"] == "business_training_menu":
 
-        if incoming == "menu":
-            set_state(phone, "main")
-            send_message(phone, main_menu())
-            return jsonify({"status": "ok"})
-
-        # FREE lesson only
-        if incoming == "1":
-            send_message(
-                phone,
-                "📘 *DAY 1: BASICS (FREE)*\n\n"
-                "Soap is made when:\n"
-                "👉 Caustic soda reacts with oil/fat\n\n"
-                "Ingredients:\n"
-                "✔ Tallow/Oil\n"
-                "✔ Caustic soda\n"
-                "✔ Sulphonic acid\n\n"
-                "🔓 To unlock full training nyora *PAY*"
-            )
-            return jsonify({"status": "ok"})
-
-        # LOCKED lessons
-        if incoming in ["2", "3", "4", "5"] and not user["is_paid"]:
-            send_message(
-                phone,
-                "🔒 *FULL TRAINING LOCKED*\n\n"
-                "Unongowana Day 1 chete mahara.\n\n"
-                "💵 Full Laundry Bar Training + All formulas: $5\n\n"
-                "Nyora *PAY* kuti uvhure."
-            )
-            return jsonify({"status": "ok"})
-
-        lessons = {
-            "2": (
-                "⚠ *DAY 2: SAFETY*\n\n"
-                "✔ Always add caustic soda into water\n"
-                "✔ Do not touch fresh soap\n"
-                "✔ Work in open space\n\n"
-                "Steps:\n"
-                "1. Make lye\n"
-                "2. Melt oil\n"
-                "3. Mix properly\n\n"
-                "Reply 3 for next lesson"
-            ),
-
-            "3": (
-                "🟢 *DAY 3: PREMIUM BAR*\n\n"
-                "Formula (10kg):\n"
-                "Tallow 8.3kg\n"
-                "Caustic soda 1.2kg\n"
-                "Sulphonic acid 0.7kg\n\n"
-                "Steps:\n"
-                "1. Make lye\n"
-                "2. Melt tallow\n"
-                "3. Mix → thick\n"
-                "4. Add sulphonic acid\n\n"
-                "Result:\n"
-                "✔ Smooth\n✔ High quality\n\n"
-                "Reply 4 for next lesson"
-            ),
-
-            "4": (
-                "🟡 *DAY 4: BUDGET BARS*\n\n"
-                "Option 1:\n"
-                "Tallow + Chalk\n\n"
-                "Option 2:\n"
-                "Tallow + Dolomite\n\n"
-                "Key:\n"
-                "✔ Add filler slowly\n"
-                "✔ Mix well (no lumps)\n\n"
-                "Result:\n"
-                "✔ Cheaper\n✔ Good profit\n\n"
-                "Reply 5 for next lesson"
-            ),
-
-            "5": (
-                "⚫ *DAY 5: ULTRA CHEAP + BUSINESS*\n\n"
-                "Formula:\n"
-                "Used oil + filler\n\n"
-                "Key:\n"
-                "✔ Very low cost\n"
-                "✔ Strong cleaning\n\n"
-                "Business:\n"
-                "Premium → brand\n"
-                "Budget → daily sales\n"
-                "Ultra → volume\n\n"
-                "🎉 You completed training!\n"
-                "Nyora *MENU* kudzokera"
-            )
-        }
-
-        if incoming in lessons:
-            send_message(phone, lessons[incoming])
-            return jsonify({"status": "ok"})
-
-        send_message(phone, "Sarudza lesson 1–5 kana nyora MENU")
+    if incoming == "menu":
+        set_state(phone, "main")
+        send_message(phone, main_menu())
         return jsonify({"status": "ok"})
 
+    # FREE lesson
+    if incoming == "1":
+        send_message(
+            phone,
+            "💰 *PRICING & PROFIT (FREE)*\n\n"
+            "Example:\n"
+            "Dishwash 20L\n"
+            "Cost: $15\n"
+            "Sell: $1 per 500ml\n\n"
+            "Revenue: $40\n"
+            "Profit: $25\n\n"
+            "Rule:\n"
+            "✔ Always know your cost\n"
+            "✔ Always price for profit\n\n"
+            "🔓 Unlock full training → Nyora *PAY*"
+        )
+        return jsonify({"status": "ok"})
+
+    # LOCKED CONTENT
+    if incoming in ["2", "3", "4", "5"] and not user["is_paid"]:
+        send_message(
+            phone,
+            "🔒 *BUSINESS TRAINING LOCKED*\n\n"
+            "Full business strategies available in full course.\n\n"
+            "💵 Only $5 / $10\n\n"
+            "Nyora *PAY* to unlock."
+        )
+        return jsonify({"status": "ok"})
+
+    lessons = {
+
+        "2": (
+            "📦 *PACKAGING & BRANDING*\n\n"
+            "✔ Use clean bottles\n"
+            "✔ Add simple sticker\n"
+            "✔ Use bright colors\n\n"
+            "Brand name example:\n"
+            "✔ Sparkle Dishwash\n\n"
+            "Good packaging = more sales\n\n"
+            "Reply 3"
+        ),
+
+        "3": (
+            "📍 *WHERE TO SELL*\n\n"
+            "Best places:\n"
+            "✔ Tuckshops\n"
+            "✔ Kombis\n"
+            "✔ Door to door\n"
+            "✔ WhatsApp groups\n\n"
+            "Tip:\n"
+            "Give samples first\n\n"
+            "Reply 4"
+        ),
+
+        "4": (
+            "📈 *SCALING YOUR BUSINESS*\n\n"
+            "Start:\n"
+            "✔ 20L batches\n\n"
+            "Then:\n"
+            "✔ Reinvest profit\n"
+            "✔ Move to 50L\n"
+            "✔ Then 100L\n\n"
+            "Never eat all profit.\n\n"
+            "Reply 5"
+        ),
+
+        "5": (
+            "🇿🇼 *REAL ZIMBABWE STRATEGY*\n\n"
+            "Fast selling products:\n"
+            "✔ Dishwash\n"
+            "✔ Bleach\n"
+            "✔ Freezits\n\n"
+            "Daily system:\n"
+            "✔ Produce small batches\n"
+            "✔ Sell daily\n"
+            "✔ Reinvest\n\n"
+            "🎯 CONSISTENCY = MONEY\n\n"
+            "Nyora *MENU* kudzokera"
+        )
+    }
+
+    if incoming in lessons:
+        send_message(phone, lessons[incoming])
+        return jsonify({"status": "ok"})
+
+    send_message(phone, "Sarudza 1–5 kana nyora MENU")
+    return jsonify({"status": "ok"})
+
+    
     elif user["state"] == "ai_chat":
 
         if incoming == "menu":
