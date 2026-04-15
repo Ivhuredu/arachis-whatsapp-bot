@@ -229,6 +229,15 @@ def init_db():
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS package TEXT DEFAULT 'none'
     """)
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS ingredient_prices (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE,
+        price_per_unit REAL,
+        unit TEXT
+)
+""")
     
     conn.commit()
     DATABASE_POOL.putconn(conn)
@@ -280,6 +289,48 @@ def download_whatsapp_image(media_id):
         f.write(image.content)
 
     return path
+
+def seed_prices():
+    conn = get_db()
+    c = conn.cursor()
+
+    prices = [
+        ("SLES", 3.25, "kg"),
+        ("Caustic Soda", 2.25, "kg"),
+        ("Sulphonic Acid", 3.25, "litre"),
+        ("Perfume", 1.0, "30ml"),
+        ("Bermacol", 7.0, "kg"),
+        ("Soda Ash", 2.25, "kg"),
+        ("NP6", 6.0, "kg")
+    ]
+
+    for p in prices:
+        c.execute("""
+        INSERT INTO ingredient_prices (name, price_per_unit, unit)
+        VALUES (%s,%s,%s)
+        ON CONFLICT (name) DO UPDATE
+        SET price_per_unit = EXCLUDED.price_per_unit
+        """, p)
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+def get_all_prices():
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("SELECT name, price_per_unit, unit FROM ingredient_prices")
+
+    rows = c.fetchall()
+    DATABASE_POOL.putconn(conn)
+
+    price_text = ""
+
+    for r in rows:
+        price_text += f"{r[0]}: ${r[1]} per {r[2]}\n"
+
+    return price_text
 
 
 def send_pdf(phone, pdf_url, caption):
@@ -1444,6 +1495,14 @@ def ai_trainer_reply(phone, question, allowed_modules):
     ✔ How to approach customers
     ✔ Simple script
 
+    WHEN USER ASKS ABOUT PROFIT:
+
+    1. Extract ingredients from context
+    2. Use REAL price list
+    3. Calculate total cost
+    4. Suggest selling price
+    5. Calculate profit
+
     ----------------------------------
 
     IF QUESTION IS ABOUT GROWTH:
@@ -1454,6 +1513,9 @@ def ai_trainer_reply(phone, question, allowed_modules):
     ✔ Increase batch size
 
     -----------
+
+    PRICING DATA (USE THIS FOR CALCULATIONS):
+    {get_all_prices()}
 
     CONTEXT:
     {combined_text}
@@ -2464,8 +2526,20 @@ def webhook():
             send_message(phone, lessons[incoming])
             return jsonify({"status": "ok"})
 
+       # allow AI questions inside business menu
+        if not incoming.isdigit():
+
+            ai_answer = ai_trainer_reply(phone, incoming, [])
+
+            send_message(phone, ai_answer)
+
+            log_activity(phone, "ai_question", incoming)
+            update_metrics(phone, "ai")
+
+            return jsonify({"status": "ok"})
+
         send_message(phone, "Sarudza 1–5 kana nyora MENU")
-        return jsonify({"status": "ok"})
+        return jsonify({"status": "ok"}) 
 
     elif user["state"] == "ai_chat":
 
@@ -2903,7 +2977,7 @@ def webhook():
             # Allow business questions even without module
             business_keywords = ["profit", "price", "sell", "business", "market"]
 
-            if any(k in question.lower() for k in business_keywords):
+            if any(k in incoming.lower() for k in business_keywords):
                 combined_text = ""
             else:
                 return "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
@@ -3271,6 +3345,7 @@ def home():
 try:
     init_db()
     auto_sync_lessons()
+    seed_prices()
     print("Startup successful")
 except Exception as e:
     print("Startup error:", e)
