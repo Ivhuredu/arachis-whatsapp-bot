@@ -295,12 +295,31 @@ def seed_prices():
     c = conn.cursor()
 
     prices = [
-        ("SLES", 3.25, "kg"),
-        ("Caustic Soda", 2.25, "kg"),
-        ("Sulphonic Acid", 3.25, "litre"),
+        ("SLES", 3.50, "kg"),
+        ("Caustic Soda", 3.00, "kg"),
+        ("Sulphonic Acid", 4.50, "litre"),
         ("Perfume", 1.0, "30ml"),
         ("Bermacol", 7.0, "kg"),
-        ("Soda Ash", 2.25, "kg"),
+        ("Amido", 1.0, "100ml"),
+        ("CAPB", 2.50, "500g"),
+        ("Soda Ash", 2.00, "kg"),
+        ("Glycerine", 5.0, "kg"),
+        ("Petroleum Jelly", 3.50, "kg"),
+        ("Perfume", 25.0, "litre"),
+        ("Dye Yellow-Oil based", 2.0, "10ml"),
+        ("White Oil", 2.25, "500g"),
+        ("Pine Oil", 10.0, "litre"),
+        ("Sodium Hypochlorite", 2.0, "kg"),
+        ("Butyl Glycol", 7.0, "kg"),
+        ("Sodium Metasillicate", 0.75, "250g"),
+        ("Bermacol", 0.50, "20g"),
+        ("Acid Stable Perfume", 1.0, "30ml"),
+        ("Ardogen", 7.0, "kg"),
+        ("Citric Acid", 5.0, "kg"),
+        ("Ethanol", 3.0, "kg"),
+        ("Paraffin Oil", 4.50, "kg"),
+        ("Fragrance Oil", 1.0, "30ml"),
+        ("NP9", 5.5, "kg"),
         ("NP6", 6.0, "kg")
     ]
 
