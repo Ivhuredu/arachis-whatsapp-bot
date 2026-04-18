@@ -305,7 +305,7 @@ def seed_prices():
         ("Soda Ash", 2.00, "kg"),
         ("Glycerine", 5.0, "kg"),
         ("Petroleum Jelly", 3.50, "kg"),
-        ("Perfume", 25.0, "litre"),
+        ("Perfume", 1.0, "30ml"),
         ("Dye Yellow-Oil based", 2.0, "10ml"),
         ("White Oil", 2.25, "500g"),
         ("Pine Oil", 10.0, "litre"),
