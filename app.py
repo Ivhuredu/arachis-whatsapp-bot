@@ -2487,7 +2487,7 @@ def webhook():
 
             send_pdf(
                 phone,
-                f"https://yourdomain.com/static/lessons/{pdf}",
+                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}", 
                 label
             )
 
