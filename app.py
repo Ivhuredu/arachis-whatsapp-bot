@@ -319,6 +319,9 @@ def seed_prices():
         ("Ethanol", 3.0, "kg"),
         ("Paraffin Oil", 4.50, "kg"),
         ("Fragrance Oil", 1.0, "30ml"),
+        ("Pine Gel Container", 0.25, "1litre"),
+        ("Dishwash Container", 0.25, "750ml"),
+        ("Foam Bath Cintainer", 0.30, "1litre"),
         ("NP9", 5.5, "kg"),
         ("NP6", 6.0, "kg")
     ]
