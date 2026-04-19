@@ -1363,6 +1363,14 @@ DELIVERY_FEES = {
 
 DEFAULT_DELIVERY_FEE = 7  # if town not listed
 
+BUSINESS_MODULES = {
+    "business_pricing_profit": ("business_pricing_profit.pdf", "💰 Pricing & Profit"),
+    "business_packaging": ("business_packaging.pdf", "📦 Packaging & Branding"),
+    "business_selling": ("business_selling.pdf", "📍 Where To Sell"),
+    "business_scaling": ("business_scaling.pdf", "📈 Scaling Business"),
+    "business_strategy": ("business_strategy.pdf", "🇿🇼 Zimbabwe Strategy")
+}
+
 
 
 # =========================
@@ -2013,21 +2021,23 @@ def webhook():
         
         elif incoming == "2":
 
-            set_state(phone, "business_training_menu")
+            fresh_user = get_user(phone)
 
-            send_message(
-                phone,
-                "💼 *BUSINESS TRAINING*\n\n"
-                "Learn how to make money from your products:\n\n"
-                "1️⃣ Pricing & Profit (FREE)\n"
-                "2️⃣ Packaging & Branding 🔒\n"
-                "3️⃣ Where to Sell 🔒\n"
-                "4️⃣ Scaling Your Business 🔒\n"
-                "5️⃣ Real Zimbabwe Strategy 🔒\n\n"
-                "Reply with number.\n"
-                "↩ Nyora *MENU* kudzokera."
-            )
+            if not fresh_user["is_paid"]:
+                send_message(phone, "🔒 Business lessons are for paid users.\nNyora *PAY*")
+                return jsonify({"status": "ok"})
 
+            set_state(phone, "business_lessons")
+
+            menu = "💼 *BUSINESS LESSONS*\n\n"
+
+            for i, key in enumerate(BUSINESS_MODULES, start=1):
+                label = BUSINESS_MODULES[key][1]
+                menu += f"{i}️⃣ {label}\n"
+
+            menu += "\nNyora *MENU* kudzokera."
+
+            send_message(phone, menu)
             return jsonify({"status": "ok"})
             
         elif incoming == "3":
@@ -2455,113 +2465,45 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
+    elif user["state"] == "business_lessons":
 
-    elif user["state"] == "business_training_menu":
+        modules = list(BUSINESS_MODULES.keys())
 
-        if incoming == "menu":
-            set_state(phone, "main")
-            send_message(phone, main_menu())
-            return jsonify({"status": "ok"})
-
-        # FREE lesson
-        if incoming == "1":
-            send_message(
-                phone,
-                "💰 *PRICING & PROFIT (FREE)*\n\n"
-                "Example:\n"
-                "Dishwash 20L\n"
-                "Cost: $15\n"
-                "Sell: $1 per 750ml\n\n"
-                "Revenue: $26\n"
-                "Profit: $11\n\n"
-                "Rule:\n"
-                "✔ Always know your cost\n"
-                "✔ Always price for profit\n\n"
-                "🔓 Unlock full training → Nyora *PAY*"
-            )
-            return jsonify({"status": "ok"})
-
-        # LOCKED CONTENT
-        if incoming in ["2", "3", "4", "5"] and not user["is_paid"]:
-            send_message(
-                phone,
-                "🔒 *BUSINESS TRAINING LOCKED*\n\n"
-                "Full business strategies available in full course.\n\n"
-                "💵 Only $5 / $10\n\n"
-                "Nyora *PAY* to unlock."
-            )
-            return jsonify({"status": "ok"})
-
-        lessons = {
-
-            "2": (
-                "📦 *PACKAGING & BRANDING*\n\n"
-                "✔ Use clean bottles\n"
-                "✔ Add simple sticker\n"
-                "✔ Use bright colors\n\n"
-                "Brand name example:\n"
-                "✔ Sparkle Dishwash\n\n"
-                "Good packaging = more sales\n\n"
-                "Reply 3"
-            ),
-
-            "3": (
-                "📍 *WHERE TO SELL*\n\n"
-                "Best places:\n"
-                "✔ Tuckshops\n"
-                "✔ Kombis\n"
-                "✔ Door to door\n"
-                "✔ WhatsApp groups\n\n"
-                "Tip:\n"
-                "Give samples first\n\n"
-                "Reply 4"
-            ),
-
-            "4": (
-                "📈 *SCALING YOUR BUSINESS*\n\n"
-                "Start:\n"
-                "✔ 20L batches\n\n"
-                "Then:\n"
-                "✔ Reinvest profit\n"
-                "✔ Move to 50L\n"
-                "✔ Then 100L\n\n"
-                "Never eat all profit.\n\n"
-                "Reply 5"
-            ),
-
-            "5": (
-                "🇿🇼 *REAL ZIMBABWE STRATEGY*\n\n"
-                "Fast selling products:\n"
-                "✔ Dishwash\n"
-                "✔ Bleach\n"
-                "✔ Freezits\n\n"
-                "Daily system:\n"
-                "✔ Produce small batches\n"
-                "✔ Sell daily\n"
-                "✔ Reinvest\n\n"
-                "🎯 CONSISTENCY = MONEY\n\n"
-                "Nyora *MENU* kudzokera"
-            )
-        }
-
-        if incoming in lessons:
-            send_message(phone, lessons[incoming])
-            return jsonify({"status": "ok"})
-
-       # allow AI questions inside business menu
         if not incoming.isdigit():
-
-            ai_answer = ai_trainer_reply(phone, incoming, [])
-
-            send_message(phone, ai_answer)
-
-            log_activity(phone, "ai_question", incoming)
-            update_metrics(phone, "ai")
-
+            send_message(phone, "Sarudza lesson number.")
             return jsonify({"status": "ok"})
 
-        send_message(phone, "Sarudza 1–5 kana nyora MENU")
-        return jsonify({"status": "ok"}) 
+        if 1 <= int(incoming) <= len(modules):
+
+            module = modules[int(incoming)-1]
+            pdf, label = BUSINESS_MODULES[module]
+
+            record_module_access(phone, module)
+            update_metrics(phone, "module")
+
+            send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
+
+            send_audio_series(phone, module)
+
+            send_pdf(
+                phone,
+                f"https://yourdomain.com/static/lessons/{pdf}",
+                label
+            )
+
+            send_message(phone, "Bvunza chero mubvunzo 🤖")
+
+            # set active module for AI
+            conn = get_db()
+            c = conn.cursor()
+            c.execute(
+                "UPDATE users SET active_module=%s WHERE phone=%s",
+                (module, phone)
+            )
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "ai_chat":
 
