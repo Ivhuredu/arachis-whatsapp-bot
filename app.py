@@ -1946,7 +1946,7 @@ def webhook():
         )
         return jsonify({"status": "ok"})
 
-    if incoming == "1":
+        if incoming == "1":
 
             fresh_user = get_user(phone)
 
