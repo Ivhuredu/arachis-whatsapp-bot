@@ -1371,6 +1371,33 @@ BUSINESS_MODULES = {
     "business_strategy": ("business_strategy.pdf", "🇿🇼 Zimbabwe Strategy")
 }
 DETERGENT_MODULES = [
+    "dishwash",
+    "liquid_laundry_soap",
+    "fabric_softener",
+    "thick_bleach",
+    "washing_paste",
+    "toilet_cleaner",
+    "pine_gel",
+    "foam_bath",
+    "car_shampoo",
+    "engine_cleaner",
+    "perfume",
+    "acidic_metal_degreaser",
+    "tile_cleaner",
+    "floor_polish",
+    "tyre_polish",
+    "paste_shoe_polish",
+    "liquid_shoe_polish",
+    "hair_shampoo",
+    "hair_conditioner",
+    "petroleum_jelly",
+    "bath_soap",
+    "laundry_bar",
+    "washing_powder",
+    "scouring_powder",
+    "roll_on"
+]
+DETERGENT_MODULES = [
     "module_1","module_2","module_3","module_4","module_5",
     "module_6","module_7","module_8","module_9","module_10",
     "module_11","module_12","module_13","module_14","module_15",
@@ -1936,7 +1963,7 @@ def webhook():
             fresh_user = get_user(phone)
 
             if not fresh_user["is_paid"]:
-                send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+                send_message(phone, "🔒 Paid Members Only\nNyora PAY")
                 return jsonify({"status": "ok"})
 
             set_state(phone, "course_lessons")
@@ -1947,10 +1974,8 @@ def webhook():
                 "1️⃣ Detergents\n"
                 "2️⃣ Beverages\n\n"
                 "Reply with number"
-             )
-
+            )
             return jsonify({"status": "ok"})
-
         
         elif incoming == "2":
 
@@ -2120,101 +2145,51 @@ def webhook():
         else:
             send_message(phone, "Reply YES")
             return jsonify({"status": "ok"})
-
     elif user["state"] == "course_lessons":
-        
-        modules = load_lessons()
-        module_keys = list(modules.keys())
 
-        fresh_user = get_user(phone)
+        if incoming == "1":
 
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
+            set_state(phone, "detergents_menu")
+
+            menu = "🧪 *DETERGENT LESSONS*\n\n"
+
+            for i, module in enumerate(DETERGENT_MODULES, start=1):
+                name = module.replace("_", " ").title()
+                menu += f"{i}️⃣ {name}\n"
+
+            menu += "\nReply with number"
+
+            send_message(phone, menu)
             return jsonify({"status": "ok"})
 
-            set_state(phone, "course_lessons")
+        elif incoming == "2":
 
-            send_message(phone,
-            "📚 COURSE LESSONS\n\n"
-            "1️⃣ Detergents\n"
-            "2️⃣ Beverages\n\n"
-            "Reply with number")
-            return jsonify({"status": "ok"})
+            set_state(phone, "beverages_menu")
 
-        if not incoming.isdigit():
-            send_message(phone, "Sarudza number ye lesson")
-            return jsonify({"status": "ok"})
+            beverages = [
+                "baobab_drink",
+                "cream_soda",
+                "freezits",
+                "ice_cream",
+                "juice_cascade",
+                "low_cost_orange_syrup",
+                "low_cost_raspberry_drink",
+                "orange_drink",
+                "raspberry_drink",
+                "universal_cordial"
+            ]
 
-        if 1 <= int(incoming) <= len(module_keys):
-            
-            module = module_keys[int(incoming)-1]
-            pdf, label = modules[module]
+            beverages.sort()
 
-            user_package = fresh_user.get("package", "none")
+            menu = "🥤 *BEVERAGE LESSONS*\n\n"
 
-            if user_package == "basic":
-                allowed = PACKAGES["basic"]["modules"]
+            for i, module in enumerate(beverages, start=1):
+                name = module.replace("_", " ").title()
+                menu += f"{i}️⃣ {name}\n"
 
-                if module not in allowed:
-                    set_state(phone, "upgrade_offer")
+            menu += "\nReply with number"
 
-                    send_message(
-                        phone,
-                        "🔒 *PREMIUM CONTENT*\n\n"
-                        "Uri pa *Basic package ($5)*.\n\n"
-                        "Kuti uvhure module iyi + mamwe ma advanced products:\n\n"
-                        "🔥 Upgrade ku *Premium* for ONLY *$5 more*\n\n"
-                        "1️⃣ Upgrade now\n"
-                        "2️⃣ Back to lessons"
-                    )
-
-                    return jsonify({"status": "ok"})
-
-            record_module_access(phone, module)
-            log_activity(phone, "open_module", module)
-            update_metrics(phone, "module")
-
-            # 📘 Send lesson title first
-            send_message(
-                phone,
-                f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
-            )
-
-            # 🎧 Send voice lesson(s)
-            send_message(phone, "🎧 Lesson audio (listen in order) 👇")
-
-            send_audio_series(phone, module)
-
-            # 📄 Send PDF
-            send_pdf(
-                phone,
-                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
-                label
-            )
-
-            # 🤖 Encourage AI use
-            send_message(
-                phone,
-                "Kana pane chausinganzwisise, bvunza pano 🤖"
-            )
-            conn = get_db()
-            c = conn.cursor()
-
-            # clear old AI memory for this module
-            c.execute(
-                "DELETE FROM ai_memory WHERE phone=%s AND module=%s",
-                (phone, module)
-            )
-
-            # set the active module for follow-up questions
-            c.execute(
-                "UPDATE users SET active_module=%s WHERE phone=%s",
-                (module, phone)
-            )
-
-            conn.commit()
-            DATABASE_POOL.putconn(conn)
-            
+            send_message(phone, menu)
             return jsonify({"status": "ok"})
 
     elif user["state"] == "detergent_lessons":
@@ -2228,6 +2203,42 @@ def webhook():
                 label = module.replace("_", " ").title()
 
                 send_pdf(phone, f"/static/lessons/{pdf}", label)
+
+    elif user["state"] == "detergents_menu":
+
+        if not incoming.isdigit():
+            send_message(phone, "Sarudza number")
+            return jsonify({"status": "ok"})
+
+        index = int(incoming) - 1
+
+        if index < 0 or index >= len(DETERGENT_MODULES):
+            send_message(phone, "Invalid choice")
+            return jsonify({"status": "ok"})
+
+        module = DETERGENT_MODULES[index]
+
+        modules = load_lessons()
+
+        if module not in modules:
+            send_message(phone, "Lesson not uploaded yet")
+            return jsonify({"status": "ok"})
+
+        pdf, label = modules[module]
+
+        send_message(phone, f"{label}\n\n🎧 Teerera lesson 👇")
+
+        send_audio_series(phone, module)
+
+        send_pdf(
+            phone,
+            f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+            label
+        )
+
+        set_state(phone, "ai_chat")
+
+        return jsonify({"status": "ok"})
 
     elif user["state"] == "beverage_lessons":
 
