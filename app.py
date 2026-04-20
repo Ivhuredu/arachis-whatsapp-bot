@@ -1371,11 +1371,11 @@ BUSINESS_MODULES = {
     "business_strategy": ("business_strategy.pdf", "🇿🇼 Zimbabwe Strategy")
 }
 DETERGENT_MODULES = [
-    "module_1",
-    "module_2",
-    "module_3",
-    ...,
-    "module_25"
+    "module_1","module_2","module_3","module_4","module_5",
+    "module_6","module_7","module_8","module_9","module_10",
+    "module_11","module_12","module_13","module_14","module_15",
+    "module_16","module_17","module_18","module_19","module_20",
+    "module_21","module_22","module_23","module_24","module_25"
 ]
 
 BEVERAGE_MODULES = sorted([
@@ -1407,15 +1407,6 @@ def main_menu():
         "6️⃣ Online Store (Chemicals)\n"
         "7️⃣ 🤖 Ask AI Trainer\n"
         "8️⃣ Supplier Directory"
-    )
-    
-def free_lesson():
-    return (
-        "🎁 *FREE LESSON*\n\n"
-        "Dishwash basics:\n"
-        "✔ SLES\n✔ Salt\n✔ Dye\n✔ Perfume\n✔ Mvura\n\n"
-        "⚠ Pfeka magloves, mask ne apron.\n\n"
-        "↩ Nyora *MENU* kudzokera kumusoro."
     )
 
 def welcome_message():
@@ -1955,37 +1946,25 @@ def webhook():
         )
         return jsonify({"status": "ok"})
 
-    if user["state"] == "main":
-
-        if incoming == "1":
+    if incoming == "1":
 
             fresh_user = get_user(phone)
 
             if not fresh_user["is_paid"]:
                 send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-                log_activity(phone, "blocked_access", "course_lessons")
                 return jsonify({"status": "ok"})
 
             set_state(phone, "course_lessons")
 
-            modules = load_lessons()
+            send_message(
+                phone,
+                "📚 *COURSE LESSONS*\n\n"
+                "1️⃣ Detergents\n"
+                "2️⃣ Beverages\n\n"
+                "Reply with number"
+            )
 
-            user_package = fresh_user.get("package", "none")
-
-            if user_package == "basic":
-                allowed = PACKAGES["basic"]["modules"]
-                modules = {k: v for k, v in modules.items() if k in allowed}
-
-            menu = "📚 *COURSE LESSONS*\n\n"
-
-            for i, key in enumerate(modules, start=1):
-                label = modules[key][1]
-                menu += f"{i}️⃣ {label}\n"
-
-            menu += "\nNyora *MENU* kudzokera."
-
-            send_message(phone, menu)
-            return jsonify({"status": "ok"})
+            return jsonify({"status": "ok"}) 
 
         elif user["state"] == "qualify":
 
@@ -2244,32 +2223,6 @@ def webhook():
             conn.commit()
             DATABASE_POOL.putconn(conn)
             
-            return jsonify({"status": "ok"})
-
-    elif user["state"] == "course_lessons":
-
-        if incoming == "1":
-            set_state(phone, "detergent_lessons")
-
-            menu = "🧼 DETERGENT LESSONS\n\n"
-
-            for i, module in enumerate(DETERGENT_MODULES, start=1):
-                label = module.replace("_", " ").title()
-                menu += f"{i}️⃣ {label}\n"
-
-            send_message(phone, menu)
-            return jsonify({"status": "ok"})
-
-        elif incoming == "2":
-            set_state(phone, "beverage_lessons")
-
-            menu = "🥤 BEVERAGE LESSONS\n\n"
-
-            for i, module in enumerate(BEVERAGE_MODULES, start=1):
-                label = module.replace("_", " ").title()
-                menu += f"{i}️⃣ {label}\n"
-
-            send_message(phone, menu)
             return jsonify({"status": "ok"})
 
     elif user["state"] == "detergent_lessons":
