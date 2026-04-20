@@ -1929,89 +1929,27 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-        # =========================
-        # QUALIFY STAGE
-        # =========================
-        if user["state"] == "qualify":
+    if user["state"] == "main":
 
-            if incoming == "1":
-                set_state(phone, "pitch")
+        if incoming == "1":
 
-                send_message(
-                    phone,
-                    "🔥 Zvakanaka!\n\n"
-                    "Vanhu vakawanda vari kutotengesa:\n"
-                    "✔ Dishwash\n"
-                    "✔ Bleach\n"
-                    "✔ Drinks\n\n"
-                    "Kosi iyi inokudzidzisa kugadzira + kutengesa.\n\n"
-                    "💵 Full course:\nBasic $5 | Premium $10\n\n"
-                    "Reply *YES* to continue"
-                )
+            fresh_user = get_user(phone)
 
+            if not fresh_user["is_paid"]:
+                send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
                 return jsonify({"status": "ok"})
 
-            elif incoming == "2":
-                set_state(phone, "pitch")
+            set_state(phone, "course_lessons")
 
-                send_message(
-                    phone,
-                    "👌 Zvakanaka!\n\n"
-                    "Uchadzidza kugadzira ma products anoshanda.\n\n"
-                    "💵 Full course:\nBasic $5 | Premium $10\n\n"
-                    "Reply *YES* to continue"
-                )
+            send_message(
+                phone,
+                "📚 *COURSE LESSONS*\n\n"
+                "1️⃣ Detergents\n"
+                "2️⃣ Beverages\n\n"
+                "Reply with number"
+             )
 
-                return jsonify({"status": "ok"})
-
-            else:
-                send_message(phone, "Sarudza 1 or 2")
-                return jsonify({"status": "ok"})
-
-
-        # =========================
-        # PITCH STAGE
-        # =========================
-        if user["state"] == "pitch":
-
-            if incoming in ["yes", "ok", "ready", "start"]:
-
-                set_state(phone, "pay_menu")
-
-                send_message(
-                    phone,
-                    "💳 *SELECT PACKAGE*\n\n"
-                    "1️⃣ Basic – $5\n"
-                    "2️⃣ Premium – $10\n\n"
-                    "Reply with 1 or 2"
-                )
-
-                return jsonify({"status": "ok"})
-
-            else:
-                send_message(phone, "Reply YES to continue")
-                return jsonify({"status": "ok"})
-        if user["state"] == "main":
-
-            if incoming == "1":
-
-                fresh_user = get_user(phone)
-
-                if not fresh_user["is_paid"]:
-                    send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-                    return jsonify({"status": "ok"})
-
-                set_state(phone, "course_lessons")
-
-                send_message(
-                    phone,
-                    "📚 *COURSE LESSONS*\n\n"
-                    "1️⃣ Detergents\n"
-                    "2️⃣ Beverages\n\n"
-                    "Reply with number"
-                )
-
-                return jsonify({"status": "ok"})
+            return jsonify({"status": "ok"})
 
         
         elif incoming == "2":
@@ -2132,7 +2070,61 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
+    # =========================
+    # QUALIFY STAGE
+    # =========================
+    if user["state"] == "qualify":
+
+        if incoming == "1":
+            set_state(phone, "pitch")
+
+            send_message(phone,
+                "🔥 Zvakanaka!\n\n"
+                "Vanhu vakawanda vari kutotengesa:\n"
+                "✔ Dishwash\n✔ Bleach\n✔ Drinks\n\n"
+                "💵 Course: Basic $5 | Premium $10\n\n"
+                "Reply YES to continue"
+            )
+            return jsonify({"status": "ok"})
+
+        elif incoming == "2":
+            set_state(phone, "pitch")
+
+            send_message(phone,
+                "👌 Uchadzidza kugadzira ma products.\n\n"
+                "💵 Course: Basic $5 | Premium $10\n\n"
+                "Reply YES to continue"
+            )
+            return jsonify({"status": "ok"})
+
+        else:
+            send_message(phone, "Sarudza 1 or 2")
+            return jsonify({"status": "ok"})
+
+
+    # =========================
+    # PITCH STAGE
+    # =========================
+    if user["state"] == "pitch":
+
+        if incoming in ["yes", "ok", "start"]:
+            set_state(phone, "pay_menu")
+
+            send_message(phone,
+                "💳 SELECT PACKAGE\n\n"
+                "1️⃣ Basic – $5\n"
+                "2️⃣ Premium – $10"
+            )
+            return jsonify({"status": "ok"})
+
+        else:
+            send_message(phone, "Reply YES")
+            return jsonify({"status": "ok"})
+
     elif user["state"] == "course_lessons":
+        
+        modules = load_lessons()
+        module_keys = list(modules.keys())
 
         fresh_user = get_user(phone)
 
@@ -2149,8 +2141,12 @@ def webhook():
             "Reply with number")
             return jsonify({"status": "ok"})
 
-        if 1 <= int(incoming) <= len(module_keys):
+        if not incoming.isdigit():
+            send_message(phone, "Sarudza number ye lesson")
+            return jsonify({"status": "ok"})
 
+        if 1 <= int(incoming) <= len(module_keys):
+            
             module = module_keys[int(incoming)-1]
             pdf, label = modules[module]
 
