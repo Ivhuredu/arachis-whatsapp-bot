@@ -1370,6 +1370,26 @@ BUSINESS_MODULES = {
     "business_scaling": ("business_scaling.pdf", "📈 Scaling Business"),
     "business_strategy": ("business_strategy.pdf", "🇿🇼 Zimbabwe Strategy")
 }
+DETERGENT_MODULES = [
+    "module_1",
+    "module_2",
+    "module_3",
+    ...
+    "module_25"
+]
+
+BEVERAGE_MODULES = sorted([
+    "universal_cordial",
+    "low_cost_raspberry_syrup",
+    "low_cost_orange_syrup",
+    "baobab_drink",
+    "juice_cascade",
+    "ice_cream",
+    "cream_soda",
+    "orange_concentrate",
+    "raspberry_concentrate",
+    "freezits"
+])
 
 
 
@@ -2162,7 +2182,13 @@ def webhook():
 
                 return jsonify({"status": "ok"})
 
-            send_message(phone, "Nyora number ye lesson.")
+            set_state(phone, "course_lessons")
+
+            send_message(phone,
+            "📚 COURSE LESSONS\n\n"
+            "1️⃣ Detergents\n"
+            "2️⃣ Beverages\n\n"
+            "Reply with number")
             return jsonify({"status": "ok"})
 
         if 1 <= int(incoming) <= len(module_keys):
@@ -2236,6 +2262,56 @@ def webhook():
             DATABASE_POOL.putconn(conn)
             
             return jsonify({"status": "ok"})
+
+    elif user["state"] == "course_lessons":
+
+        if incoming == "1":
+            set_state(phone, "detergent_lessons")
+
+            menu = "🧼 DETERGENT LESSONS\n\n"
+
+            for i, module in enumerate(DETERGENT_MODULES, start=1):
+                label = module.replace("_", " ").title()
+                menu += f"{i}️⃣ {label}\n"
+
+            send_message(phone, menu)
+            return jsonify({"status": "ok"})
+
+        elif incoming == "2":
+            set_state(phone, "beverage_lessons")
+
+            menu = "🥤 BEVERAGE LESSONS\n\n"
+
+            for i, module in enumerate(BEVERAGE_MODULES, start=1):
+                label = module.replace("_", " ").title()
+                menu += f"{i}️⃣ {label}\n"
+
+            send_message(phone, menu)
+            return jsonify({"status": "ok"})
+
+    elif user["state"] == "detergent_lessons":
+
+        if incoming.isdigit():
+            index = int(incoming) - 1
+
+            if 0 <= index < len(DETERGENT_MODULES):
+                module = DETERGENT_MODULES[index]
+                pdf = module + ".pdf"
+                label = module.replace("_", " ").title()
+
+                send_pdf(phone, f"/static/lessons/{pdf}", label)
+
+    elif user["state"] == "beverage_lessons":
+
+        if incoming.isdigit():
+            index = int(incoming) - 1
+
+            if 0 <= index < len(BEVERAGE_MODULES):
+                module = BEVERAGE_MODULES[index]
+                pdf = module + ".pdf"
+                label = module.replace("_", " ").title()
+
+                send_pdf(phone, f"/static/lessons/{pdf}", label)
 
     elif user["state"] == "pay_menu":
 
