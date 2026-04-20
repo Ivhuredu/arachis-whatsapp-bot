@@ -1929,12 +1929,12 @@ def webhook():
 
         return jsonify({"status": "ok"})
     
-            elif user["state"] == "qualify":
+        elif user["state"] == "qualify":
 
-                if incoming == "1":
-                    set_state(phone, "pitch")
+            if incoming == "1":
+                set_state(phone, "pitch")
 
-                    send_message(
+                send_message(
                         phone,
                         "🔥 Zvakanaka!\n\n"
                         "Vanhu vakawanda vakadzidza mukosi iyi vari kutotengesa:\n"
