@@ -1397,14 +1397,6 @@ DETERGENT_MODULES = [
     "scouring_powder",
     "roll_on"
 ]
-DETERGENT_MODULES = [
-    "module_1","module_2","module_3","module_4","module_5",
-    "module_6","module_7","module_8","module_9","module_10",
-    "module_11","module_12","module_13","module_14","module_15",
-    "module_16","module_17","module_18","module_19","module_20",
-    "module_21","module_22","module_23","module_24","module_25"
-]
-
 BEVERAGE_MODULES = sorted([
     "universal_cordial",
     "low_cost_raspberry_syrup",
