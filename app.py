@@ -1374,7 +1374,7 @@ DETERGENT_MODULES = [
     "module_1",
     "module_2",
     "module_3",
-    ...
+    ...,
     "module_25"
 ]
 
@@ -2164,23 +2164,6 @@ def webhook():
         if not fresh_user["is_paid"]:
             send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
             return jsonify({"status": "ok"})
-
-        modules = load_lessons()
-        module_keys = list(modules.keys())
-
-        if not incoming.isdigit():
-
-            allowed_modules = get_user_modules(phone, incoming)
-
-            if allowed_modules:
-                ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
-
-                send_message(phone, ai_answer)
-
-                log_activity(phone, "ai_question", incoming)
-                update_metrics(phone, "ai")
-
-                return jsonify({"status": "ok"})
 
             set_state(phone, "course_lessons")
 
