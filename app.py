@@ -2219,17 +2219,26 @@ def webhook():
 
         pdf, label = modules[module]
 
-        send_message(phone, f"{label}\n\n🎧 Teerera lesson 👇")
+        # 📘 Send lesson title
+        send_message(
+            phone,
+            f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
+        )
+
+        # 🔊 FORCE AUDIO FIRST
+        send_message(phone, "🎧 Lesson audio (listen in order) 👇")
 
         send_audio_series(phone, module)
 
+        # 📄 THEN SEND PDF
         send_pdf(
             phone,
             f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
             label
         )
 
-        set_state(phone, "ai_chat")
+        # 🤖 AI prompt
+        send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
 
         return jsonify({"status": "ok"})
 
