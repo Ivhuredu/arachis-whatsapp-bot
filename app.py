@@ -1991,28 +1991,27 @@ def webhook():
             else:
                 send_message(phone, "Reply YES to continue")
                 return jsonify({"status": "ok"})
-    
-         if user["state"] == "main":
+        if user["state"] == "main":
 
-                if incoming == "1":
+            if incoming == "1":
 
-                    fresh_user = get_user(phone)
+                fresh_user = get_user(phone)
 
-                    if not fresh_user["is_paid"]:
-                        send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
-                        return jsonify({"status": "ok"})
-
-                    set_state(phone, "course_lessons")
-
-                    send_message(
-                        phone,
-                        "📚 *COURSE LESSONS*\n\n"
-                        "1️⃣ Detergents\n"
-                        "2️⃣ Beverages\n\n"
-                        "Reply with number"
-                    )
-
+                if not fresh_user["is_paid"]:
+                    send_message(phone, "🔒 *Paid Members Only*\nNyora *PAY*")
                     return jsonify({"status": "ok"})
+
+                set_state(phone, "course_lessons")
+
+                send_message(
+                    phone,
+                    "📚 *COURSE LESSONS*\n\n"
+                    "1️⃣ Detergents\n"
+                    "2️⃣ Beverages\n\n"
+                    "Reply with number"
+                )
+
+                return jsonify({"status": "ok"})
 
         
         elif incoming == "2":
