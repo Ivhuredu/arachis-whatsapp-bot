@@ -2291,20 +2291,27 @@ def webhook():
 
         pdf, label = modules[module]
 
-        # 📘 TITLE
-        send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
+        # 📘 Send lesson title
+        send_message(
+            phone,
+            f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
+        )
 
-        # 🎧 AUDIO
+        # 🔊 FORCE AUDIO FIRST
+        send_message(phone, "🎧 Lesson audio (listen in order) 👇")
+
         send_audio_series(phone, module)
 
-        # 📄 PDF
+        # 📄 THEN SEND PDF
         send_pdf(
             phone,
             f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
             label
         )
 
-        # 🤖 SET AI CONTEXT
+        # 🤖 AI prompt
+        send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
+
         conn = get_db()
         c = conn.cursor()
 
@@ -2315,8 +2322,6 @@ def webhook():
 
         conn.commit()
         DATABASE_POOL.putconn(conn)
-
-        set_state(phone, "ai_chat")
 
         return jsonify({"status": "ok"})
 
