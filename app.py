@@ -2145,6 +2145,7 @@ def webhook():
         else:
             send_message(phone, "Reply YES")
             return jsonify({"status": "ok"})
+            
     elif user["state"] == "course_lessons":
 
         if incoming == "1":
@@ -2290,7 +2291,7 @@ def webhook():
         pdf, label = modules[module]
 
         # 📘 TITLE
-    send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
+        send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
 
         # 🎧 AUDIO
         send_audio_series(phone, module)
