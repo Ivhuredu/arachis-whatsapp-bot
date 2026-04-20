@@ -2252,6 +2252,72 @@ def webhook():
 
                 send_pdf(phone, f"/static/lessons/{pdf}", label)
 
+    elif user["state"] == "beverages_menu":
+
+        beverages = [
+            "baobab_drink",
+            "cream_soda",
+            "freezits",
+            "ice_cream",
+            "juice_cascade",
+            "low_cost_orange_syrup",
+            "low_cost_raspberry_drink",
+            "orange_drink",
+            "raspberry_drink",
+            "universal_cordial"
+        ]
+
+        beverages.sort()
+
+        if not incoming.isdigit():
+            send_message(phone, "Sarudza number")
+            return jsonify({"status": "ok"})
+
+        index = int(incoming) - 1
+
+        if index < 0 or index >= len(beverages):
+            send_message(phone, "Invalid choice")
+            return jsonify({"status": "ok"})
+
+        module = beverages[index]
+
+        modules = load_lessons()
+
+        if module not in modules:
+            send_message(phone, "❌ Lesson PDF not found. Upload it in admin.")
+            return jsonify({"status": "ok"})
+
+        pdf, label = modules[module]
+
+        # 📘 TITLE
+    send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
+
+        # 🎧 AUDIO
+        send_audio_series(phone, module)
+
+        # 📄 PDF
+        send_pdf(
+            phone,
+            f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+            label
+        )
+
+        # 🤖 SET AI CONTEXT
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute(
+            "UPDATE users SET active_module=%s WHERE phone=%s",
+            (module, phone)
+        )
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "ai_chat")
+
+        return jsonify({"status": "ok"})
+
     elif user["state"] == "pay_menu":
 
         if incoming == "1":
