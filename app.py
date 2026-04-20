@@ -1929,56 +1929,56 @@ def webhook():
 
         return jsonify({"status": "ok"})
     
-        elif user["state"] == "qualify":
+            elif user["state"] == "qualify":
 
-            if incoming == "1":
-                set_state(phone, "pitch")
+                if incoming == "1":
+                    set_state(phone, "pitch")
 
-                send_message(
-                    phone,
-                    "🔥 Zvakanaka!\n\n"
-                    "Vanhu vakawanda vakadzidza mukosi iyi vari kutotengesa:\n"
-                    "✔ Dishwash\n"
-                    "✔ Bleach\n"
-                    "✔ Drinks\n\n"
-                    "Kosi ino inokudzidzisa ma formulas anoshandisika + kuti ungatengesa sei zvigadzirwa zvako.\n\n"
-                    "💵 Full course:Basic $5 | Premium $10 \n\n"
-                    "Ungada kutotanga kudzidza nhasi here?\n\n"
-                    "Reply YES to continue"
-                )
+                    send_message(
+                        phone,
+                        "🔥 Zvakanaka!\n\n"
+                        "Vanhu vakawanda vakadzidza mukosi iyi vari kutotengesa:\n"
+                        "✔ Dishwash\n"
+                        "✔ Bleach\n"
+                        "✔ Drinks\n\n"
+                        "Kosi ino inokudzidzisa ma formulas anoshandisika + kuti ungatengesa sei zvigadzirwa zvako.\n\n"
+                        "💵 Full course:Basic $5 | Premium $10 \n\n"
+                        "Ungada kutotanga kudzidza nhasi here?\n\n"
+                        "Reply YES to continue"
+                    )
 
-            elif incoming == "2":
-                set_state(phone, "pitch")
+                elif incoming == "2":
+                    set_state(phone, "pitch")
 
-                send_message(
-                    phone,
-                    "👌 Zvakanaka!\n\n"
-                    "Mukosi ino uchadzidza kugadzira maproducts akanaka uye anoshanda zvakanaka.\n\n"
-                    "💵 Full course:Basic $5 | Premium $10 \n\n"
-                    "Reply YES to continue"
-                )
+                    send_message(
+                        phone,
+                        "👌 Zvakanaka!\n\n"
+                        "Mukosi ino uchadzidza kugadzira maproducts akanaka uye anoshanda zvakanaka.\n\n"
+                        "💵 Full course:Basic $5 | Premium $10 \n\n"
+                        "Reply YES to continue"
+                    )
 
-            return jsonify({"status": "ok"})
+                return jsonify({"status": "ok"})
 
-        elif user["state"] == "pitch":
+            elif user["state"] == "pitch":
 
-            if incoming in ["yes", "ok", "ready", "start"]:
+                if incoming in ["yes", "ok", "ready", "start"]:
 
-                set_state(phone, "pay_prompt")
+                    set_state(phone, "pay_prompt")
 
-                send_message(
-                    phone,
-                    "💳 Choose your package:\n\n"
-                    "Basic – $5\n"
-                    "Premium – $10\n\n"
-                    "You will receive:\n"
-                    "✔ All formulas\n"
-                    "✔ Full lessons\n"
-                    "✔ AI support\n\n"
-                    "Reply PAY utange kubhadhara"
-                )
+                    send_message(
+                        phone,
+                        "💳 Choose your package:\n\n"
+                        "Basic – $5\n"
+                        "Premium – $10\n\n"
+                        "You will receive:\n"
+                        "✔ All formulas\n"
+                        "✔ Full lessons\n"
+                        "✔ AI support\n\n"
+                        "Reply PAY utange kubhadhara"
+                    )
 
-            return jsonify({"status": "ok"})
+                return jsonify({"status": "ok"})
 
          if incoming == "pay":
             set_state(phone, "pay_menu")
