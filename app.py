@@ -1417,15 +1417,23 @@ BEVERAGE_MODULES = sorted([
 # =========================
 def main_menu():
     return (
-        "👋 *TINOKUGAMUCHIRAI KU ARACHIS ONLINE TRAINING*\n\n"
+        "🏠 *ARACHIS DASHBOARD*\n\n"
+
+        "📚 *LEARN*\n"
         "1️⃣ Course Lessons\n"
-        "2️⃣ 💼 Business Training (NEW)\n"
-        "3️⃣ 📊 Production Cost Calculator\n"
-        "4️⃣ Join Full Online Training\n"
-        "5️⃣ Register for Offline Classes\n"
-        "6️⃣ Online Store (Chemicals)\n"
-        "7️⃣ 🤖 Ask AI Trainer\n"
-        "8️⃣ Supplier Directory"
+        "2️⃣ 💼 Business Training\n\n"
+
+        "🧠 *TOOLS*\n"
+        "3️⃣ 📊 Profit Calculator\n"
+        "4️⃣ 🤖 Ask AI Trainer\n\n"
+
+        "🛒 *RESOURCES*\n"
+        "5️⃣ 🧪 Buy Ingredients\n"
+        "6️⃣ 🏭 Supplier Directory\n\n"
+
+        "💳 *ACCOUNT*\n"
+        "7️⃣ Upgrade Plan\n"
+        "8️⃣ Help\n"
     )
 
 def welcome_message():
@@ -1493,96 +1501,43 @@ def ai_trainer_reply(phone, question, allowed_modules):
 
     
     prompt = f"""
-    You are a PRACTICAL DETERGENT + BUSINESS TRAINER in Zimbabwe.
+    You are a PROFESSIONAL BUSINESS & PRODUCTION COACH in Zimbabwe.
 
-    You help students:
-    ✔ Make products
-    ✔ Fix products
-    ✔ Price products
-    ✔ Sell products
-    ✔ Grow small businesses
-    
-    PRIMARY RULE:
-    Use the lesson material as your MAIN source of truth.
-     ALWAYS give PRACTICAL answers (step-by-step)
-     ALWAYS include NUMBERS when talking about money
-     ALWAYS relate answers to Zimbabwe market
-     DO NOT be theoretical — be actionable 
+    You do NOT just answer — you guide like a paid mentor.
 
-    FLEXIBILITY RULE:
-    You may use general knowledge ONLY to:
-    - clarify explanations
-    - complete missing steps
-    - improve understanding
+    RULES:
 
-    DO NOT:
-    - contradict the lesson
-    - introduce completely unrelated chemicals
+    1. Always give:
+       ✔ Clear steps
+       ✔ Exact measurements
+       ✔ Real Zimbabwe pricing
 
-    RESPONSE STYLE:
+    2. If business question:
+       MUST include:
+       ✔ Cost
+       ✔ Selling price
+       ✔ Profit
+       ✔ Where to sell
 
-    1. Be clear and step-by-step using correct gramatical Shona
-    2. Give exact actions (ml, grams, time)
-    3. Avoid vague statements
-    4. Speak like you are guiding someone practically
-    5. If fixing a product:
-       - Start with the problem cause
-       - Give exact fix steps
-       - Then prevention
-       
-    IF QUESTION IS ABOUT BUSINESS / MONEY:
+    3. If production question:
+       MUST include:
+       ✔ Exact ingredients
+       ✔ Mixing steps
+       ✔ Fix if wrong
 
-    You MUST include:
-
-    ✔ Cost example
-    ✔ Selling price example
-    ✔ Profit calculation
-    ✔ Simple selling strategy
-
-    Example format:
-
-    "Example:
-    20L Dishwash
-    Cost: $15
-    Sell: $1 per 750ml
-    Revenue: $26
-    Profit: $11"
-
-    IF QUESTION IS ABOUT SELLING:
-
-    Give:
-    ✔ Where to sell (kombis, tuckshops, WhatsApp)
-    ✔ How to approach customers
-    ✔ Simple script
-
-    WHEN USER ASKS ABOUT PROFIT:
-
-    1. Extract ingredients from context
-    2. Use REAL price list
-    3. Calculate total cost
-    4. Suggest selling price
-    5. Calculate profit
+    4. Speak like a serious coach.
 
     ----------------------------------
 
-    IF QUESTION IS ABOUT GROWTH:
-
-    Explain:
-    ✔ Start small
-    ✔ Reinvest profits
-    ✔ Increase batch size
-
-    -----------
-
-    PRICING DATA (USE THIS FOR CALCULATIONS):
+    PRICING DATA:
     {get_all_prices()}
 
-    CONTEXT:
+    LESSON CONTEXT:
     {combined_text}
 
-    STUDENT QUESTION:
+    QUESTION:
     {question}
-    """ 
+    """
 
     messages = [
     {"role": "system", "content": prompt}
@@ -2200,7 +2155,17 @@ def webhook():
     elif user["state"] == "detergents_menu":
 
         if not incoming.isdigit():
-            send_message(phone, "Sarudza number")
+
+            # 👉 allow AI questions inside lessons
+            allowed_modules = get_user_modules(phone, incoming)
+
+            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+
+            send_message(phone, ai_answer)
+
+            log_activity(phone, "ai_question", incoming)
+            update_metrics(phone, "ai")
+
             return jsonify({"status": "ok"})
 
         index = int(incoming) - 1
@@ -2240,6 +2205,12 @@ def webhook():
         # 🤖 AI prompt
         send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
 
+        send_message(
+            phone,
+            "\n👉 Sarudza imwe lesson kana bvunza mubvunzo\n"
+            "Reply nenumber or type question"
+        )
+
         return jsonify({"status": "ok"})
 
     elif user["state"] == "beverage_lessons":
@@ -2272,7 +2243,17 @@ def webhook():
         beverages.sort()
 
         if not incoming.isdigit():
-            send_message(phone, "Sarudza number")
+
+            # 👉 allow AI questions inside lessons
+            allowed_modules = get_user_modules(phone, incoming)
+
+            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+
+            send_message(phone, ai_answer)
+
+            log_activity(phone, "ai_question", incoming)
+            update_metrics(phone, "ai")
+
             return jsonify({"status": "ok"})
 
         index = int(incoming) - 1
@@ -2311,6 +2292,12 @@ def webhook():
 
         # 🤖 AI prompt
         send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
+
+        send_message(
+            phone,
+            "\n👉 Sarudza imwe lesson kana bvunza mubvunzo\n"
+            "Reply nenumber or type question"
+        )
 
         conn = get_db()
         c = conn.cursor()
