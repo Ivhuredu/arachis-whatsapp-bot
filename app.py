@@ -1755,21 +1755,6 @@ def webhook():
         else:
             incoming = ""
 
-        # 🔥 HANDLE TEMPLATE REPLIES (VERY IMPORTANT)
-        if incoming in ["yes", "ok", "sure", "interested"] and user["state"] in ["pitch"]:
-    
-            send_message(
-                phone,
-                "🔥 Great!\n\n"
-                "Choose your package:\n\n"
-                "1️⃣ Basic – $5\n"
-                "2️⃣ Premium – $10\n\n"
-                "Reply 1 or 2"
-            )
-
-    set_state(phone, "pay_menu")
-    return jsonify({"status": "ok"})
-
         update_metrics(phone, "message")
         log_activity(phone, "incoming_message", msg_type)
 
@@ -1780,6 +1765,21 @@ def webhook():
     user = get_user(phone)
     if not user:
         return "OK", 200
+
+    # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
+    if incoming in ["yes", "ok", "sure", "interested"] and user["state"] == "pitch":
+
+        send_message(
+            phone,
+            "🔥 Great!\n\n"
+            "Choose your package:\n\n"
+            "1️⃣ Basic – $5\n"
+            "2️⃣ Premium – $10\n\n"
+            "Reply 1 or 2"
+        )
+
+        set_state(phone, "pay_menu")
+        return jsonify({"status": "ok"})
 
     if msg_type == "image":
 
