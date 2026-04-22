@@ -1475,6 +1475,7 @@ def main_menu():
         "💳 *ACCOUNT*\n"
         "7️⃣ Upgrade Plan\n"
         "8️⃣ Help\n"
+        "9️⃣ Account Dashboard\n"
     )
 
 def welcome_message():
@@ -2130,6 +2131,89 @@ def webhook():
 
             return jsonify({"status": "ok"})
 
+        elif incoming == "7":
+
+            fresh_user = get_user(phone)
+
+            if fresh_user.get("package") == "premium":
+                send_message(
+                    phone,
+                    "✅ Uri pa *PREMIUM PLAN*\n\n"
+                    "✔ All lessons unlocked\n"
+                    "✔ AI Trainer\n"
+                    "✔ Full business training"
+                )
+                return jsonify({"status": "ok"})
+
+            set_state(phone, "upgrade_offer")
+
+            send_message(
+                phone,
+                "🚀 *UPGRADE TO PREMIUM*\n\n"
+                "Unlock everything:\n"
+                "✔ All lessons\n"
+                "✔ AI Trainer\n"
+                "✔ Advanced business training\n\n"
+                "💵 Pay only $5 more\n\n"
+                "1️⃣ Upgrade now\n"
+                "2️⃣ Back"
+            )
+            return jsonify({"status": "ok"})
+
+
+        elif incoming == "8":
+
+            set_state(phone, "help_menu")
+
+            send_message(
+                phone,
+                "🆘 *HELP CENTER*\n\n"
+                "1️⃣ How to pay\n"
+                "2️⃣ How to use course\n"
+                "3️⃣ Talk to admin\n\n"
+                "Reply with number"
+            )
+            return jsonify({"status": "ok"})
+
+        elif incoming == "9":
+
+            conn = get_db()
+            c = conn.cursor()
+
+            # get user package
+            c.execute("SELECT package FROM users WHERE phone=%s", (phone,))
+            package_row = c.fetchone()
+
+            package = package_row[0] if package_row else "none"
+
+            # get progress
+            progress = get_user_progress(phone)
+
+            # get AI usage today
+            ai_used = ai_questions_today(phone)
+
+            # next recommended lesson
+            next_module = get_next_module(phone)
+
+            next_name = (
+                next_module.replace("_", " ").title()
+                if next_module else "All lessons completed 🎉"
+            )
+
+            DATABASE_POOL.putconn(conn)
+
+            send_message(
+                phone,
+                "📊 *ACCOUNT DASHBOARD*\n\n"
+                f"👤 Package: *{package.upper()}*\n\n"
+                f"📚 Progress: {progress['count']}/{progress['total']} lessons\n\n"
+                f"🤖 AI Questions Today: {ai_used}/15\n\n"
+                f"🎯 Next Lesson:\n{next_name}\n\n"
+                "↩ Nyora MENU kudzokera"
+            )
+
+            return jsonify({"status": "ok"})
+
         elif incoming == "6":
             set_state(phone, "supplier_directory")
             send_message(
@@ -2143,6 +2227,47 @@ def webhook():
                 "↩ Nyora *MENU* kudzokera."
             )
             return jsonify({"status": "ok"})
+
+    # =========================
+    # HELP MENU
+    # =========================
+    if user["state"] == "help_menu":
+
+        if incoming == "1":
+            send_message(
+                phone,
+                "💳 *HOW TO PAY*\n\n"
+                "*153*1*1*0773208904*amount#\n\n"
+                "Send EcoCash confirmation SMS here."
+            )
+
+        elif incoming == "2":
+            send_message(
+                phone,
+                "📚 *HOW TO USE COURSE*\n\n"
+                "1. Open Course Lessons\n"
+                "2. Choose category\n"
+                "3. Open lesson\n"
+                "4. Listen audio\n"
+                "5. Read PDF\n\n"
+                "You can ask questions anytime 🤖"
+            )
+
+        elif incoming == "3":
+            send_message(
+                phone,
+                "👤 *ADMIN SUPPORT*\n\n"
+                "WhatsApp: +263773208904"
+            )
+
+        else:
+            send_message(phone, "Sarudza 1, 2 or 3")
+            return jsonify({"status": "ok"})
+
+        send_message(phone, "\n↩ Nyora MENU kudzokera")
+        return jsonify({"status": "ok"})
+
+        
 
     # =========================
     # QUALIFY STAGE
