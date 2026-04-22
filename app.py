@@ -1820,8 +1820,8 @@ def webhook():
             incoming = ""
 
         # 🔥 HANDLE TEMPLATE REPLIES (VERY IMPORTANT)
-        if incoming in ["yes", "ok", "sure", "interested"]:
-
+        if incoming in ["yes", "ok", "sure", "interested"] and user["state"] in ["pitch"]:
+    
             send_message(
                 phone,
                 "🔥 Great!\n\n"
@@ -1831,8 +1831,8 @@ def webhook():
                 "Reply 1 or 2"
             )
 
-            set_state(phone, "pay_menu")
-            return jsonify({"status": "ok"})
+    set_state(phone, "pay_menu")
+    return jsonify({"status": "ok"})
 
         update_metrics(phone, "message")
         log_activity(phone, "incoming_message", msg_type)
