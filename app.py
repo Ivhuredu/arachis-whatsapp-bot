@@ -2371,18 +2371,6 @@ def webhook():
             send_message(phone, menu)
             return jsonify({"status": "ok"})
 
-    elif user["state"] == "detergent_lessons":
-
-        if incoming.isdigit():
-            index = int(incoming) - 1
-
-            if 0 <= index < len(DETERGENT_MODULES):
-                module = DETERGENT_MODULES[index]
-                pdf = module + ".pdf"
-                label = module.replace("_", " ").title()
-
-                send_pdf(phone, f"/static/lessons/{pdf}", label)
-
     elif user["state"] == "detergents_menu":
 
         if not incoming.isdigit():
@@ -2471,18 +2459,6 @@ def webhook():
         )
 
         return jsonify({"status": "ok"})
-
-    elif user["state"] == "beverage_lessons":
-
-        if incoming.isdigit():
-            index = int(incoming) - 1
-
-            if 0 <= index < len(BEVERAGE_MODULES):
-                module = BEVERAGE_MODULES[index]
-                pdf = module + ".pdf"
-                label = module.replace("_", " ").title()
-
-                send_pdf(phone, f"/static/lessons/{pdf}", label)
 
     elif user["state"] == "beverages_menu":
 
@@ -2844,6 +2820,7 @@ def webhook():
             update_metrics(phone, "ai")
 
             return jsonify({"status": "ok"})
+            
         if 1 <= int(incoming) <= len(modules):
 
             module = modules[int(incoming)-1]
@@ -2852,29 +2829,29 @@ def webhook():
             record_module_access(phone, module)
             update_metrics(phone, "module")
 
-            send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
+        send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
 
-            send_audio_series(phone, module)
+        send_audio_series(phone, module)
 
-            send_pdf(
-                phone,
-                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}", 
-                label
-            )
+        send_pdf(
+            phone,
+            f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}", 
+            label
+        )
 
-            send_message(phone, "Bvunza chero mubvunzo 🤖")
+        send_message(phone, "Bvunza chero mubvunzo 🤖")
 
-            # set active module for AI
-            conn = get_db()
-            c = conn.cursor()
-            c.execute(
-                "UPDATE users SET active_module=%s WHERE phone=%s",
-                (module, phone)
-            )
-            conn.commit()
-            DATABASE_POOL.putconn(conn)
+        # set active module for AI
+        conn = get_db()
+        c = conn.cursor()
+        c.execute(
+            "UPDATE users SET active_module=%s WHERE phone=%s",
+            (module, phone)
+        )
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
 
-            return jsonify({"status": "ok"})
+        return jsonify({"status": "ok"})
 
     elif user["state"] == "ai_chat":
 
