@@ -229,6 +229,10 @@ def init_db():
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS package TEXT DEFAULT 'none'
     """)
+    c.execute("""
+    ALTER TABLE module_access
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    """)
 
     c.execute("""
     CREATE TABLE IF NOT EXISTS ingredient_prices (
