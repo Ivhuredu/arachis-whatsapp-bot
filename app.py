@@ -496,47 +496,6 @@ def get_unpaid_active_users():
     DATABASE_POOL.putconn(conn)
 
     return [r[0] for r in rows]
-
-def get_user_progress(phone):
-
-    conn = get_db()
-    c = conn.cursor()
-
-    c.execute("""
-        SELECT module FROM module_access
-        WHERE phone=%s
-        ORDER BY created_at ASC
-    """, (phone,))
-
-    rows = c.fetchall()
-    DATABASE_POOL.putconn(conn)
-
-    completed = [r[0] for r in rows]
-
-    total = len(DETERGENT_MODULES) + len(BEVERAGE_MODULES)
-
-    return {
-        "completed": completed,
-        "count": len(completed),
-        "total": total
-    }
-
-
-def get_next_module(phone):
-
-    progress = get_user_progress(phone)
-    completed = progress["completed"]
-
-    # priority: detergents first
-    for module in DETERGENT_MODULES:
-        if module not in completed:
-            return module
-
-    for module in BEVERAGE_MODULES:
-        if module not in completed:
-            return module
-
-    return None
     
 def followup_message(stage):
 
@@ -1764,29 +1723,6 @@ def detect_module_from_question(question, allowed_modules):
 
     # 3️⃣ fallback = last opened module
     return allowed_modules[-1] if allowed_modules else None
-
-def smart_recommendation(phone):
-
-    progress = get_user_progress(phone)
-    completed = progress["completed"]
-
-    # beginner path
-    if "dishwash" not in completed:
-        return "dishwash"
-
-    if "thick_bleach" not in completed:
-        return "thick_bleach"
-
-    if "fabric_softener" not in completed:
-        return "fabric_softener"
-
-    # business upsell path
-    if len(completed) >= 3:
-        return "business_pricing_profit"
-
-    return get_next_module(phone)
-
-
     
 # =========================
 # WEBHOOK
@@ -1930,46 +1866,6 @@ def webhook():
         send_message(phone, f"✅ Approved: {target} ({package})")
 
         return jsonify({"status": "ok"})
-
-    # 🔥 SMART NEXT LESSON TRIGGER
-    if incoming == "yes":
-
-        next_module = get_next_module(phone)
-
-        if next_module:
-
-            modules = load_lessons()
-
-            if next_module in modules:
-
-                pdf, label = modules[next_module]
-
-                send_message(
-                    phone,
-                    f"📘 {label}\n\n🎧 Teerera lesson wobva waona notes 👇"
-                )
-
-                send_audio_series(phone, next_module)
-
-                send_pdf(
-                    phone,
-                    f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
-                    label
-                )
-
-                send_message(phone, "Bvunza mubvunzo kana sarudza imwe lesson 🤖")
-
-                # set active module
-                conn = get_db()
-                c = conn.cursor()
-                c.execute(
-                    "UPDATE users SET active_module=%s WHERE phone=%s",
-                    (next_module, phone)
-                )
-                conn.commit()
-                DATABASE_POOL.putconn(conn)
-
-                return jsonify({"status": "ok"})
 
     if incoming in ["menu", "start", "makadini", "hie"]:
 
@@ -2424,42 +2320,6 @@ def webhook():
         # 🤖 AI prompt
         send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
 
-        recommended = smart_recommendation(phone)
-
-        if recommended:
-            name = recommended.replace("_", " ").title()
-
-            send_message(
-                phone,
-                f"🔥 Recommended for you:\n{name}"
-            )
-
-        # 🎯 PROGRESSION FEEDBACK
-        progress = get_user_progress(phone)
-
-        send_message(
-            phone,
-            f"📊 Progress: {progress['count']}/{progress['total']} lessons completed"
-        )
-
-        next_module = get_next_module(phone)
-
-        if next_module:
-            next_name = next_module.replace("_", " ").title()
-
-            send_message(
-                phone,
-                f"👉 Next recommended lesson:\n{next_name}\n\nReply YES to open it"
-            )
-
-        send_message(
-            phone,
-            "\n👉 Sarudza imwe lesson kana bvunza mubvunzo\n"
-            "Reply nenumber or type question"
-        )
-
-        return jsonify({"status": "ok"})
-
     elif user["state"] == "beverages_menu":
 
         beverages = [
@@ -2527,40 +2387,6 @@ def webhook():
 
         # 🤖 AI prompt
         send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
-
-        recommended = smart_recommendation(phone)
-
-        if recommended:
-            name = recommended.replace("_", " ").title()
-
-            send_message(
-                phone,
-                f"🔥 Recommended for you:\n{name}"
-            )
-
-        # 🎯 PROGRESSION FEEDBACK
-        progress = get_user_progress(phone)
-
-        send_message(
-            phone,
-            f"📊 Progress: {progress['count']}/{progress['total']} lessons completed"
-        )
-
-        next_module = get_next_module(phone)
-
-        if next_module:
-            next_name = next_module.replace("_", " ").title()
-
-            send_message(
-                phone,
-                f"👉 Next recommended lesson:\n{next_name}\n\nReply YES to open it"
-            )
-
-        send_message(
-            phone,
-            "\n👉 Sarudza imwe lesson kana bvunza mubvunzo\n"
-            "Reply nenumber or type question"
-        )
 
         conn = get_db()
         c = conn.cursor()
