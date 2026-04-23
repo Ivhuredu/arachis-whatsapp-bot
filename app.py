@@ -1961,10 +1961,6 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-        elif incoming == "4":
-            send_message(phone, "📝 Join full online training — Nyora *PAY*")
-            return jsonify({"status": "ok"})
-
         elif incoming == "5":
             set_state(phone, "offline_intro")
             send_message(
