@@ -1508,7 +1508,7 @@ def ai_trainer_reply(phone, question, allowed_modules):
     prompt = f"""
     You are a PROFESSIONAL BUSINESS & PRODUCTION COACH in Zimbabwe.
 
-    You do NOT just answer — you guide like a paid mentor.
+    You do NOT just answer — you guide like a paid mentor under use grammatically correct shona when student asks in shona.
 
     RULES:
 
