@@ -212,6 +212,18 @@ def init_db():
     )
     """)
     c.execute("""
+    CREATE TABLE IF NOT EXISTS template_messages (
+        id SERIAL PRIMARY KEY,
+        phone TEXT,
+        template_name TEXT,
+        whatsapp_message_id TEXT UNIQUE,
+        status TEXT DEFAULT 'accepted',
+        error_details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
     CREATE TABLE IF NOT EXISTS payments (
         id SERIAL PRIMARY KEY,
         phone TEXT,
@@ -590,6 +602,27 @@ def send_template(phone, template_name):
 
     print("🔥 TEMPLATE STATUS:", r.status_code)
     print("🔥 TEMPLATE RESPONSE:", r.text)
+
+    try:
+        data = r.json()
+        message_id = data["messages"][0]["id"]
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO template_messages (phone, template_name, whatsapp_message_id, status)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (whatsapp_message_id)
+            DO UPDATE SET status='accepted', updated_at=CURRENT_TIMESTAMP
+        """, (phone, template_name, message_id, "accepted"))
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+    except Exception as e:
+        print("TEMPLATE SAVE ERROR:", e)
+
+    return r.status_code, r.text
     
 def get_user(phone):
     conn = get_db()
@@ -1744,6 +1777,41 @@ def webhook():
 
     data = request.get_json()
 
+    print("WEBHOOK DATA:", data)
+
+    try:
+        statuses = data["entry"][0]["changes"][0]["value"].get("statuses", [])
+
+        if statuses:
+            conn = get_db()
+            c = conn.cursor()
+
+            for s in statuses:
+                message_id = s.get("id")
+                status = s.get("status")
+                error_details = ""
+
+                if "errors" in s:
+                    error_details = str(s["errors"])
+
+                c.execute("""
+                    UPDATE template_messages
+                    SET status=%s,
+                        error_details=%s,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE whatsapp_message_id=%s
+                """, (status, error_details, message_id))
+
+                print("📩 TEMPLATE DELIVERY STATUS:", message_id, status, error_details)
+
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            return "OK", 200
+
+    except Exception as e:
+        print("STATUS WEBHOOK ERROR:", e)
+
     try:
         message = data["entry"][0]["changes"][0]["value"]["messages"][0]
         phone = normalize_phone(message["from"])
@@ -1752,6 +1820,20 @@ def webhook():
 
         if msg_type == "text":
             incoming = message["text"]["body"].strip().lower()
+
+        elif msg_type == "button":
+            incoming = message["button"]["text"].strip().lower()
+
+        elif msg_type == "interactive":
+            interactive = message.get("interactive", {})
+
+            if interactive.get("type") == "button_reply":
+                incoming = interactive["button_reply"]["title"].strip().lower()
+            elif interactive.get("type") == "list_reply":
+                incoming = interactive["list_reply"]["title"].strip().lower()
+            else:
+                incoming = ""
+
         else:
             incoming = ""
 
@@ -1767,7 +1849,9 @@ def webhook():
         return "OK", 200
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
-    if incoming in ["yes", "ok", "sure", "interested"] and user["state"] == "pitch":
+    if incoming in ["yes", "ok", "sure", "interested", "view"]:
+
+        set_state(phone, "pay_menu")
 
         send_message(
             phone,
@@ -1778,7 +1862,6 @@ def webhook():
             "Reply 1 or 2"
         )
 
-        set_state(phone, "pay_menu")
         return jsonify({"status": "ok"})
 
     if msg_type == "image":
@@ -3234,7 +3317,15 @@ def admin_dashboard():
     ORDER BY last_active DESC
     LIMIT 50
     """)
-    students = c.fetchall() 
+    students = c.fetchall()
+    
+    c.execute("""
+    SELECT phone, template_name, status, error_details, created_at, updated_at
+    FROM template_messages
+    ORDER BY updated_at DESC
+    LIMIT 50
+    """)
+    template_logs = c.fetchall()
 
 
     DATABASE_POOL.putconn(conn)
@@ -3336,6 +3427,22 @@ def admin_dashboard():
         <a href="/admin/followup-unpaid">Send follow-up to unpaid users</a>
         <hr>
         """
+
+    html += "<hr><h3>📨 Template Delivery Logs</h3>"
+
+    if not template_logs:
+        html += "<p>No template logs yet.</p>"
+    else:
+        for t in template_logs:
+            html += f"""
+            📱 {t[0]} |
+            Template: {t[1]} |
+            Status: <b>{t[2]}</b> |
+            Error: {t[3]} |
+            Sent: {t[4]} |
+            Updated: {t[5]}
+            <br>
+            """
 
     html += "<hr><h3>📜 Activity Feed (Latest 1000)</h3>"
 
