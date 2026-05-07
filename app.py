@@ -1515,109 +1515,81 @@ def faq_engine(msg):
     return None
 
 # ✅ MODIFIED (MODULE-AWARE AI)
-def ai_trainer_reply(phone, question, allowed_modules):
+def ai_trainer_reply(phone, question, allowed_modules=None):
+    active_module = "general"
 
-    pdf_text_blocks = []
+    if allowed_modules:
+        active_module = allowed_modules[-1]
 
-    for module in allowed_modules:
+    memory_messages = get_memory(phone, active_module)
 
-        chunk = get_relevant_lesson_chunk(module, question)
+    memory_text = ""
+    for m in memory_messages:
+        memory_text += f"{m['role']}: {m['content']}\n"
 
-        if chunk:
-            pdf_text_blocks.append(chunk)
+    instructions = f"""
+You are Arachis AI Trainer.
 
-    combined_text = "\n\n".join(pdf_text_blocks)
-    if not combined_text.strip():
-        return "Ndapota vhura module rine chidzidzo ichi kutanga kuti ndikubatsire zvakarurama."
-        
-    combined_text = combined_text[:3000]
+You help Zimbabwean students learn:
+- detergent manufacturing
+- drink manufacturing
+- small business management
 
-    # determine active module (latest opened)
-    active_module = allowed_modules[-1]
+You explain things simply and professionally.
 
-    memory_messages = get_memory(phone, active_module if allowed_modules else "business")
+You must:
+- give exact measurements
+- explain production steps clearly
+- explain causes of product failures
+- help students calculate profit
+- suggest selling prices in Zimbabwe
+- explain where to sell products
 
-    
-    prompt = f"""
-    You are a PROFESSIONAL BUSINESS & PRODUCTION COACH in Zimbabwe.
+When users ask in Shona, reply in proper Shona.
 
-    You do NOT just answer — you guide like a paid mentor under use grammatically correct shona when student asks in shona.
+Always behave like a serious business mentor.
 
-    RULES:
+Never invent dangerous chemical procedures.
 
-    1. Always give:
-       ✔ Clear steps
-       ✔ Exact measurements
-       ✔ Real Zimbabwe pricing
+Always prioritize practical low-cost production suitable for Zimbabwe.
 
-    2. If business question:
-       MUST include:
-       ✔ Cost
-       ✔ Selling price
-       ✔ Profit
-       ✔ Where to sell
+Use the Arachis Knowledge Base files first before giving an answer.
 
-    3. If production question:
-       MUST include:
-       ✔ Exact ingredients
-       ✔ Mixing steps
-       ✔ Fix if wrong
+Recent conversation:
+{memory_text}
 
-    4. Speak like a serious coach.
+Current student question:
+{question}
+"""
 
-    ----------------------------------
+    try:
+        response = openai_client.responses.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
+            instructions=instructions,
+            input=question,
+            tools=[
+                {
+                    "type": "file_search",
+                    "vector_store_ids": [
+                        os.getenv("ARACHIS_VECTOR_STORE_ID")
+                    ]
+                }
+            ],
+            reasoning={
+                "effort": "medium"
+            }
+        )
 
-    PRICING DATA:
-    {get_all_prices()}
+        answer = response.output_text.strip()
 
-    LESSON CONTEXT:
-    {combined_text}
+        save_memory(phone, active_module, "user", question)
+        save_memory(phone, active_module, "assistant", answer)
 
-    QUESTION:
-    {question}
-    """
+        return answer
 
-    messages = [
-    {"role": "system", "content": prompt}
-    ]
-
-    messages.extend(memory_messages)
-    messages.append({"role": "user", "content": question})
-    
-    def is_complex_question(question):
-
-        keywords = [
-            "why", "explain", "difference", "problem",
-            "fix", "improve", "formula",
-            "profit", "cost", "price", "sell",
-            "business", "market", "customers",
-            "how to sell", "how to price", "how to start"
-        ]
-
-        q = question.lower()
-
-        return any(k in q for k in keywords) or len(question.split()) > 8
-    
-
-    model_to_use = "gpt-4o-mini"
-
-    if is_complex_question(question):
-        model_to_use = "gpt-5.1"
-
-    response = openai_client.chat.completions.create(
-        model=model_to_use,
-        messages=messages,
-        temperature=0.4,
-        max_completion_tokens=600
-    )
-
-    answer = response.choices[0].message.content.strip()
-
-    # save conversation
-    save_memory(phone, active_module, "user", question)
-    save_memory(phone, active_module, "assistant", answer)
-
-    return answer
+    except Exception as e:
+        print("OPENAI AGENT ERROR:", e)
+        return "Pane problem paAI trainer parizvino. Ndapota edzai zvakare kana taurai naAdmin."
 
 def ai_analyze_product(image_path, student_details):
 
