@@ -289,7 +289,7 @@ def send_message(phone, text):
         "text": {"body": text}
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, timeout=15)
 
     print("STATUS:", response.status_code)
     print("RESPONSE:", response.text)
@@ -397,7 +397,7 @@ def send_pdf(phone, pdf_url, caption):
         }
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, timeout=15)
     print(response.text)
 
 def send_voice(phone, audio_url):
@@ -418,7 +418,7 @@ def send_voice(phone, audio_url):
         }
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, timeout=15)
 
     print("VOICE STATUS:", response.status_code)
     print("VOICE RESPONSE:", response.text)
@@ -606,7 +606,7 @@ def send_template(phone, template_name):
         }
     }
 
-    r = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, timeout=15)
 
     print("🔥 TEMPLATE STATUS:", r.status_code)
     print("🔥 TEMPLATE RESPONSE:", r.text)
@@ -1781,7 +1781,7 @@ def webhook():
 
     data = request.get_json()
 
-    print("WEBHOOK DATA:", data)
+    print("WEBHOOK RECEIVED")
 
     try:
         statuses = data["entry"][0]["changes"][0]["value"].get("statuses", [])
@@ -2054,21 +2054,6 @@ def webhook():
             return jsonify({"status": "ok"})
 
         elif incoming == "5":
-            set_state(phone, "offline_intro")
-            send_message(
-                 phone,
-                 "🧑🏽‍🏫 *ARACHIS OFFLINE PRACTICAL TRAINING*\n\n"
-                 "✔ 3 days in-person training\n"
-                 "✔ Videos + hands-on practicals\n"
-                 "✔ Ingredients to make 10L detergent\n"
-                 "✔ Certificate included\n\n"
-                 "💵 Fee: $50\n\n"
-                 "Reply *YES* to register\n"
-                  "Reply *MENU* to cancel"
-            )
-            return jsonify({"status": "ok"})
-
-        elif incoming == "5":
             set_state(phone, "store_category")
             send_message(
                 phone,
@@ -2180,14 +2165,6 @@ def webhook():
             # get AI usage today
             ai_used = ai_questions_today(phone)
 
-            # next recommended lesson
-            next_module = get_next_module(phone)
-
-            next_name = (
-                next_module.replace("_", " ").title()
-                if next_module else "All lessons completed 🎉"
-            )
-
             DATABASE_POOL.putconn(conn)
 
             send_message(
@@ -2196,7 +2173,6 @@ def webhook():
                 f"👤 Package: *{package.upper()}*\n\n"
                 f"📚 Progress: {progress['count']}/{progress['total']} lessons\n\n"
                 f"🤖 AI Questions Today: {ai_used}/15\n\n"
-                f"🎯 Next Lesson:\n{next_name}\n\n"
                 "↩ Nyora MENU kudzokera"
             )
 
@@ -2719,29 +2695,27 @@ def webhook():
 
     elif user["state"] == "business_lessons":
 
-        modules = list(BUSINESS_MODULES.keys())
+    modules = list(BUSINESS_MODULES.keys())
 
-        if not incoming.isdigit():
+    if not incoming.isdigit():
 
-            # 👉 allow AI questions inside lessons
-            allowed_modules = get_user_modules(phone, incoming)
+        allowed_modules = get_user_modules(phone, incoming)
+        ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
 
-            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+        send_message(phone, ai_answer)
 
-            send_message(phone, ai_answer)
+        log_activity(phone, "ai_question", incoming)
+        update_metrics(phone, "ai")
 
-            log_activity(phone, "ai_question", incoming)
-            update_metrics(phone, "ai")
+        return jsonify({"status": "ok"})
 
-            return jsonify({"status": "ok"})
-            
-        if 1 <= int(incoming) <= len(modules):
+    if 1 <= int(incoming) <= len(modules):
 
-            module = modules[int(incoming)-1]
-            pdf, label = BUSINESS_MODULES[module]
+        module = modules[int(incoming)-1]
+        pdf, label = BUSINESS_MODULES[module]
 
-            record_module_access(phone, module)
-            update_metrics(phone, "module")
+        record_module_access(phone, module)
+        update_metrics(phone, "module")
 
         send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
 
@@ -2755,7 +2729,6 @@ def webhook():
 
         send_message(phone, "Bvunza chero mubvunzo 🤖")
 
-        # set active module for AI
         conn = get_db()
         c = conn.cursor()
         c.execute(
@@ -2767,6 +2740,10 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
+    else:
+        send_message(phone, "Invalid choice")
+        return jsonify({"status": "ok"})
+
     elif user["state"] == "ai_chat":
 
         if incoming == "menu":
@@ -2774,7 +2751,8 @@ def webhook():
             send_message(phone, main_menu())
             return jsonify({"status": "ok"})
 
-        ai_answer = ai_trainer_reply(phone, incoming, [])
+        allowed_modules = get_user_modules(phone, incoming)
+        ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
 
         send_message(phone, ai_answer)
 
