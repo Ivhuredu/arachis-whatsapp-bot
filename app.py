@@ -232,6 +232,18 @@ def init_db():
     )
     """)
     c.execute("""
+    CREATE TABLE IF NOT EXISTS outbound_messages (
+        id SERIAL PRIMARY KEY,
+        phone TEXT,
+        whatsapp_message_id TEXT UNIQUE,
+        message_type TEXT,
+        status TEXT DEFAULT 'accepted',
+        error_details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
     CREATE TABLE IF NOT EXISTS payments (
         id SERIAL PRIMARY KEY,
         phone TEXT,
@@ -282,17 +294,73 @@ def send_message(phone, text):
         "Content-Type": "application/json"
     }
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": phone.replace("+", ""),
-        "type": "text",
-        "text": {"body": text}
-    }
+    if text is None:
+        text = ""
 
-    response = requests.post(url, headers=headers, json=payload, timeout=15)
+    text = str(text).strip()
 
-    print("STATUS:", response.status_code)
-    print("RESPONSE:", response.text)
+    chunks = []
+    max_len = 3000
+
+    while len(text) > max_len:
+        cut = text.rfind("\n", 0, max_len)
+        if cut == -1:
+            cut = max_len
+
+        chunks.append(text[:cut].strip())
+        text = text[cut:].strip()
+
+    if text:
+        chunks.append(text)
+
+    for i, chunk in enumerate(chunks, start=1):
+
+        if len(chunks) > 1:
+            chunk = f"Part {i}/{len(chunks)}\n\n{chunk}"
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": phone.replace("+", ""),
+            "type": "text",
+            "text": {"body": chunk}
+        }
+
+        try:
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=15
+            )
+
+            print("MESSAGE STATUS:", response.status_code)
+            print("MESSAGE RESPONSE:", response.text)
+
+            try:
+                data = response.json()
+                message_id = data["messages"][0]["id"]
+
+                conn = get_db()
+                c = conn.cursor()
+                c.execute("""
+                    INSERT INTO outbound_messages (phone, whatsapp_message_id, message_type, status)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (whatsapp_message_id)
+                    DO UPDATE SET status='accepted', updated_at=CURRENT_TIMESTAMP
+                """, (phone, message_id, "text", "accepted"))
+
+                conn.commit()
+                DATABASE_POOL.putconn(conn)
+
+            except Exception as e:
+                print("OUTBOUND SAVE ERROR:", e)
+
+            if response.status_code != 200:
+                log_activity(phone, "send_message_failed", response.text[:500])
+
+        except Exception as e:
+            print("SEND MESSAGE ERROR:", e)
+            log_activity(phone, "send_message_exception", str(e)[:500])
 
 def download_whatsapp_image(media_id):
 
@@ -608,11 +676,11 @@ def send_template(phone, template_name):
 
     response = requests.post(url, headers=headers, json=payload, timeout=15)
 
-    print("🔥 TEMPLATE STATUS:", r.status_code)
-    print("🔥 TEMPLATE RESPONSE:", r.text)
+    print("🔥 TEMPLATE STATUS:", response.status_code)
+    print("🔥 TEMPLATE RESPONSE:", response.text)
 
     try:
-        data = r.json()
+        data = response.json()
         message_id = data["messages"][0]["id"]
 
         conn = get_db()
@@ -630,7 +698,7 @@ def send_template(phone, template_name):
     except Exception as e:
         print("TEMPLATE SAVE ERROR:", e)
 
-    return r.status_code, r.text
+    return response.status_code, response.text
     
 def get_user(phone):
     conn = get_db()
@@ -2386,6 +2454,18 @@ def webhook():
 
         # 🤖 AI prompt
         send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute(
+            "UPDATE users SET active_module=%s WHERE phone=%s",
+            (module, phone)
+        )
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        return jsonify({"status": "ok"})
 
     elif user["state"] == "beverages_menu":
 
