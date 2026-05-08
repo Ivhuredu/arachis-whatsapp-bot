@@ -2156,22 +2156,25 @@ def webhook():
             # get user package
             c.execute("SELECT package FROM users WHERE phone=%s", (phone,))
             package_row = c.fetchone()
-
             package = package_row[0] if package_row else "none"
 
-            # get progress
-            progress = get_user_progress(phone)
+            # count lessons opened
+            c.execute("""
+                SELECT COUNT(*) FROM module_access
+                WHERE phone=%s
+            """, (phone,))
+            lessons_done = c.fetchone()[0]
+
+            DATABASE_POOL.putconn(conn)
 
             # get AI usage today
             ai_used = ai_questions_today(phone)
-
-            DATABASE_POOL.putconn(conn)
 
             send_message(
                 phone,
                 "📊 *ACCOUNT DASHBOARD*\n\n"
                 f"👤 Package: *{package.upper()}*\n\n"
-                f"📚 Progress: {progress['count']}/{progress['total']} lessons\n\n"
+                f"📚 Lessons Opened: {lessons_done}\n\n"
                 f"🤖 AI Questions Today: {ai_used}/15\n\n"
                 "↩ Nyora MENU kudzokera"
             )
