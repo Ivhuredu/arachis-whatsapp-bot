@@ -194,6 +194,14 @@ def init_db():
     )
     """)
     c.execute("""
+    CREATE TABLE IF NOT EXISTS processed_messages (
+        whatsapp_message_id TEXT PRIMARY KEY,
+        phone TEXT,
+        incoming TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("""
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS last_followup TIMESTAMP
     """)
@@ -731,6 +739,30 @@ def record_module_access(phone, module):
     """, (phone, module))
     conn.commit()
     DATABASE_POOL.putconn(conn)
+
+def already_processed_message(message_id, phone, incoming):
+    conn = get_db()
+    c = conn.cursor()
+
+    try:
+        c.execute("""
+            INSERT INTO processed_messages (whatsapp_message_id, phone, incoming)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (whatsapp_message_id) DO NOTHING
+            RETURNING whatsapp_message_id
+        """, (message_id, phone, incoming))
+
+        inserted = c.fetchone()
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        return inserted is None
+
+    except Exception as e:
+        print("DEDUP ERROR:", e)
+        conn.rollback()
+        DATABASE_POOL.putconn(conn)
+        return False
         
 def log_activity(phone, action, details=""):
     conn = get_db()
@@ -1787,6 +1819,7 @@ def webhook():
     try:
         message = data["entry"][0]["changes"][0]["value"]["messages"][0]
         phone = normalize_phone(message["from"])
+        message_id = message["id"]
 
         msg_type = message["type"]
 
@@ -1808,6 +1841,10 @@ def webhook():
 
         else:
             incoming = ""
+
+        if already_processed_message(message_id, phone, incoming):
+            print("⚠️ DUPLICATE MESSAGE IGNORED:", message_id)
+            return "OK", 200
 
         update_metrics(phone, "message")
         log_activity(phone, "incoming_message", msg_type)
