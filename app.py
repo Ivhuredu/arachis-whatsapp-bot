@@ -2695,54 +2695,54 @@ def webhook():
 
     elif user["state"] == "business_lessons":
 
-    modules = list(BUSINESS_MODULES.keys())
+        modules = list(BUSINESS_MODULES.keys())
 
-    if not incoming.isdigit():
+        if not incoming.isdigit():
 
-        allowed_modules = get_user_modules(phone, incoming)
-        ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+            allowed_modules = get_user_modules(phone, incoming)
+            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
 
-        send_message(phone, ai_answer)
+            send_message(phone, ai_answer)
 
-        log_activity(phone, "ai_question", incoming)
-        update_metrics(phone, "ai")
+            log_activity(phone, "ai_question", incoming)
+            update_metrics(phone, "ai")
 
-        return jsonify({"status": "ok"})
+            return jsonify({"status": "ok"})
 
-    if 1 <= int(incoming) <= len(modules):
+        if 1 <= int(incoming) <= len(modules):
 
-        module = modules[int(incoming)-1]
-        pdf, label = BUSINESS_MODULES[module]
+            module = modules[int(incoming)-1]
+            pdf, label = BUSINESS_MODULES[module]
 
-        record_module_access(phone, module)
-        update_metrics(phone, "module")
+            record_module_access(phone, module)
+            update_metrics(phone, "module")
 
-        send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
+            send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
 
-        send_audio_series(phone, module)
+            send_audio_series(phone, module)
 
-        send_pdf(
-            phone,
-            f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}", 
-            label
-        )
+            send_pdf(
+                phone,
+                f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}", 
+                label
+            )
 
-        send_message(phone, "Bvunza chero mubvunzo 🤖")
+            send_message(phone, "Bvunza chero mubvunzo 🤖")
 
-        conn = get_db()
-        c = conn.cursor()
-        c.execute(
-            "UPDATE users SET active_module=%s WHERE phone=%s",
-            (module, phone)
-        )
-        conn.commit()
-        DATABASE_POOL.putconn(conn)
+            conn = get_db()
+            c = conn.cursor()
+            c.execute(
+                "UPDATE users SET active_module=%s WHERE phone=%s",
+                (module, phone)
+            )
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
 
-        return jsonify({"status": "ok"})
+            return jsonify({"status": "ok"})
 
-    else:
-        send_message(phone, "Invalid choice")
-        return jsonify({"status": "ok"})
+        else:
+            send_message(phone, "Invalid choice")
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "ai_chat":
 
