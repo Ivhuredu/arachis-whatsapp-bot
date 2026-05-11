@@ -1664,7 +1664,7 @@ Current student question:
 
     try:
         response = openai_client.responses.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
+            model=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
             instructions=instructions,
             input=question,
             tools=[
@@ -1674,10 +1674,8 @@ Current student question:
                         os.getenv("ARACHIS_VECTOR_STORE_ID")
                     ]
                 }
-            ],
-            reasoning={
-                "effort": "medium"
-            }
+        
+            ]
         )
 
         answer = response.output_text.strip()
