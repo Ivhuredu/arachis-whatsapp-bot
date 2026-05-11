@@ -132,7 +132,7 @@ def init_db():
         UNIQUE(phone, module)
     )
     """)
-        c.execute("""
+    c.execute("""
     CREATE TABLE IF NOT EXISTS custom_module_access (
         id SERIAL PRIMARY KEY,
         phone TEXT,
@@ -915,24 +915,22 @@ def verify_and_apply_payment(phone, message):
     if not reference:
         return False, "Handina kuona reference number mu message."
 
+    if not amount:
+        return False, "Handina kuona mari yatumirwa muSMS."
+
+    ecocash_keywords = ["ecocash", "transfer", "paid", "you have received", "transaction", "cash out"]
+
+    if not any(k in message.lower() for k in ecocash_keywords):
+        return False, "Tumira EcoCash confirmation SMS chaiyo."
+
     conn = get_db()
     c = conn.cursor()
 
-    # prevent reuse
     c.execute("SELECT 1 FROM payments WHERE reference=%s", (reference,))
     if c.fetchone():
         DATABASE_POOL.putconn(conn)
         return False, "Reference yakamboshandiswa kare."
-        
-    ecocash_keywords = ["ecocash", "transfer", "paid", "you have received", "transaction", "cash out"]
-    if not any(k in message.lower() for k in ecocash_keywords):
-        return False, "Tumira EcoCash confirmation SMS chaiyo."
 
-    if not amount:
-        DATABASE_POOL.putconn(conn)
-        return False, "Handina kuona mari yatumirwa muSMS."
-
-    # get selected package
     c.execute("SELECT package FROM users WHERE phone=%s", (phone,))
     package_row = c.fetchone()
     selected_package = package_row[0] if package_row else "none"
@@ -941,23 +939,37 @@ def verify_and_apply_payment(phone, message):
         selected_modules = get_custom_modules(phone)
         expected_amount = len(selected_modules) * CUSTOM_PRICE_PER_MODULE
 
-    if amount < expected_amount:
-        DATABASE_POOL.putconn(conn)
-        return False, f"Mari ishoma. Custom package yako iri ${expected_amount:.2f}."
+        if expected_amount <= 0:
+            DATABASE_POOL.putconn(conn)
+            return False, "Hausati wasarudza ma formula eCustom Package."
 
-    package = "custom"
+        if amount < expected_amount:
+            DATABASE_POOL.putconn(conn)
+            return False, f"Mari ishoma. Custom package yako iri ${expected_amount:.2f}."
 
-elif BASIC_PRICE <= amount < PREMIUM_PRICE:
-    package = "basic"
+        package = "custom"
 
-elif amount >= PREMIUM_PRICE:
-    package = "premium"
+    elif selected_package == "basic":
+        if amount < BASIC_PRICE:
+            DATABASE_POOL.putconn(conn)
+            return False, f"Mari ishoma. Basic package iri ${BASIC_PRICE:.2f}."
+        package = "basic"
 
-else:
-    DATABASE_POOL.putconn(conn)
-    return False, "Mari haisi correct."
+    elif selected_package == "premium":
+        if amount < PREMIUM_PRICE:
+            DATABASE_POOL.putconn(conn)
+            return False, f"Mari ishoma. Premium package iri ${PREMIUM_PRICE:.2f}."
+        package = "premium"
 
-    # save payment
+    else:
+        if BASIC_PRICE <= amount < PREMIUM_PRICE:
+            package = "basic"
+        elif amount >= PREMIUM_PRICE:
+            package = "premium"
+        else:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari haisi correct."
+
     c.execute("""
         INSERT INTO payments (phone, reference, amount, raw_text)
         VALUES (%s,%s,%s,%s)
@@ -966,7 +978,6 @@ else:
     conn.commit()
     DATABASE_POOL.putconn(conn)
 
-    # APPROVE USER
     mark_paid(phone)
 
     conn = get_db()
@@ -2649,7 +2660,7 @@ def webhook():
             send_message(phone, "Invalid choice")
             return jsonify({"status": "ok"})
 
-        module = beverage_list[index]
+        module = beverages[index]
 
         modules = load_lessons()
 
@@ -2695,80 +2706,80 @@ def webhook():
 
     elif user["state"] == "pay_menu":
 
-    if incoming == "1":
-        selected_package = "basic"
-        price = BASIC_PRICE
+        if incoming == "1":
+            selected_package = "basic"
+            price = BASIC_PRICE
 
-        conn = get_db()
-        c = conn.cursor()
-        c.execute(
-            "UPDATE users SET package=%s WHERE phone=%s",
-            (selected_package, phone)
-        )
-        conn.commit()
-        DATABASE_POOL.putconn(conn)
+            conn = get_db()
+            c = conn.cursor()
+            c.execute(
+                "UPDATE users SET package=%s WHERE phone=%s",
+                (selected_package, phone)
+            )
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
 
-        set_state(phone, "awaiting_payment")
+            set_state(phone, "awaiting_payment")
 
-        send_message(
-            phone,
-            "📲 *Bhadhara neEcoCash*\n\n"
-            "*153*1*1*0773208904*5#\n\n"
-            "👤 Recipient: Beloved Nkomo\n"
-            f"💵 Amount: ${price} + charges\n\n"
-            "Send confirmation SMS here"
-        )
-        return jsonify({"status": "ok"})
+            send_message(
+                phone,
+                "📲 *Bhadhara neEcoCash*\n\n"
+                "*153*1*1*0773208904*5#\n\n"
+                "👤 Recipient: Beloved Nkomo\n"
+                f"💵 Amount: ${price} + charges\n\n"
+                "Send confirmation SMS here"
+            )
+            return jsonify({"status": "ok"})
 
-    elif incoming == "2":
-        selected_package = "premium"
-        price = PREMIUM_PRICE
+        elif incoming == "2":
+            selected_package = "premium"
+            price = PREMIUM_PRICE
 
-        conn = get_db()
-        c = conn.cursor()
-        c.execute(
-            "UPDATE users SET package=%s WHERE phone=%s",
-            (selected_package, phone)
-        )
-        conn.commit()
-        DATABASE_POOL.putconn(conn)
+            conn = get_db()
+            c = conn.cursor()
+            c.execute(
+                "UPDATE users SET package=%s WHERE phone=%s",
+                (selected_package, phone)
+            )
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
 
-        set_state(phone, "awaiting_payment")
+            set_state(phone, "awaiting_payment")
 
-        send_message(
-            phone,
-            "📲 *Bhadhara neEcoCash*\n\n"
-            "*153*1*1*0773208904*10#\n\n"
-            "👤 Recipient: Beloved Nkomo\n"
-            f"💵 Amount: ${price} + charges\n\n"
-            "Send confirmation SMS here"
-        )
-        return jsonify({"status": "ok"})
+            send_message(
+                phone,
+                "📲 *Bhadhara neEcoCash*\n\n"
+                "*153*1*1*0773208904*10#\n\n"
+                "👤 Recipient: Beloved Nkomo\n"
+                f"💵 Amount: ${price} + charges\n\n"
+                "Send confirmation SMS here"
+            )
+            return jsonify({"status": "ok"})
 
-    elif incoming == "3":
-        clear_custom_modules(phone)
-        set_state(phone, "custom_selecting")
+        elif incoming == "3":
+            clear_custom_modules(phone)
+            set_state(phone, "custom_selecting")
 
-        all_modules = DETERGENT_MODULES + BEVERAGE_MODULES
+            all_modules = DETERGENT_MODULES + BEVERAGE_MODULES
 
-        menu = "🧩 *CUSTOM PACKAGE*\n\n"
-        menu += "Sarudza ma Formula Aunoda kudzidza.\n"
-        menu += f"Price: ${CUSTOM_PRICE_PER_MODULE} per formula\n\n"
+            menu = "🧩 *CUSTOM PACKAGE*\n\n"
+            menu += "Sarudza ma Formula Aunoda kudzidza.\n"
+            menu += f"Price: ${CUSTOM_PRICE_PER_MODULE} per formula\n\n"
 
-        for i, module in enumerate(all_modules, start=1):
-            name = module.replace("_", " ").title()
-            menu += f"{i}️⃣ {name}\n"
+            for i, module in enumerate(all_modules, start=1):
+                name = module.replace("_", " ").title()
+                menu += f"{i}️⃣ {name}\n"
 
-        menu += "\nReply with numbers separated by comma.\n"
-        menu += "Example: 1,3,7\n\n"
-        menu += "Type *DONE* when finished."
+            menu += "\nReply with numbers separated by comma.\n"
+            menu += "Example: 1,3,7\n\n"
+            menu += "Type *DONE* when finished."
 
-        send_message(phone, menu)
-        return jsonify({"status": "ok"})
+            send_message(phone, menu)
+            return jsonify({"status": "ok"})
 
-    else:
-        send_message(phone, "Sarudza 1, 2 or 3")
-        return jsonify({"status": "ok"})
+        else:
+            send_message(phone, "Sarudza 1, 2 or 3")
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "custom_selecting":
 
