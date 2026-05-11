@@ -792,6 +792,34 @@ def mark_paid(phone):
     conn.commit()
     DATABASE_POOL.putconn(conn)
 
+def revoke_access(phone):
+    conn = get_db()
+    c = conn.cursor()
+
+    # remove paid access
+    c.execute("""
+        UPDATE users
+        SET is_paid=0,
+            payment_status='revoked',
+            package='none',
+            active_module=NULL
+        WHERE phone=%s
+    """, (phone,))
+
+    # remove opened lesson access
+    c.execute("DELETE FROM module_access WHERE phone=%s", (phone,))
+
+    # remove custom selected modules
+    c.execute("DELETE FROM custom_module_access WHERE phone=%s", (phone,))
+
+    # remove AI memory
+    c.execute("DELETE FROM ai_memory WHERE phone=%s", (phone,))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+    log_activity(phone, "access_revoked", "admin")
+
 def ai_questions_today(phone):
     conn = get_db()
     c = conn.cursor()
@@ -3754,7 +3782,8 @@ def admin_dashboard():
    
         html += f"""
         {phone} | Paid: {is_paid} | Status: {payment_status}
-        | <a href='/admin/approve/{phone}'>Approve</a><br>
+        | <a href='/admin/approve/{phone}'>Approve</a>
+        | <a href='/admin/revoke/{phone}' style='color:red;'>Revoke Access</a><br>
         """
 
     html += "<hr><h3>📣 Follow-Up Funnel</h3>"
@@ -3855,10 +3884,30 @@ def payment_result():
 def payment_success():
     return "Payment received. You may return to WhatsApp."
 
+@app.route("/admin/approve/<phone>")
+@requires_auth
+def admin_approve(phone):
+    mark_paid(normalize_phone(phone))
+    return redirect(url_for("admin_dashboard"))
+
 
 @app.route("/admin/approve/<phone>")
 def admin_approve(phone):
     mark_paid(normalize_phone(phone))
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/revoke/<phone>")
+@requires_auth
+def admin_revoke(phone):
+    phone = normalize_phone(phone)
+
+    revoke_access(phone)
+
+    send_message(
+        phone,
+        "⚠️ Your course access has been removed. If this is a mistake, contact Admin."
+    )
+
     return redirect(url_for("admin_dashboard"))
     
 @app.route("/admin/approve-offline/<phone>")
