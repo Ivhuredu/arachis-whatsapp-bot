@@ -3890,12 +3890,6 @@ def admin_approve(phone):
     mark_paid(normalize_phone(phone))
     return redirect(url_for("admin_dashboard"))
 
-
-@app.route("/admin/approve/<phone>")
-def admin_approve(phone):
-    mark_paid(normalize_phone(phone))
-    return redirect(url_for("admin_dashboard"))
-
 @app.route("/admin/revoke/<phone>")
 @requires_auth
 def admin_revoke(phone):
