@@ -72,7 +72,9 @@ PACKAGES = {
             "washing_paste",
             "petroleum_jelly",
             "hair_shampoo",
-            "drink_concentrates",
+            "universal_cordial",
+            "low_cost_orange_drink",
+            "low_cost_raspberry_drink",
             "freezits",
             "baobab_drink"
         ]
@@ -1654,14 +1656,14 @@ DETERGENT_MODULES = [
 ]
 BEVERAGE_MODULES = sorted([
     "universal_cordial",
-    "low_cost_raspberry_syrup",
-    "low_cost_orange_syrup",
+    "low_cost_raspberry_drink",
+    "low_cost_orange_drink",
     "baobab_drink",
     "juice_cascade",
     "ice_cream",
     "cream_soda",
-    "orange_concentrate",
-    "raspberry_concentrate",
+    "orange_drink",
+    "raspberry_drink",
     "freezits"
 ])
 
@@ -1944,8 +1946,8 @@ def detect_module_from_question(question, allowed_modules):
         "raspberry": "raspberry_drink",
         "cream soda": "cream_soda",
 
-        "low cost orange": "low_cost_orange_syrup",
-        "orange syrup": "low_cost_orange_syrup",
+        "low cost orange": "low_cost_orange_drink",
+        "orange drink": "orange_drink",
 
         "low cost raspberry": "low_cost_raspberry_drink",
 
@@ -2537,7 +2539,11 @@ def webhook():
 
             detergent_list = DETERGENT_MODULES
 
-            if fresh_user.get("package") == "custom":
+            if fresh_user.get("package") == "basic":
+                allowed = PACKAGES["basic"]["modules"]
+                detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
+
+            elif fresh_user.get("package") == "custom":
                 allowed = get_custom_modules(phone)
                 detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
 
@@ -2564,7 +2570,7 @@ def webhook():
                 "freezits",
                 "ice_cream",
                 "juice_cascade",
-                "low_cost_orange_syrup",
+                "low_cost_orange_drink",
                 "low_cost_raspberry_drink",
                 "orange_drink",
                 "raspberry_drink",
@@ -2575,7 +2581,11 @@ def webhook():
             
             fresh_user = get_user(phone)
 
-            if fresh_user.get("package") == "custom":
+            if fresh_user.get("package") == "basic":
+                allowed = PACKAGES["basic"]["modules"]
+                beverages = [m for m in beverages if m in allowed]
+
+            elif fresh_user.get("package") == "custom":
                 allowed = get_custom_modules(phone)
                 beverages = [m for m in beverages if m in allowed]
 
@@ -2622,7 +2632,11 @@ def webhook():
 
         detergent_list = DETERGENT_MODULES
 
-        if fresh_user.get("package") == "custom":
+        if fresh_user.get("package") == "basic":
+            allowed = PACKAGES["basic"]["modules"]
+            detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
+
+        elif fresh_user.get("package") == "custom":
             allowed = get_custom_modules(phone)
             detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
 
@@ -2683,7 +2697,7 @@ def webhook():
             "freezits",
             "ice_cream",
             "juice_cascade",
-            "low_cost_orange_syrup",
+            "low_cost_orange_drink",
             "low_cost_raspberry_drink",
             "orange_drink",
             "raspberry_drink",
@@ -2694,7 +2708,11 @@ def webhook():
         
         fresh_user = get_user(phone)
 
-        if fresh_user.get("package") == "custom":
+        if fresh_user.get("package") == "basic":
+            allowed = PACKAGES["basic"]["modules"]
+            beverages = [m for m in beverages if m in allowed]
+
+        elif fresh_user.get("package") == "custom":
             allowed = get_custom_modules(phone)
             beverages = [m for m in beverages if m in allowed]
 
