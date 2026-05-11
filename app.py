@@ -2211,20 +2211,20 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-        if incoming == "pay":
+    if incoming == "pay":
 
-            set_state(phone, "pay_menu")
+        set_state(phone, "pay_menu")
 
-            send_message(
-                phone,
-                "💳 *SELECT PACKAGE*\n\n"
-                "1️⃣ Basic – $5\n"
-                "2️⃣ Premium – $10\n"
-                "3️⃣ Custom – $2 per formula\n\n"
-                "Reply with 1, 2 or 3"
-            )
+        send_message(
+            phone,
+            "💳 *SELECT PACKAGE*\n\n"
+            "1️⃣ Basic – $5\n"
+            "2️⃣ Premium – $10\n"
+            "3️⃣ Custom – $2 per formula\n\n"
+            "Reply with 1, 2 or 3"
+        )
 
-            return jsonify({"status": "ok"})
+        return jsonify({"status": "ok"})
 
     if user["state"] == "main":
 
