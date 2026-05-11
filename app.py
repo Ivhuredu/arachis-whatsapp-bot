@@ -927,7 +927,7 @@ def verify_and_apply_payment(phone, message):
 # AI MEMORY SYSTEM
 # =========================
 
-MAX_MEMORY_MESSAGES = 12   # last 6 exchanges
+MAX_MEMORY_MESSAGES = 4   # last 6 exchanges
 
 def save_memory(phone, module, role, message):
     conn = get_db()
@@ -1019,7 +1019,7 @@ def save_pdf_to_db(module_name, pdf_filename):
     conn = get_db()
     c = conn.cursor()
 
-    text = text[:120000]
+    text = text[:15000]
 
     c.execute("""
         INSERT INTO lesson_content (module, content)
@@ -1614,6 +1614,32 @@ def faq_engine(msg):
 
     return None
 
+def simple_ai_bypass(msg):
+
+    m = msg.lower().strip()
+
+    simple = {
+
+        "hi": "Makadii 👋",
+        "hello": "Makadii 👋",
+        "thanks": "Makorokoto 👍",
+        "thank you": "Makorokoto 👍",
+
+        "price": "Basic $5 | Premium $10",
+        "course price": "Basic $5 | Premium $10",
+
+        "ecocash": "Pay to 0773208904",
+        "payment": "Pay to 0773208904",
+
+        "where can i sell":
+        "Unogona kutengesa kuma shops, markets, schools, tuckshops nemuma locations.",
+
+        "profit":
+        "Profit inoenderana neproduction cost yako uye packaging."
+    }
+
+    return simple.get(m)
+
 # ✅ MODIFIED (MODULE-AWARE AI)
 def ai_trainer_reply(phone, question, allowed_modules=None):
     active_module = "general"
@@ -1846,6 +1872,8 @@ def verify():
 def webhook():
 
     data = request.get_json()
+    
+    ai_handled = False
 
     print("WEBHOOK RECEIVED")
 
@@ -2411,6 +2439,8 @@ def webhook():
 
             send_message(phone, ai_answer)
 
+            ai_handled = True
+
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")
 
@@ -2490,6 +2520,8 @@ def webhook():
             ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
 
             send_message(phone, ai_answer)
+
+            ai_handled = True
 
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")
@@ -2785,6 +2817,8 @@ def webhook():
 
             send_message(phone, ai_answer)
 
+            ai_handled = True
+
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")
 
@@ -2836,6 +2870,8 @@ def webhook():
         ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
 
         send_message(phone, ai_answer)
+
+        ai_handled = True
 
         log_activity(phone, "ai_question", incoming)
         update_metrics(phone, "ai")
@@ -3243,17 +3279,28 @@ def webhook():
             return jsonify({"status":"ok"}) 
     blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
     
-    if not incoming.isdigit() and user["is_paid"]:
-               
-        today_count = ai_questions_today(phone)
+    if not incoming.isdigit() and user["is_paid"] and not ai_handled:
+        simple_reply = simple_ai_bypass(incoming)
 
-        if today_count >= 15:
+        if simple_reply:
+            send_message(phone, simple_reply)
+            return jsonify({"status":"ok"})
+               
+        package = user.get("package","basic")
+
+        limit = 5
+
+        if package == "premium":
+            limit = 15
+
+        if today_count >= limit:
+
             send_message(
                 phone,
-                "⛔ Wapfuura 15 AI questions nhasi.\n"
-                "Dzokazve mangwana kuti uenderere mberi."
+                f"⛔ Wapedza AI limit yako ye nhasi ({limit})."
             )
-            return jsonify({"status": "ok"})
+
+            return jsonify({"status":"ok"})
 
         allowed_modules = get_user_modules(phone, incoming)
 
