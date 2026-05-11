@@ -980,6 +980,23 @@ def verify_and_apply_payment(phone, message):
 
     mark_paid(phone)
 
+    if package == "custom":
+
+        selected_modules = get_custom_modules(phone)
+
+        conn = get_db()
+        c = conn.cursor()
+
+        for module in selected_modules:
+            c.execute("""
+                INSERT INTO module_access (phone, module)
+                VALUES (%s, %s)
+                ON CONFLICT (phone, module) DO NOTHING
+            """, (phone, module))
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
     conn = get_db()
     c = conn.cursor()
     c.execute(
@@ -3538,7 +3555,9 @@ def webhook():
         limit = 5
 
         if package == "premium":
-            limit = 15
+            limit = 10
+
+        today_count = ai_questions_today(phone)
 
         if today_count >= limit:
 
@@ -3559,7 +3578,12 @@ def webhook():
             if any(k in incoming.lower() for k in business_keywords):
                 combined_text = ""
             else:
-                return "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
+                send_message(
+                      phone,
+                      "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
+                )
+
+                return jsonify({"status":"ok"})
 
         # If user has 2 or more modules → allow full cross-module AI
         if len(allowed_modules) >= 2:
