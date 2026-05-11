@@ -38,6 +38,7 @@ app = Flask(__name__)
 
 BASIC_PRICE = 5.0
 PREMIUM_PRICE = 10.0
+CUSTOM_PRICE_PER_MODULE = 2.0    
 PAYMENT_TOLERANCE = 1.5   # allows EcoCash charges
 MIN_ACCEPTABLE = BASIC_PRICE
 MAX_ACCEPTABLE = PREMIUM_PRICE + PAYMENT_TOLERANCE
@@ -124,6 +125,15 @@ def init_db():
 
     c.execute("""
     CREATE TABLE IF NOT EXISTS module_access (
+        id SERIAL PRIMARY KEY,
+        phone TEXT,
+        module TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(phone, module)
+    )
+    """)
+        c.execute("""
+    CREATE TABLE IF NOT EXISTS custom_module_access (
         id SERIAL PRIMARY KEY,
         phone TEXT,
         module TEXT,
@@ -703,7 +713,7 @@ def send_template(phone, template_name):
 def get_user(phone):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT phone, state, payment_status, is_paid FROM users WHERE phone=%s", (phone,))
+    c.execute("SELECT phone, state, payment_status, is_paid, package FROM users WHERE phone=%s", (phone,))
     row = c.fetchone()
     DATABASE_POOL.putconn(conn)
 
@@ -714,7 +724,8 @@ def get_user(phone):
         "phone": row[0],
         "state": row[1],
         "payment_status": row[2],
-        "is_paid": row[3]
+        "is_paid": row[3],
+        "package": row[4]
     }
 
 def set_state(phone, state):
@@ -808,6 +819,45 @@ def record_module_access(phone, module):
     conn.commit()
     DATABASE_POOL.putconn(conn)
 
+def add_custom_module(phone, module):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO custom_module_access (phone, module)
+        VALUES (%s, %s)
+        ON CONFLICT (phone, module) DO NOTHING
+    """, (phone, module))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+
+def get_custom_modules(phone):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT module FROM custom_module_access
+        WHERE phone=%s
+        ORDER BY created_at ASC
+    """, (phone,))
+
+    rows = c.fetchall()
+    DATABASE_POOL.putconn(conn)
+
+    return [r[0] for r in rows]
+
+
+def clear_custom_modules(phone):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("DELETE FROM custom_module_access WHERE phone=%s", (phone,))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
 def already_processed_message(message_id, phone, incoming):
     conn = get_db()
     c = conn.cursor()
@@ -882,18 +932,30 @@ def verify_and_apply_payment(phone, message):
         DATABASE_POOL.putconn(conn)
         return False, "Handina kuona mari yatumirwa muSMS."
 
-    if amount < BASIC_PRICE:
+    # get selected package
+    c.execute("SELECT package FROM users WHERE phone=%s", (phone,))
+    package_row = c.fetchone()
+    selected_package = package_row[0] if package_row else "none"
+
+    if selected_package == "custom":
+        selected_modules = get_custom_modules(phone)
+        expected_amount = len(selected_modules) * CUSTOM_PRICE_PER_MODULE
+
+    if amount < expected_amount:
         DATABASE_POOL.putconn(conn)
-        return False, "Mari ishoma. Basic $5 kana Premium $10."
-    
-    # detect package
-    if BASIC_PRICE <= amount < PREMIUM_PRICE:
-        package = "basic"
-    elif amount >= PREMIUM_PRICE:
-        package = "premium"
-    else:
-        DATABASE_POOL.putconn(conn)
-        return False, "Mari haisi correct."
+        return False, f"Mari ishoma. Custom package yako iri ${expected_amount:.2f}."
+
+    package = "custom"
+
+elif BASIC_PRICE <= amount < PREMIUM_PRICE:
+    package = "basic"
+
+elif amount >= PREMIUM_PRICE:
+    package = "premium"
+
+else:
+    DATABASE_POOL.putconn(conn)
+    return False, "Mari haisi correct."
 
     # save payment
     c.execute("""
@@ -1961,8 +2023,9 @@ def webhook():
             "🔥 Great!\n\n"
             "Choose your package:\n\n"
             "1️⃣ Basic – $5\n"
-            "2️⃣ Premium – $10\n\n"
-            "Reply 1 or 2"
+            "2️⃣ Premium – $10\n"
+            "3️⃣ Custom – $2 per formula\n\n"
+            "Reply 1, 2 or 3"
         )
 
         return jsonify({"status": "ok"})
@@ -2264,12 +2327,21 @@ def webhook():
             # get AI usage today
             ai_used = ai_questions_today(phone)
 
+            custom_text = ""
+
+            if package == "custom":
+                selected = get_custom_modules(phone)
+                custom_text = "\n🧩 *Your Custom Lessons:*\n"
+                custom_text += "\n".join([f"✔ {m.replace('_',' ').title()}" for m in selected])
+                custom_text += "\n"
+
             send_message(
                 phone,
                 "📊 *ACCOUNT DASHBOARD*\n\n"
                 f"👤 Package: *{package.upper()}*\n\n"
                 f"📚 Lessons Opened: {lessons_done}\n\n"
-                f"🤖 AI Questions Today: {ai_used}/15\n\n"
+                f"{custom_text}\n\n"
+                f"🤖 AI Questions Today: {ai_used}/10\n\n"
                 "↩ Nyora MENU kudzokera"
             )
 
@@ -2373,7 +2445,8 @@ def webhook():
             send_message(phone,
                 "💳 SELECT PACKAGE\n\n"
                 "1️⃣ Basic – $5\n"
-                "2️⃣ Premium – $10"
+                "2️⃣ Premium – $10\n"
+                "3️⃣ Custom – $2 per formula"
             )
             return jsonify({"status": "ok"})
 
@@ -2388,10 +2461,22 @@ def webhook():
             set_state(phone, "detergents_menu")
 
             menu = "🧪 *DETERGENT LESSONS*\n\n"
+            
+            fresh_user = get_user(phone)
 
-            for i, module in enumerate(DETERGENT_MODULES, start=1):
+            detergent_list = DETERGENT_MODULES
+
+            if fresh_user.get("package") == "custom":
+                allowed = get_custom_modules(phone)
+                detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
+
+            for i, module in enumerate(detergent_list, start=1):
                 name = module.replace("_", " ").title()
                 menu += f"{i}️⃣ {name}\n"
+
+            if not detergent_list:
+                send_message(phone, "Hauna detergent lessons pa custom package yako.")
+                return jsonify({"status": "ok"})
 
             menu += "\nReply with number"
 
@@ -2416,6 +2501,16 @@ def webhook():
             ]
 
             beverages.sort()
+            
+            fresh_user = get_user(phone)
+
+            if fresh_user.get("package") == "custom":
+                allowed = get_custom_modules(phone)
+                beverages = [m for m in beverages if m in allowed]
+
+            if not beverages:
+                send_message(phone, "Hauna beverage lessons pa custom package yako.")
+                return jsonify({"status": "ok"})
 
             menu = "🥤 *BEVERAGE LESSONS*\n\n"
 
@@ -2452,7 +2547,21 @@ def webhook():
             send_message(phone, "Invalid choice")
             return jsonify({"status": "ok"})
 
-        module = DETERGENT_MODULES[index]
+        fresh_user = get_user(phone)
+
+        detergent_list = DETERGENT_MODULES
+
+        if fresh_user.get("package") == "custom":
+            allowed = get_custom_modules(phone)
+            detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
+
+        index = int(incoming) - 1
+
+        if index < 0 or index >= len(detergent_list):
+            send_message(phone, "Invalid choice")
+            return jsonify({"status": "ok"})
+
+        module = detergent_list[index]
 
         modules = load_lessons()
 
@@ -2511,6 +2620,12 @@ def webhook():
         ]
 
         beverages.sort()
+        
+        fresh_user = get_user(phone)
+
+        if fresh_user.get("package") == "custom":
+            allowed = get_custom_modules(phone)
+            beverages = [m for m in beverages if m in allowed]
 
         if not incoming.isdigit():
 
@@ -2534,7 +2649,7 @@ def webhook():
             send_message(phone, "Invalid choice")
             return jsonify({"status": "ok"})
 
-        module = beverages[index]
+        module = beverage_list[index]
 
         modules = load_lessons()
 
@@ -2580,18 +2695,10 @@ def webhook():
 
     elif user["state"] == "pay_menu":
 
-        if incoming == "1":
-            selected_package = "basic"
-            price = BASIC_PRICE
+    if incoming == "1":
+        selected_package = "basic"
+        price = BASIC_PRICE
 
-        elif incoming == "2":
-            selected_package = "premium"
-            price = PREMIUM_PRICE
-        else:
-            send_message(phone, "Sarudza 1 or 2")
-            return jsonify({"status": "ok"})
-
-        # save selection
         conn = get_db()
         c = conn.cursor()
         c.execute(
@@ -2604,14 +2711,143 @@ def webhook():
         set_state(phone, "awaiting_payment")
 
         send_message(
-           phone,
-           "📲 *Bhadhara neEcoCash*\n\n"
-           "*153*1*1*0773208904*Ammount#\n\n"
-           "👤 Recipient: Beloved Nkomo\n"
-           f"💵 Amount: ${price} + charges\n\n"
-           "Send confirmation SMS here"
+            phone,
+            "📲 *Bhadhara neEcoCash*\n\n"
+            "*153*1*1*0773208904*5#\n\n"
+            "👤 Recipient: Beloved Nkomo\n"
+            f"💵 Amount: ${price} + charges\n\n"
+            "Send confirmation SMS here"
         )
         return jsonify({"status": "ok"})
+
+    elif incoming == "2":
+        selected_package = "premium"
+        price = PREMIUM_PRICE
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute(
+            "UPDATE users SET package=%s WHERE phone=%s",
+            (selected_package, phone)
+        )
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "awaiting_payment")
+
+        send_message(
+            phone,
+            "📲 *Bhadhara neEcoCash*\n\n"
+            "*153*1*1*0773208904*10#\n\n"
+            "👤 Recipient: Beloved Nkomo\n"
+            f"💵 Amount: ${price} + charges\n\n"
+            "Send confirmation SMS here"
+        )
+        return jsonify({"status": "ok"})
+
+    elif incoming == "3":
+        clear_custom_modules(phone)
+        set_state(phone, "custom_selecting")
+
+        all_modules = DETERGENT_MODULES + BEVERAGE_MODULES
+
+        menu = "🧩 *CUSTOM PACKAGE*\n\n"
+        menu += "Sarudza ma Formula Aunoda kudzidza.\n"
+        menu += f"Price: ${CUSTOM_PRICE_PER_MODULE} per formula\n\n"
+
+        for i, module in enumerate(all_modules, start=1):
+            name = module.replace("_", " ").title()
+            menu += f"{i}️⃣ {name}\n"
+
+        menu += "\nReply with numbers separated by comma.\n"
+        menu += "Example: 1,3,7\n\n"
+        menu += "Type *DONE* when finished."
+
+        send_message(phone, menu)
+        return jsonify({"status": "ok"})
+
+    else:
+        send_message(phone, "Sarudza 1, 2 or 3")
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "custom_selecting":
+
+        all_modules = DETERGENT_MODULES + BEVERAGE_MODULES
+
+        if incoming == "done":
+            selected = get_custom_modules(phone)
+
+            if not selected:
+                send_message(phone, "Hausati wasarudza formula. Reply numbers like 1,3,7")
+                return jsonify({"status": "ok"})
+
+            total = len(selected) * CUSTOM_PRICE_PER_MODULE
+
+            conn = get_db()
+            c = conn.cursor()
+            c.execute(
+                "UPDATE users SET package='custom' WHERE phone=%s",
+                (phone,)
+            )
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            set_state(phone, "awaiting_payment")
+
+            selected_names = "\n".join(
+                [f"✔ {m.replace('_',' ').title()}" for m in selected]
+            )
+
+            send_message(
+                phone,
+                "🧩 *CUSTOM PACKAGE SUMMARY*\n\n"
+                f"{selected_names}\n\n"
+                f"Total formulas: {len(selected)}\n"
+                f"Amount to pay: ${total:.2f}\n\n"
+                "📲 *Bhadhara neEcoCash*\n\n"
+                f"*153*1*1*0773208904*{total:.2f}#\n\n"
+                "👤 Recipient: Beloved Nkomo\n"
+                "Send confirmation SMS here after payment."
+            )
+            return jsonify({"status": "ok"})
+
+        try:
+            numbers = incoming.replace(" ", "").split(",")
+
+            added = []
+
+            for n in numbers:
+                if not n.isdigit():
+                    continue
+
+                index = int(n) - 1
+
+                if 0 <= index < len(all_modules):
+                    module = all_modules[index]
+                    add_custom_module(phone, module)
+                    added.append(module.replace("_", " ").title())
+
+            if not added:
+                send_message(phone, "Invalid selection. Example: 1,3,7")
+                return jsonify({"status": "ok"})
+
+            selected = get_custom_modules(phone)
+
+            send_message(
+                phone,
+                "✅ Added:\n"
+                + "\n".join([f"✔ {a}" for a in added])
+                + f"\n\nTotal selected: {len(selected)}"
+                + f"\nCurrent amount: ${len(selected) * CUSTOM_PRICE_PER_MODULE:.2f}"
+                + "\n\nAdd more numbers or type *DONE*."
+            )
+
+            return jsonify({"status": "ok"})
+
+        except Exception as e:
+            print("CUSTOM SELECT ERROR:", e)
+            send_message(phone, "Invalid format. Example: 1,3,7")
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "store_category":
 
