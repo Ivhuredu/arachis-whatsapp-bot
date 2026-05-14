@@ -2838,7 +2838,7 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-        elif user["state"] == "advanced_menu":
+    elif user["state"] == "advanced_menu":
 
         advanced = ADVANCED_MODULES
 
