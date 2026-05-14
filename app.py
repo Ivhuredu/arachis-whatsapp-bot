@@ -3010,7 +3010,7 @@ def webhook():
         )
 
         conn.commit()
-         DATABASE_POOL.putconn(conn)
+        DATABASE_POOL.putconn(conn)
 
         set_state(phone, "awaiting_payment")
 
