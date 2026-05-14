@@ -2167,14 +2167,14 @@ def webhook():
         parts = incoming.split()
 
         if len(parts) < 3:
-            send_message(phone, "Use: approve +2637xxxx basic OR premium")
+            send_message(phone, "Use: approve +2637xxxx basic OR premium OR advanced")
             return jsonify({"status": "ok"})
 
         target = normalize_phone(parts[1])
         package = parts[2].lower()
 
-        if package not in ["basic", "premium"]:
-            send_message(phone, "Package must be 'basic' or 'premium'")
+        if package not in ["basic", "premium", "advanced"]:
+            send_message(phone, "Package must be basic, premium or advanced")
             return jsonify({"status": "ok"})
 
         conn = get_db()
@@ -2993,37 +2993,37 @@ def webhook():
             send_message(phone, menu)
             return jsonify({"status": "ok"})
 
-        else:
-            send_message(phone, "Sarudza 1, 2 or 3")
+        elif incoming == "4":
+            selected_package = "advanced"
+            price = 10.0
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute(
+                "UPDATE users SET package=%s WHERE phone=%s",
+                (selected_package, phone)
+            )
+
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            set_state(phone, "awaiting_payment")
+
+            send_message(
+                phone,
+                "📲 *ADVANCED MANUFACTURING PAYMENT*\n\n"
+                "*153*1*1*0773208904*10#\n\n"
+                "👤 Recipient: Beloved Nkomo\n"
+                "💵 Amount: $10 + charges\n\n"
+                "Send confirmation SMS here"
+            )
+
             return jsonify({"status": "ok"})
 
-    elif incoming == "4":
-        selected_package = "advanced"
-        price = 10.0
-
-        conn = get_db()
-        c = conn.cursor()
-
-        c.execute(
-            "UPDATE users SET package=%s WHERE phone=%s",
-            (selected_package, phone)
-        )
-
-        conn.commit()
-        DATABASE_POOL.putconn(conn)
-
-        set_state(phone, "awaiting_payment")
-
-        send_message(
-            phone,
-            "📲 *ADVANCED MANUFACTURING PAYMENT*\n\n"
-            "*153*1*1*0773208904*10#\n\n"
-            "👤 Recipient: Beloved Nkomo\n"
-            "💵 Amount: $10 + charges\n\n"
-            "Send confirmation SMS here"
-        )
-
-        return jsonify({"status":"ok"})
+        else:
+            send_message(phone, "Sarudza 1, 2, 3 or 4")
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "custom_selecting":
 
@@ -3981,7 +3981,9 @@ def admin_dashboard():
    
         html += f"""
         {phone} | Paid: {is_paid} | Status: {payment_status}
-        | <a href='/admin/approve/{phone}'>Approve</a>
+        | <a href='/admin/approve-package/{phone}/basic'>Approve Basic</a>
+        | <a href='/admin/approve-package/{phone}/premium'>Approve Premium</a>
+        | <a href='/admin/approve-package/{phone}/advanced'>Approve Advanced</a>
         | <a href='/admin/revoke/{phone}' style='color:red;'>Revoke Access</a><br>
         """
 
@@ -4087,6 +4089,36 @@ def payment_success():
 @requires_auth
 def admin_approve(phone):
     mark_paid(normalize_phone(phone))
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/approve-package/<phone>/<package>")
+@requires_auth
+def admin_approve_package(phone, package):
+    phone = normalize_phone(phone)
+    package = package.lower()
+
+    if package not in ["basic", "premium", "advanced"]:
+        return "Invalid package"
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE users
+        SET is_paid=1,
+            payment_status='approved',
+            package=%s
+        WHERE phone=%s
+    """, (package, phone))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+    send_message(
+        phone,
+        f"🎉 Payment Approved!\nPackage: {package.upper()}\nWava kukwanisa kuona malesson ako."
+    )
+
     return redirect(url_for("admin_dashboard"))
 
 @app.route("/admin/revoke/<phone>")
