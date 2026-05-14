@@ -2997,33 +2997,33 @@ def webhook():
             send_message(phone, "Sarudza 1, 2 or 3")
             return jsonify({"status": "ok"})
 
-        elif incoming == "4":
-            selected_package = "advanced"
-            price = 10.0
+    elif incoming == "4":
+        selected_package = "advanced"
+        price = 10.0
 
-            conn = get_db()
-            c = conn.cursor()
+        conn = get_db()
+        c = conn.cursor()
 
-            c.execute(
-                "UPDATE users SET package=%s WHERE phone=%s",
-                (selected_package, phone)
-            )
+        c.execute(
+            "UPDATE users SET package=%s WHERE phone=%s",
+            (selected_package, phone)
+        )
 
-            conn.commit()
-            DATABASE_POOL.putconn(conn)
+        conn.commit()
+         DATABASE_POOL.putconn(conn)
 
-            set_state(phone, "awaiting_payment")
+        set_state(phone, "awaiting_payment")
 
-            send_message(
-                phone,
-                "📲 *ADVANCED MANUFACTURING PAYMENT*\n\n"
-                "*153*1*1*0773208904*10#\n\n"
-                "👤 Recipient: Beloved Nkomo\n"
-                "💵 Amount: $10 + charges\n\n"
-                "Send confirmation SMS here"
-            )
+        send_message(
+            phone,
+            "📲 *ADVANCED MANUFACTURING PAYMENT*\n\n"
+            "*153*1*1*0773208904*10#\n\n"
+            "👤 Recipient: Beloved Nkomo\n"
+            "💵 Amount: $10 + charges\n\n"
+            "Send confirmation SMS here"
+        )
 
-            return jsonify({"status":"ok"})
+        return jsonify({"status":"ok"})
 
     elif user["state"] == "custom_selecting":
 
