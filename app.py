@@ -1683,7 +1683,6 @@ ADVANCED_MODULES = [
     "body_cream",
     "methylated_spirit",
     "battery_acid",
-    "lotion",
     "deo_blocks"
 ]
 
