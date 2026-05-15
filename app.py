@@ -2166,50 +2166,101 @@ def webhook():
 
     if incoming.startswith("approve ") and phone in ADMIN_NUMBERS:
 
-    parts = incoming.split()
+        parts = incoming.split()
 
-    if len(parts) < 3:
-        send_message(
-            phone,
-            "Use:\n"
-            "approve +2637xxxx basic\n"
-            "approve +2637xxxx premium\n"
-            "approve +2637xxxx advanced\n"
-            "approve +2637xxxx custom module_name\n\n"
-            "Example:\n"
-            "approve +263773208904 custom dishwash"
-        )
-        return jsonify({"status": "ok"})
-
-    target = normalize_phone(parts[1])
-    package = parts[2].lower()
-
-    if package == "custom":
-
-        if len(parts) < 4:
+        if len(parts) < 3:
             send_message(
                 phone,
-                "For custom use:\n"
+                "Use:\n"
+                "approve +2637xxxx basic\n"
+                "approve +2637xxxx premium\n"
+                "approve +2637xxxx advanced\n"
                 "approve +2637xxxx custom module_name\n\n"
                 "Example:\n"
                 "approve +263773208904 custom dishwash"
             )
             return jsonify({"status": "ok"})
 
-        module = parts[3].lower().strip()
+        target = normalize_phone(parts[1])
+        package = parts[2].lower()
 
-        all_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES
+        if package == "custom":
 
-        if module not in all_modules:
+            if len(parts) < 4:
+                send_message(
+                    phone,
+                    "For custom use:\n"
+                    "approve +2637xxxx custom module_name\n\n"
+                    "Example:\n"
+                    "approve +263773208904 custom dishwash"
+                )
+                return jsonify({"status": "ok"})
+
+            module = parts[3].lower().strip()
+
+            all_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES
+
+            if module not in all_modules:
+                send_message(
+                    phone,
+                    "Invalid module name.\n\n"
+                    "Use module key like:\n"
+                    "dishwash\n"
+                    "pine_gel\n"
+                    "freezits\n"
+                    "paint"
+                )
+                return jsonify({"status": "ok"})
+
+            create_user(target)
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute("""
+                UPDATE users
+                SET is_paid=1,
+                    payment_status='approved',
+                    package='custom'
+                WHERE phone=%s
+            """, (target,))
+
+            c.execute("""
+                INSERT INTO custom_module_access (phone, module)
+                VALUES (%s, %s)
+                ON CONFLICT (phone, module) DO NOTHING
+            """, (target, module))
+
+            c.execute("""
+                INSERT INTO module_access (phone, module)
+                VALUES (%s, %s)
+                ON CONFLICT (phone, module) DO NOTHING
+            """, (target, module))
+
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            log_activity(target, "manual_custom_approved", module)
+
+            send_message(
+                target,
+                f"🎉 Payment Approved!\n\n"
+                f"Custom Formula Unlocked:\n"
+                f"✔ {module.replace('_',' ').title()}\n\n"
+                "Nyora MENU kuti uvhure lesson yako."
+            )
+
             send_message(
                 phone,
-                "Invalid module name.\n\n"
-                "Use module key like:\n"
-                "dishwash\n"
-                "pine_gel\n"
-                "freezits\n"
-                "paint"
+                f"✅ Custom approved:\n"
+                f"{target}\n"
+                f"Formula: {module}"
             )
+
+            return jsonify({"status": "ok"})
+
+        if package not in ["basic", "premium", "advanced"]:
+            send_message(phone, "Package must be basic, premium, advanced or custom")
             return jsonify({"status": "ok"})
 
         create_user(target)
@@ -2221,68 +2272,17 @@ def webhook():
             UPDATE users
             SET is_paid=1,
                 payment_status='approved',
-                package='custom'
+                package=%s
             WHERE phone=%s
-        """, (target,))
-
-        c.execute("""
-            INSERT INTO custom_module_access (phone, module)
-            VALUES (%s, %s)
-            ON CONFLICT (phone, module) DO NOTHING
-        """, (target, module))
-
-        c.execute("""
-            INSERT INTO module_access (phone, module)
-            VALUES (%s, %s)
-            ON CONFLICT (phone, module) DO NOTHING
-        """, (target, module))
+        """, (package, target))
 
         conn.commit()
         DATABASE_POOL.putconn(conn)
 
-        log_activity(target, "manual_custom_approved", module)
-
-        send_message(
-            target,
-            f"🎉 Payment Approved!\n\n"
-            f"Custom Formula Unlocked:\n"
-            f"✔ {module.replace('_',' ').title()}\n\n"
-            "Nyora MENU kuti uvhure lesson yako."
-        )
-
-        send_message(
-            phone,
-            f"✅ Custom approved:\n"
-            f"{target}\n"
-            f"Formula: {module}"
-        )
+        send_message(target, f"🎉 Payment Approved!\nPackage: {package.upper()}")
+        send_message(phone, f"✅ Approved: {target} ({package})")
 
         return jsonify({"status": "ok"})
-
-    if package not in ["basic", "premium", "advanced"]:
-        send_message(phone, "Package must be basic, premium, advanced or custom")
-        return jsonify({"status": "ok"})
-
-    create_user(target)
-
-    conn = get_db()
-    c = conn.cursor()
-
-    c.execute("""
-        UPDATE users
-        SET is_paid=1,
-            payment_status='approved',
-            package=%s
-        WHERE phone=%s
-    """, (package, target))
-
-    conn.commit()
-    DATABASE_POOL.putconn(conn)
-
-    send_message(target, f"🎉 Payment Approved!\nPackage: {package.upper()}")
-    send_message(phone, f"✅ Approved: {target} ({package})")
-
-    return jsonify({"status": "ok"})
 
     if incoming in ["menu", "start", "makadini", "hie"]:
 
