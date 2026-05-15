@@ -1657,6 +1657,8 @@ DETERGENT_MODULES = [
     "hair_conditioner",
     "petroleum_jelly",
     "bath_soap",
+    "lotion",
+    "body_cream",
     "laundry_bar",
     "washing_powder",
     "scouring_powder",
