@@ -2930,12 +2930,24 @@ def webhook():
 
     elif user["state"] == "advanced_menu":
 
-        advanced = ADVANCED_MODULES
-
         fresh_user = get_user(phone)
+        package = fresh_user.get("package")
 
-        # Only Advanced package or Premium can open advanced lessons
-        if fresh_user.get("package") not in ["advanced", "premium"]:
+        if package == "advanced":
+            advanced = ADVANCED_MODULES
+
+        elif package == "premium":
+            advanced = ADVANCED_MODULES   # remove this if premium must NOT access advanced
+
+        elif package == "custom":
+            allowed = get_custom_modules(phone)
+            advanced = [m for m in ADVANCED_MODULES if m in allowed]
+
+            if not advanced:
+                send_message(phone, "Hauna Advanced Manufacturing lesson yakavhurwa pa custom package yako.")
+                return jsonify({"status": "ok"})
+
+        else:
             send_message(
                 phone,
                 "🔒 Advanced Manufacturing is a separate package.\n\n"
@@ -2944,20 +2956,12 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-        # Allow AI questions inside Advanced lessons
         if not incoming.isdigit():
-
             allowed_modules = get_user_modules(phone, incoming)
-
             ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
-
             send_message(phone, ai_answer)
-
-            ai_handled = True
-
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")
-
             return jsonify({"status": "ok"})
 
         index = int(incoming) - 1
@@ -2980,11 +2984,7 @@ def webhook():
         update_metrics(phone, "module")
         log_activity(phone, "open_module", module)
 
-        send_message(
-            phone,
-            f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
-        )
-
+        send_message(phone, f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇")
         send_message(phone, "🎧 Lesson audio (listen in order) 👇")
 
         send_audio_series(phone, module)
@@ -2999,12 +2999,10 @@ def webhook():
 
         conn = get_db()
         c = conn.cursor()
-
         c.execute(
             "UPDATE users SET active_module=%s WHERE phone=%s",
             (module, phone)
         )
-
         conn.commit()
         DATABASE_POOL.putconn(conn)
 
