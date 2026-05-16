@@ -2314,10 +2314,6 @@ def webhook():
             send_message(phone, "🔒 This lesson is not unlocked on your current package.")
             return jsonify({"status": "ok"})
 
-        if direct_module not in allowed_modules:
-            send_message(phone, "🔒 This lesson is not unlocked on your current package.")
-            return jsonify({"status": "ok"})
-
         if direct_module in DETERGENT_MODULES:
             set_state(phone, "detergents_menu")
         elif direct_module in BEVERAGE_MODULES:
