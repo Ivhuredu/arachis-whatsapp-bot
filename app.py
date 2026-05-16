@@ -1905,6 +1905,155 @@ RULES:
     )
 
     return response.choices[0].message.content
+
+def build_detergent_menu(phone):
+    fresh_user = get_user(phone)
+    detergent_list = DETERGENT_MODULES
+
+    if fresh_user.get("package") == "basic":
+        allowed = PACKAGES["basic"]["modules"]
+        detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
+
+    elif fresh_user.get("package") == "custom":
+        allowed = get_custom_modules(phone)
+        detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
+
+    if not detergent_list:
+        return "Hauna detergent lessons pa package yako."
+
+    menu = "🧪 *DETERGENT LESSONS*\n\n"
+    for i, module in enumerate(detergent_list, start=1):
+        menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
+
+    menu += "\nReply with number\nType *NEXT* to come back here."
+    return menu
+
+
+def build_beverage_menu(phone):
+    fresh_user = get_user(phone)
+    beverages = BEVERAGE_MODULES
+
+    if fresh_user.get("package") == "basic":
+        allowed = PACKAGES["basic"]["modules"]
+        beverages = [m for m in beverages if m in allowed]
+
+    elif fresh_user.get("package") == "custom":
+        allowed = get_custom_modules(phone)
+        beverages = [m for m in beverages if m in allowed]
+
+    if not beverages:
+        return "Hauna beverage lessons pa package yako."
+
+    menu = "🥤 *BEVERAGE LESSONS*\n\n"
+    for i, module in enumerate(beverages, start=1):
+        menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
+
+    menu += "\nReply with number\nType *NEXT* to come back here."
+    return menu
+
+
+def build_advanced_menu(phone):
+    fresh_user = get_user(phone)
+    package = fresh_user.get("package")
+
+    if package in ["advanced", "premium"]:
+        advanced = ADVANCED_MODULES
+
+    elif package == "custom":
+        allowed = get_custom_modules(phone)
+        advanced = [m for m in ADVANCED_MODULES if m in allowed]
+
+    else:
+        return (
+            "🔒 Advanced Manufacturing is a separate package.\n\n"
+            "💵 Price: $10\n"
+            "Nyora *PAY* kuti ubhadhare."
+        )
+
+    if not advanced:
+        return "Hauna Advanced Manufacturing lesson yakavhurwa pa package yako."
+
+    menu = "🏭 *ADVANCED MANUFACTURING*\n\n"
+    for i, module in enumerate(advanced, start=1):
+        menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
+
+    menu += "\nReply with number\nType *NEXT* to come back here."
+    return menu
+
+create_user(phone)
+user = get_user(phone)
+if not user:
+    return "OK", 200
+
+    # =========================
+    # QUICK LESSON SHORTCUTS
+    # =========================
+    lesson_shortcuts = {
+        "detergents": "detergents_menu",
+        "detergent": "detergents_menu",
+        "ma detergents": "detergents_menu",
+        "beverages": "beverages_menu",
+        "drinks": "beverages_menu",
+        "madrinks": "beverages_menu",
+        "advanced": "advanced_menu",
+        "advanced manufacturing": "advanced_menu",
+        "manufacturing": "advanced_menu",
+    }
+
+    if incoming in lesson_shortcuts:
+        fresh_user = get_user(phone)
+
+        if not fresh_user["is_paid"]:
+            send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
+            return jsonify({"status": "ok"})
+
+        target_state = lesson_shortcuts[incoming]
+        set_state(phone, target_state)
+
+        if target_state == "detergents_menu":
+            send_message(phone, build_detergent_menu(phone))
+
+        elif target_state == "beverages_menu":
+            send_message(phone, build_beverage_menu(phone))
+
+        elif target_state == "advanced_menu":
+            send_message(phone, build_advanced_menu(phone))
+
+        return jsonify({"status": "ok"})
+
+
+    # =========================
+    # NEXT / BACK TO CURRENT LESSON MENU
+    # =========================
+    if incoming in ["next", "next lesson", "next lessons", "back", "lessons"]:
+
+        if user["state"] == "detergents_menu":
+            send_message(phone, build_detergent_menu(phone))
+            return jsonify({"status": "ok"})
+
+        elif user["state"] == "beverages_menu":
+            send_message(phone, build_beverage_menu(phone))
+            return jsonify({"status": "ok"})
+
+        elif user["state"] == "advanced_menu":
+            send_message(phone, build_advanced_menu(phone))
+            return jsonify({"status": "ok"})
+
+        else:
+            set_state(phone, "course_lessons")
+            send_message(
+                phone,
+                "📚 *COURSE LESSONS*\n\n"
+                "Type one of these:\n\n"
+                "🧪 *Detergents*\n"
+                "🥤 *Beverages*\n"
+                "🏭 *Advanced Manufacturing*\n\n"
+                "Or reply with number:\n"
+                "1️⃣ Detergents\n"
+                "2️⃣ Beverages\n"
+                "3️⃣ Advanced Manufacturing"
+            )
+            return jsonify({"status": "ok"})
     
 def detect_module_from_question(question, allowed_modules):
     if not question:
@@ -2821,7 +2970,12 @@ def webhook():
         )
 
         # 🤖 AI prompt
-        send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
+        send_message(
+            phone,
+            "Kana pane chausinganzwisise, bvunza pano 🤖\n\n"
+            "➡️ Type *NEXT* to return to this lesson menu.\n"
+            "🏠 Type *MENU* for main dashboard."
+        )
         conn = get_db()
         c = conn.cursor()
 
@@ -2913,7 +3067,12 @@ def webhook():
         )
 
         # 🤖 AI prompt
-        send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
+        send_message(
+            phone,
+            "Kana pane chausinganzwisise, bvunza pano 🤖\n\n"
+            "➡️ Type *NEXT* to return to this lesson menu.\n"
+            "🏠 Type *MENU* for main dashboard."
+        )
 
         conn = get_db()
         c = conn.cursor()
@@ -2995,7 +3154,12 @@ def webhook():
             label
         )
 
-        send_message(phone, "Kana pane chausinganzwisise, bvunza pano 🤖")
+        send_message(
+            phone,
+            "Kana pane chausinganzwisise, bvunza pano 🤖\n\n"
+            "➡️ Type *NEXT* to return to this lesson menu.\n"
+            "🏠 Type *MENU* for main dashboard."
+        )
 
         conn = get_db()
         c = conn.cursor()
