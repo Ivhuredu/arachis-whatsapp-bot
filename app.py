@@ -2023,61 +2023,6 @@ def find_direct_lesson_match(incoming):
 
     return None
 
-create_user(phone)
-user = get_user(phone)
-if not user:
-    return "OK", 200
-
-    # =========================
-    # DIRECT LESSON OPENING
-    # =========================
-    direct_module = find_direct_lesson_match(incoming)
-
-    if direct_module:
-        fresh_user = get_user(phone)
-
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
-            return jsonify({"status": "ok"})
-
-        package = fresh_user.get("package")
-
-        if package == "basic":
-            allowed_modules = PACKAGES["basic"]["modules"]
-
-        elif package == "premium":
-            allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES
-            # add ADVANCED_MODULES here only if premium should access advanced too
-            # allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES
-
-        elif package == "advanced":
-            allowed_modules = ADVANCED_MODULES
-
-        elif package == "custom":
-            allowed_modules = get_custom_modules(phone)
-
-        else:
-            allowed_modules = []
-
-        if direct_module not in allowed_modules:
-            send_message(
-                phone,
-                "🔒 This lesson is not unlocked on your current package.\n\n"
-                "Nyora *PAY* kuti uone available packages or contact Admin."
-            )
-            return jsonify({"status": "ok"})
-
-        if direct_module in DETERGENT_MODULES:
-            set_state(phone, "detergents_menu")
-        elif direct_module in BEVERAGE_MODULES:
-            set_state(phone, "beverages_menu")
-        elif direct_module in ADVANCED_MODULES:
-            set_state(phone, "advanced_menu")
-
-        open_lesson_direct(phone, direct_module)
-
-        return jsonify({"status": "ok"})
-
 def build_detergent_menu(phone):
     fresh_user = get_user(phone)
     detergent_list = DETERGENT_MODULES
@@ -2151,11 +2096,6 @@ def build_advanced_menu(phone):
 
     menu += "\nReply with number\nType *NEXT* to come back here."
     return menu
-
-create_user(phone)
-user = get_user(phone)
-if not user:
-    return "OK", 200
 
     # =========================
     # QUICK LESSON SHORTCUTS
@@ -2410,6 +2350,49 @@ def webhook():
     user = get_user(phone)
     if not user:
         return "OK", 200
+
+    # =========================
+    # DIRECT LESSON OPENING
+    # =========================
+    direct_module = find_direct_lesson_match(incoming)
+
+    if direct_module:
+        fresh_user = get_user(phone)
+
+        if not fresh_user["is_paid"]:
+            send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
+            return jsonify({"status": "ok"})
+
+        package = fresh_user.get("package")
+
+        if package == "basic":
+            allowed_modules = PACKAGES["basic"]["modules"]
+
+        elif package == "premium":
+            allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES
+
+        elif package == "advanced":
+            allowed_modules = ADVANCED_MODULES
+
+        elif package == "custom":
+            allowed_modules = get_custom_modules(phone)
+
+        else:
+            allowed_modules = []
+
+        if direct_module not in allowed_modules:
+            send_message(phone, "🔒 This lesson is not unlocked on your current package.")
+            return jsonify({"status": "ok"})
+
+        if direct_module in DETERGENT_MODULES:
+            set_state(phone, "detergents_menu")
+        elif direct_module in BEVERAGE_MODULES:
+            set_state(phone, "beverages_menu")
+        elif direct_module in ADVANCED_MODULES:
+            set_state(phone, "advanced_menu")
+
+        open_lesson_direct(phone, direct_module)
+        return jsonify({"status": "ok"})
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
     if incoming in ["yes", "ok", "sure", "interested", "view"]:
