@@ -1906,6 +1906,178 @@ RULES:
 
     return response.choices[0].message.content
 
+def open_lesson_direct(phone, module):
+    modules = load_lessons()
+
+    if module not in modules:
+        send_message(phone, "❌ Lesson PDF not found. Upload it in admin.")
+        return
+
+    pdf, label = modules[module]
+
+    record_module_access(phone, module)
+    update_metrics(phone, "module")
+    log_activity(phone, "open_module", module)
+
+    send_message(
+        phone,
+        f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
+    )
+
+    send_message(phone, "🎧 Lesson audio (listen in order) 👇")
+
+    send_audio_series(phone, module)
+
+    send_pdf(
+        phone,
+        f"https://arachis-whatsapp-bot-2.onrender.com/static/lessons/{pdf}",
+        label
+    )
+
+    send_message(
+        phone,
+        "Kana pane chausinganzwisise, bvunza pano 🤖\n\n"
+        "➡️ Type *NEXT* to return to lessons.\n"
+        "🏠 Type *MENU* for main dashboard."
+    )
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE users SET active_module=%s WHERE phone=%s",
+        (module, phone)
+    )
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+def find_direct_lesson_match(incoming):
+    lesson_aliases = {
+        # Detergents
+        "dishwash": "dishwash",
+        "dish wash": "dishwash",
+        "liquid laundry soap": "liquid_laundry_soap",
+        "fabric softener": "fabric_softener",
+        "bleach": "thick_bleach",
+        "thick bleach": "thick_bleach",
+        "washing paste": "washing_paste",
+        "toilet cleaner": "toilet_cleaner",
+        "pine gel": "pine_gel",
+        "pinegel": "pine_gel",
+        "foam bath": "foam_bath",
+        "car shampoo": "car_shampoo",
+        "engine cleaner": "engine_cleaner",
+        "perfume": "perfume",
+        "tile cleaner": "tile_cleaner",
+        "floor polish": "floor_polish",
+        "tyre polish": "tyre_polish",
+        "shoe polish": "paste_shoe_polish",
+        "hair shampoo": "hair_shampoo",
+        "hair conditioner": "hair_conditioner",
+        "petroleum jelly": "petroleum_jelly",
+        "vaseline": "petroleum_jelly",
+        "bath soap": "bath_soap",
+        "laundry bar": "laundry_bar",
+        "washing powder": "washing_powder",
+        "scouring powder": "scouring_powder",
+        "roll on": "roll_on",
+        "roll-on": "roll_on",
+
+        # Beverages
+        "baobab": "baobab_drink",
+        "baobab drink": "baobab_drink",
+        "cream soda": "cream_soda",
+        "freezits": "freezits",
+        "freezit": "freezits",
+        "ice cream": "ice_cream",
+        "cascade": "juice_cascade",
+        "juice cascade": "juice_cascade",
+        "orange drink": "orange_drink",
+        "raspberry drink": "raspberry_drink",
+        "cordial": "universal_cordial",
+        "universal cordial": "universal_cordial",
+
+        # Advanced
+        "paint": "paint",
+        "gummies": "gummies",
+        "gummy": "gummies",
+        "glue": "glue",
+        "maheu": "maheu",
+        "lotion": "lotion",
+        "body cream": "body_cream",
+        "beauty cream": "body_cream",
+        "cream": "body_cream",
+        "methylated spirit": "methylated_spirit",
+        "battery acid": "battery_acid",
+        "deo blocks": "deo_blocks",
+        "toilet blocks": "deo_blocks",
+    }
+
+    cleaned = incoming.lower().strip()
+
+    if cleaned in lesson_aliases:
+        return lesson_aliases[cleaned]
+
+    for module in DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES:
+        if cleaned == module.replace("_", " "):
+            return module
+
+    return None
+
+create_user(phone)
+user = get_user(phone)
+if not user:
+    return "OK", 200
+
+    # =========================
+    # DIRECT LESSON OPENING
+    # =========================
+    direct_module = find_direct_lesson_match(incoming)
+
+    if direct_module:
+        fresh_user = get_user(phone)
+
+        if not fresh_user["is_paid"]:
+            send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
+            return jsonify({"status": "ok"})
+
+        package = fresh_user.get("package")
+
+        if package == "basic":
+            allowed_modules = PACKAGES["basic"]["modules"]
+
+        elif package == "premium":
+            allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES
+            # add ADVANCED_MODULES here only if premium should access advanced too
+            # allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES
+
+        elif package == "advanced":
+            allowed_modules = ADVANCED_MODULES
+
+        elif package == "custom":
+            allowed_modules = get_custom_modules(phone)
+
+        else:
+            allowed_modules = []
+
+        if direct_module not in allowed_modules:
+            send_message(
+                phone,
+                "🔒 This lesson is not unlocked on your current package.\n\n"
+                "Nyora *PAY* kuti uone available packages or contact Admin."
+            )
+            return jsonify({"status": "ok"})
+
+        if direct_module in DETERGENT_MODULES:
+            set_state(phone, "detergents_menu")
+        elif direct_module in BEVERAGE_MODULES:
+            set_state(phone, "beverages_menu")
+        elif direct_module in ADVANCED_MODULES:
+            set_state(phone, "advanced_menu")
+
+        open_lesson_direct(phone, direct_module)
+
+        return jsonify({"status": "ok"})
+
 def build_detergent_menu(phone):
     fresh_user = get_user(phone)
     detergent_list = DETERGENT_MODULES
