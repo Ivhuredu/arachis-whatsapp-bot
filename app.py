@@ -2097,76 +2097,6 @@ def build_advanced_menu(phone):
     menu += "\nReply with number\nType *NEXT* to come back here."
     return menu
 
-    # =========================
-    # QUICK LESSON SHORTCUTS
-    # =========================
-    lesson_shortcuts = {
-        "detergents": "detergents_menu",
-        "detergent": "detergents_menu",
-        "ma detergents": "detergents_menu",
-        "beverages": "beverages_menu",
-        "drinks": "beverages_menu",
-        "madrinks": "beverages_menu",
-        "advanced": "advanced_menu",
-        "advanced manufacturing": "advanced_menu",
-        "manufacturing": "advanced_menu",
-    }
-
-    if incoming in lesson_shortcuts:
-        fresh_user = get_user(phone)
-
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
-            return jsonify({"status": "ok"})
-
-        target_state = lesson_shortcuts[incoming]
-        set_state(phone, target_state)
-
-        if target_state == "detergents_menu":
-            send_message(phone, build_detergent_menu(phone))
-
-        elif target_state == "beverages_menu":
-            send_message(phone, build_beverage_menu(phone))
-
-        elif target_state == "advanced_menu":
-            send_message(phone, build_advanced_menu(phone))
-
-        return jsonify({"status": "ok"})
-
-
-    # =========================
-    # NEXT / BACK TO CURRENT LESSON MENU
-    # =========================
-    if incoming in ["next", "next lesson", "next lessons", "back", "lessons"]:
-
-        if user["state"] == "detergents_menu":
-            send_message(phone, build_detergent_menu(phone))
-            return jsonify({"status": "ok"})
-
-        elif user["state"] == "beverages_menu":
-            send_message(phone, build_beverage_menu(phone))
-            return jsonify({"status": "ok"})
-
-        elif user["state"] == "advanced_menu":
-            send_message(phone, build_advanced_menu(phone))
-            return jsonify({"status": "ok"})
-
-        else:
-            set_state(phone, "course_lessons")
-            send_message(
-                phone,
-                "📚 *COURSE LESSONS*\n\n"
-                "Type one of these:\n\n"
-                "🧪 *Detergents*\n"
-                "🥤 *Beverages*\n"
-                "🏭 *Advanced Manufacturing*\n\n"
-                "Or reply with number:\n"
-                "1️⃣ Detergents\n"
-                "2️⃣ Beverages\n"
-                "3️⃣ Advanced Manufacturing"
-            )
-            return jsonify({"status": "ok"})
-    
 def detect_module_from_question(question, allowed_modules):
     if not question:
         return None
@@ -2393,6 +2323,76 @@ def webhook():
 
         open_lesson_direct(phone, direct_module)
         return jsonify({"status": "ok"})
+
+        # =========================
+    # QUICK LESSON SHORTCUTS
+    # =========================
+    lesson_shortcuts = {
+        "detergents": "detergents_menu",
+        "detergent": "detergents_menu",
+        "ma detergents": "detergents_menu",
+        "beverages": "beverages_menu",
+        "drinks": "beverages_menu",
+        "madrinks": "beverages_menu",
+        "advanced": "advanced_menu",
+        "advanced manufacturing": "advanced_menu",
+        "manufacturing": "advanced_menu",
+    }
+
+    if incoming in lesson_shortcuts:
+        fresh_user = get_user(phone)
+
+        if not fresh_user["is_paid"]:
+            send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
+            return jsonify({"status": "ok"})
+
+        target_state = lesson_shortcuts[incoming]
+        set_state(phone, target_state)
+
+        if target_state == "detergents_menu":
+            send_message(phone, build_detergent_menu(phone))
+
+        elif target_state == "beverages_menu":
+            send_message(phone, build_beverage_menu(phone))
+
+        elif target_state == "advanced_menu":
+            send_message(phone, build_advanced_menu(phone))
+
+        return jsonify({"status": "ok"})
+
+
+    # =========================
+    # NEXT / BACK TO CURRENT LESSON MENU
+    # =========================
+    if incoming in ["next", "next lesson", "next lessons", "back", "lessons"]:
+
+        if user["state"] == "detergents_menu":
+            send_message(phone, build_detergent_menu(phone))
+            return jsonify({"status": "ok"})
+
+        elif user["state"] == "beverages_menu":
+            send_message(phone, build_beverage_menu(phone))
+            return jsonify({"status": "ok"})
+
+        elif user["state"] == "advanced_menu":
+            send_message(phone, build_advanced_menu(phone))
+            return jsonify({"status": "ok"})
+
+        else:
+            set_state(phone, "course_lessons")
+            send_message(
+                phone,
+                "📚 *COURSE LESSONS*\n\n"
+                "Type one of these:\n\n"
+                "🧪 *Detergents*\n"
+                "🥤 *Beverages*\n"
+                "🏭 *Advanced Manufacturing*\n\n"
+                "Or reply with number:\n"
+                "1️⃣ Detergents\n"
+                "2️⃣ Beverages\n"
+                "3️⃣ Advanced Manufacturing"
+            )
+            return jsonify({"status": "ok"})
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
     if incoming in ["yes", "ok", "sure", "interested", "view"]:
