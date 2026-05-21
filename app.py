@@ -4646,6 +4646,85 @@ def data_deletion():
     <p>All requested data will be deleted within 7 working days.</p>
     """
 
+@app.route("/api/mobile/login", methods=["POST"])
+def mobile_login():
+    try:
+        data = request.get_json() or {}
+
+        phone = data.get("phone", "").strip()
+
+        if not phone:
+            return jsonify({
+                "success": False,
+                "message": "Phone number required"
+            }), 400
+
+        phone = normalize_phone(phone)
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            SELECT phone, is_paid, package
+            FROM users
+            WHERE phone = %s
+        """, (phone,))
+
+        user = c.fetchone()
+
+        if not user:
+            DATABASE_POOL.putconn(conn)
+            return jsonify({
+                "success": False,
+                "message": "Number not found. Please contact admin."
+            }), 404
+
+        db_phone, is_paid, package = user
+
+        if not is_paid:
+            DATABASE_POOL.putconn(conn)
+            return jsonify({
+                "success": False,
+                "message": "Payment not approved yet."
+            }), 403
+
+        if package == "basic":
+            allowed_modules = PACKAGES["basic"]["modules"]
+
+        elif package == "premium":
+            allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES
+
+        elif package == "advanced":
+            allowed_modules = ADVANCED_MODULES
+
+        elif package == "custom":
+            c.execute("""
+                SELECT module
+                FROM custom_module_access
+                WHERE phone = %s
+                ORDER BY created_at ASC
+            """, (phone,))
+            allowed_modules = [row[0] for row in c.fetchall()]
+
+        else:
+            allowed_modules = []
+
+        DATABASE_POOL.putconn(conn)
+
+        return jsonify({
+            "success": True,
+            "phone": db_phone,
+            "package": package,
+            "allowed_modules": allowed_modules
+        })
+
+    except Exception as e:
+        print("MOBILE LOGIN ERROR:", e)
+        return jsonify({
+            "success": False,
+            "message": "Server error. Please try again."
+        }), 500
+
 @app.route("/")
 def home():
     return "Arachis WhatsApp Bot Running"
