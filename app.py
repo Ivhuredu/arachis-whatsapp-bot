@@ -1658,6 +1658,7 @@ DETERGENT_MODULES = [
     "petroleum_jelly",
     "bath_soap",
     "laundry_bar",
+    "floor_glaze",
     "washing_powder",
     "scouring_powder",
     "roll_on"
