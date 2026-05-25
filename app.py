@@ -284,8 +284,20 @@ def init_db():
         name TEXT UNIQUE,
         price_per_unit REAL,
         unit TEXT
-)
-""")
+    )
+    """)
+        c.execute("""
+    CREATE TABLE IF NOT EXISTS app_installs (
+        id SERIAL PRIMARY KEY,
+        device_id TEXT UNIQUE,
+        phone TEXT,
+        app_version TEXT,
+        device_model TEXT,
+        first_opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        open_count INTEGER DEFAULT 1
+    )
+    """)
     
     conn.commit()
     DATABASE_POOL.putconn(conn)
@@ -921,6 +933,45 @@ def log_activity(phone, action, details=""):
     """, (phone, action, details))
     conn.commit()
     DATABASE_POOL.putconn(conn)
+
+def get_app_install_stats():
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("SELECT COUNT(*) FROM app_installs")
+    total_installs = c.fetchone()[0]
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM app_installs
+        WHERE last_opened_at::date = CURRENT_DATE
+    """)
+    active_today = c.fetchone()[0]
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM app_installs
+        WHERE phone IS NOT NULL
+        AND phone <> ''
+    """)
+    logged_in_devices = c.fetchone()[0]
+
+    c.execute("""
+        SELECT device_id, phone, app_version, device_model, first_opened_at, last_opened_at, open_count
+        FROM app_installs
+        ORDER BY last_opened_at DESC
+        LIMIT 50
+    """)
+    recent_installs = c.fetchall()
+
+    DATABASE_POOL.putconn(conn)
+
+    return {
+        "total_installs": total_installs,
+        "active_today": active_today,
+        "logged_in_devices": logged_in_devices,
+        "recent_installs": recent_installs
+    }
 
 import re
 
@@ -4272,6 +4323,7 @@ def admin_dashboard():
             return redirect(url_for("admin_dashboard"))
 
     stats = get_dashboard_stats()
+    install_stats = get_app_install_stats()
 
     conn = get_db()
     c = conn.cursor()
@@ -4354,17 +4406,42 @@ def admin_dashboard():
     html = "<h2>Arachis Admin Dashboard</h2>"
 
     # ===== STATS =====
-    html += f"""
+        html += f"""
     <h3>📊 System Stats</h3>
     <ul>
-        <li>Total Users: <b>{stats['total_users']}</b></li>
+        <li>Total WhatsApp Users: <b>{stats['total_users']}</b></li>
         <li>Paid Users: <b>{stats['paid_users']}</b></li>
         <li>Module Opens: <b>{stats['module_opens']}</b></li>
         <li>AI Questions Asked: <b>{stats['ai_questions']}</b></li>
         <li>Blocked Access Attempts: <b>{stats['blocked_attempts']}</b></li>
     </ul>
+
+    <h3>📱 Android App Installs</h3>
+    <ul>
+        <li>Total App Installs / First Opens: <b>{install_stats['total_installs']}</b></li>
+        <li>Active Today: <b>{install_stats['active_today']}</b></li>
+        <li>Devices Linked To WhatsApp Number: <b>{install_stats['logged_in_devices']}</b></li>
+    </ul>
     <hr>
     """
+        html += "<h3>📲 Recent Android App Opens</h3>"
+
+    if not install_stats["recent_installs"]:
+        html += "<p>No app opens tracked yet.</p>"
+    else:
+        for r in install_stats["recent_installs"]:
+            html += f"""
+            📱 Device: {r[3]} |
+            Phone: {r[1]} |
+            Version: {r[2]} |
+            First Open: {r[4]} |
+            Last Open: {r[5]} |
+            Opens: {r[6]}
+            <br>
+            """
+
+    html += "<hr>"
+
     html += "<hr><h3>🚫 Users Blocked From Modules</h3>"
 
     for b in blocked_users:
@@ -4646,6 +4723,64 @@ def data_deletion():
     <p>Or WhatsApp: +263773208904</p>
     <p>All requested data will be deleted within 7 working days.</p>
     """
+@app.route("/api/mobile/install", methods=["POST"])
+def mobile_install():
+    try:
+        data = request.get_json() or {}
+
+        device_id = data.get("device_id", "").strip()
+        phone = data.get("phone", "").strip()
+        app_version = data.get("app_version", "").strip()
+        device_model = data.get("device_model", "").strip()
+
+        if phone:
+            phone = normalize_phone(phone)
+
+        if not device_id:
+            return jsonify({
+                "success": False,
+                "message": "Device ID required"
+            }), 400
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            INSERT INTO app_installs (
+                device_id,
+                phone,
+                app_version,
+                device_model
+            )
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (device_id)
+            DO UPDATE SET
+                phone = COALESCE(NULLIF(EXCLUDED.phone, ''), app_installs.phone),
+                app_version = EXCLUDED.app_version,
+                device_model = EXCLUDED.device_model,
+                last_opened_at = CURRENT_TIMESTAMP,
+                open_count = app_installs.open_count + 1
+        """, (
+            device_id,
+            phone,
+            app_version,
+            device_model
+        ))
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        return jsonify({
+            "success": True,
+            "message": "Install tracked"
+        })
+
+    except Exception as e:
+        print("MOBILE INSTALL TRACK ERROR:", e)
+        return jsonify({
+            "success": False,
+            "message": "Server error"
+        }), 500
 
 @app.route("/api/mobile/login", methods=["POST"])
 def mobile_login():
