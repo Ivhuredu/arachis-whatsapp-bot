@@ -4424,7 +4424,7 @@ def admin_dashboard():
     </ul>
     <hr>
     """
-        html += "<h3>📲 Recent Android App Opens</h3>"
+    html += "<h3>📲 Recent Android App Opens</h3>"
 
     if not install_stats["recent_installs"]:
         html += "<p>No app opens tracked yet.</p>"
