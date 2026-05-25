@@ -286,7 +286,7 @@ def init_db():
         unit TEXT
     )
     """)
-        c.execute("""
+    c.execute("""
     CREATE TABLE IF NOT EXISTS app_installs (
         id SERIAL PRIMARY KEY,
         device_id TEXT UNIQUE,
