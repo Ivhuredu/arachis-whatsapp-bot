@@ -4406,7 +4406,7 @@ def admin_dashboard():
     html = "<h2>Arachis Admin Dashboard</h2>"
 
     # ===== STATS =====
-        html += f"""
+    html += f"""
     <h3>📊 System Stats</h3>
     <ul>
         <li>Total WhatsApp Users: <b>{stats['total_users']}</b></li>
