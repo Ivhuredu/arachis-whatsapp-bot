@@ -1741,6 +1741,12 @@ ADVANCED_MODULES = [
     "maheu",
     "lotion",
     "body_cream",
+    "body_butter",
+    "peanut_butter",
+    "lollipop_sweets",
+    "peanut_butter",
+    "thinners",
+    "yoghurt",
     "methylated_spirit",
     "battery_acid",
     "deo_blocks"
