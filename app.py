@@ -2512,22 +2512,7 @@ def webhook():
             send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
             return jsonify({"status": "ok"})
 
-        package = fresh_user.get("package")
-
-        if package == "basic":
-            allowed_modules = PACKAGES["basic"]["modules"]
-
-        elif package == "premium":
-            allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES + SPICE_MODULES
-
-        elif package == "advanced":
-            allowed_modules = ADVANCED_MODULES
-
-        elif package == "custom":
-            allowed_modules = get_custom_modules(phone)
-
-        else:
-            allowed_modules = []
+        allowed_modules = get_allowed_modules_for_user(phone)
 
         if direct_module not in allowed_modules:
             send_message(phone, "🔒 This lesson is not unlocked on your current package.")
@@ -2540,7 +2525,7 @@ def webhook():
         elif direct_module in ADVANCED_MODULES:
             set_state(phone, "advanced_menu")
         elif direct_module in SPICE_MODULES:
-            set_state(phone, "spice_menu")
+            set_state(phone, "spices_menu")
 
         open_lesson_direct(phone, direct_module)
         return jsonify({"status": "ok"})
@@ -3790,16 +3775,14 @@ def webhook():
             return jsonify({"status": "ok"})
 
         elif incoming == "4":
-            selected_package = "advanced"
-            price = 10.0
-
             conn = get_db()
             c = conn.cursor()
 
-            c.execute(
-                "UPDATE users SET package=%s WHERE phone=%s",
-                (selected_package, phone)
-            )
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='advanced_full'
+                WHERE phone=%s
+            """, (phone,))
 
             conn.commit()
             DATABASE_POOL.putconn(conn)
@@ -3808,7 +3791,7 @@ def webhook():
 
             send_message(
                 phone,
-                "📲 *ADVANCED MANUFACTURING PAYMENT*\n\n"
+                "📲 *ADVANCED FULL PACKAGE PAYMENT*\n\n"
                 "*153*1*1*0773208904*20#\n\n"
                 "👤 Recipient: Beloved Nkomo\n"
                 "💵 Amount: $20 + charges\n\n"
@@ -3817,7 +3800,7 @@ def webhook():
 
             return jsonify({"status": "ok"})
 
-                elif incoming == "5":
+        elif incoming == "5":
             conn = get_db()
             c = conn.cursor()
 
