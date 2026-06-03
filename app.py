@@ -285,7 +285,8 @@ def init_db():
     ALTER TABLE module_access
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     """)
-        c.execute("""
+    
+    c.execute("""
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS has_spices INTEGER DEFAULT 0
     """)
@@ -1156,19 +1157,7 @@ def verify_and_apply_payment(phone, message):
             DATABASE_POOL.putconn(conn)
             return False, f"Mari ishoma. Premium package iri ${PREMIUM_PRICE:.2f}."
         package = "premium"
-
-    else:
-        DATABASE_POOL.putconn(conn)
-        return False, "Payment package haina kusarudzwa. Nyora PAY utange."
-    else:
-        if BASIC_PRICE <= amount < PREMIUM_PRICE:
-            package = "basic"
-        elif amount >= PREMIUM_PRICE:
-            package = "premium"
-        else:
-            DATABASE_POOL.putconn(conn)
-            return False, "Mari haisi correct."
-
+        
     c.execute("""
         INSERT INTO payments (phone, reference, amount, raw_text)
         VALUES (%s,%s,%s,%s)
@@ -2805,8 +2794,8 @@ def webhook():
 
             return jsonify({"status": "ok"})
 
-        if package not in ["basic", "premium", "advanced"]:
-            send_message(phone, "Package must be basic, premium, advanced or custom")
+        if package not in ["basic", "premium", "advanced", "spices"]:
+            send_message(phone, "Package must be basic, premium, spices, advanced or custom")
             return jsonify({"status": "ok"})
 
         create_user(target)
@@ -2814,13 +2803,19 @@ def webhook():
         conn = get_db()
         c = conn.cursor()
 
+        has_spices = 1 if package in ["spices", "advanced"] else 0
+        has_advanced = 1 if package == "advanced" else 0
+
         c.execute("""
             UPDATE users
             SET is_paid=1,
                 payment_status='approved',
-                package=%s
+                package=%s,
+                has_spices=%s,
+                has_advanced=%s,
+                pending_purchase=NULL
             WHERE phone=%s
-        """, (package, target))
+        """, (package, has_spices, has_advanced, target))
 
         conn.commit()
         DATABASE_POOL.putconn(conn)
@@ -4837,6 +4832,7 @@ def admin_dashboard():
         | <a href='/admin/approve-package/{phone}/basic'>Approve Basic</a>
         | <a href='/admin/approve-package/{phone}/premium'>Approve Premium</a>
         | <a href='/admin/approve-package/{phone}/advanced'>Approve Advanced</a>
+        | <a href='/admin/approve-package/{phone}/spices'>Approve Spices</a>
         | <a href='/admin/revoke/{phone}' style='color:red;'>Revoke Access</a><br>
         """
 
@@ -4950,8 +4946,11 @@ def admin_approve_package(phone, package):
     phone = normalize_phone(phone)
     package = package.lower()
 
-    if package not in ["basic", "premium", "advanced"]:
+    if package not in ["basic", "premium", "advanced", "spices"]:
         return "Invalid package"
+
+    has_spices = 1 if package in ["spices", "advanced"] else 0
+    has_advanced = 1 if package == "advanced" else 0
 
     conn = get_db()
     c = conn.cursor()
@@ -4960,9 +4959,12 @@ def admin_approve_package(phone, package):
         UPDATE users
         SET is_paid=1,
             payment_status='approved',
-            package=%s
+            package=%s,
+            has_spices=%s,
+            has_advanced=%s,
+            pending_purchase=NULL
         WHERE phone=%s
-    """, (package, phone))
+    """, (package, has_spices, has_advanced, phone))
 
     conn.commit()
     DATABASE_POOL.putconn(conn)
@@ -5192,21 +5194,9 @@ def mobile_login():
                 "message": "Payment not approved yet."
             }), 403
 
-        allowed_modules = get_allowed_modules_for_user(phone)
-
-        elif package == "custom":
-            c.execute("""
-                SELECT module
-                FROM custom_module_access
-                WHERE phone = %s
-                ORDER BY created_at ASC
-            """, (phone,))
-            allowed_modules = [row[0] for row in c.fetchall()]
-
-        else:
-            allowed_modules = []
-
         DATABASE_POOL.putconn(conn)
+
+        allowed_modules = get_allowed_modules_for_user(phone)
 
         return jsonify({
             "success": True,
