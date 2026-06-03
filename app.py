@@ -38,7 +38,15 @@ app = Flask(__name__)
 
 BASIC_PRICE = 5.0
 PREMIUM_PRICE = 10.0
-CUSTOM_PRICE_PER_MODULE = 2.0    
+SPICES_PRICE = 10.0
+ADVANCED_PRICE = 20.0
+CUSTOM_PRICE_PER_MODULE = 2.0
+
+UPGRADE_BASIC_TO_PREMIUM = 5.0
+UPGRADE_BASIC_TO_SPICES = 5.0
+UPGRADE_BASIC_TO_ADVANCED = 10.0
+UPGRADE_PREMIUM_TO_SPICES = 5.0
+UPGRADE_PREMIUM_TO_ADVANCED = 7.0    
 PAYMENT_TOLERANCE = 1.5   # allows EcoCash charges
 MIN_ACCEPTABLE = BASIC_PRICE
 MAX_ACCEPTABLE = PREMIUM_PRICE + PAYMENT_TOLERANCE
@@ -276,6 +284,20 @@ def init_db():
     c.execute("""
     ALTER TABLE module_access
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    """)
+        c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS has_spices INTEGER DEFAULT 0
+    """)
+
+    c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS has_advanced INTEGER DEFAULT 0
+    """)
+
+    c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS pending_purchase TEXT
     """)
 
     c.execute("""
@@ -742,6 +764,51 @@ def get_user(phone):
         "package": row[4]
     }
 
+def get_allowed_modules_for_user(phone):
+    user = get_user(phone)
+
+    if not user or not user["is_paid"]:
+        return []
+
+    package = user.get("package")
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT has_spices, has_advanced
+        FROM users
+        WHERE phone=%s
+    """, (phone,))
+
+    row = c.fetchone()
+    DATABASE_POOL.putconn(conn)
+
+    has_spices = row[0] if row else 0
+    has_advanced = row[1] if row else 0
+
+    allowed_modules = []
+
+    if package == "basic":
+        allowed_modules += PACKAGES["basic"]["modules"]
+
+    elif package in ["premium", "advanced"]:
+        allowed_modules += DETERGENT_MODULES + BEVERAGE_MODULES
+
+    elif package == "spices":
+        allowed_modules += SPICE_MODULES
+
+    elif package == "custom":
+        allowed_modules += get_custom_modules(phone)
+
+    if has_spices == 1:
+        allowed_modules += SPICE_MODULES
+
+    if has_advanced == 1 or package == "advanced":
+        allowed_modules += DETERGENT_MODULES + BEVERAGE_MODULES + SPICE_MODULES + ADVANCED_MODULES
+
+    return list(dict.fromkeys(allowed_modules))
+
 def set_state(phone, state):
     conn = get_db()
     c = conn.cursor()
@@ -1016,7 +1083,55 @@ def verify_and_apply_payment(phone, message):
     package_row = c.fetchone()
     selected_package = package_row[0] if package_row else "none"
 
-    if selected_package == "custom":
+    c.execute("SELECT package, pending_purchase FROM users WHERE phone=%s", (phone,))
+    package_row = c.fetchone()
+
+    current_package = package_row[0] if package_row else "none"
+    pending_purchase = package_row[1] if package_row else None
+
+    if pending_purchase == "advanced_full":
+        if amount < ADVANCED_PRICE:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari ishoma. Advanced Full Package iri $20."
+        package = "advanced"
+
+    elif pending_purchase == "spices_full":
+        if amount < SPICES_PRICE:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari ishoma. Spices & Seasonings package iri $10."
+        package = "spices"
+
+    elif pending_purchase == "upgrade_basic_to_premium":
+        if amount < UPGRADE_BASIC_TO_PREMIUM:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari ishoma. Upgrade yeBasic to Premium iri $5."
+        package = "premium"
+
+    elif pending_purchase == "upgrade_basic_to_spices":
+        if amount < UPGRADE_BASIC_TO_SPICES:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari ishoma. Add Spices iri $5."
+        package = current_package
+
+    elif pending_purchase == "upgrade_basic_to_advanced":
+        if amount < UPGRADE_BASIC_TO_ADVANCED:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari ishoma. Basic to Advanced upgrade iri $10."
+        package = "advanced"
+
+    elif pending_purchase == "upgrade_premium_to_spices":
+        if amount < UPGRADE_PREMIUM_TO_SPICES:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari ishoma. Premium add Spices iri $5."
+        package = current_package
+
+    elif pending_purchase == "upgrade_premium_to_advanced":
+        if amount < UPGRADE_PREMIUM_TO_ADVANCED:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari ishoma. Premium to Advanced upgrade iri $7."
+        package = "advanced"
+
+    elif current_package == "custom":
         selected_modules = get_custom_modules(phone)
         expected_amount = len(selected_modules) * CUSTOM_PRICE_PER_MODULE
 
@@ -1030,34 +1145,21 @@ def verify_and_apply_payment(phone, message):
 
         package = "custom"
 
-    elif selected_package == "basic":
+    elif current_package == "basic":
         if amount < BASIC_PRICE:
             DATABASE_POOL.putconn(conn)
             return False, f"Mari ishoma. Basic package iri ${BASIC_PRICE:.2f}."
         package = "basic"
 
-    elif selected_package == "premium":
+    elif current_package == "premium":
         if amount < PREMIUM_PRICE:
             DATABASE_POOL.putconn(conn)
             return False, f"Mari ishoma. Premium package iri ${PREMIUM_PRICE:.2f}."
         package = "premium"
 
-    elif selected_package == "advanced":
-
-        if amount < 10:
-            DATABASE_POOL.putconn(conn)
-            return False, "Mari ishoma. Advanced package iri $10."
-
-        package = "advanced"
-
-    elif selected_package == "spices":
-
-        if amount < 10:
-            DATABASE_POOL.putconn(conn)
-            return False, "Mari ishoma. Spices & Seasonings package iri $10."
-
-        package = "spices"
-
+    else:
+        DATABASE_POOL.putconn(conn)
+        return False, "Payment package haina kusarudzwa. Nyora PAY utange."
     else:
         if BASIC_PRICE <= amount < PREMIUM_PRICE:
             package = "basic"
@@ -1096,10 +1198,28 @@ def verify_and_apply_payment(phone, message):
 
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        "UPDATE users SET package=%s WHERE phone=%s",
-        (package, phone)
-    )
+    has_spices = 0
+    has_advanced = 0
+
+    if pending_purchase in ["spices_full", "upgrade_basic_to_spices", "upgrade_premium_to_spices"]:
+        has_spices = 1
+
+    if pending_purchase in ["advanced_full", "upgrade_basic_to_advanced", "upgrade_premium_to_advanced"]:
+        has_spices = 1
+        has_advanced = 1
+
+    if package == "advanced":
+        has_spices = 1
+        has_advanced = 1
+
+    c.execute("""
+        UPDATE users
+        SET package=%s,
+            has_spices = CASE WHEN %s=1 THEN 1 ELSE has_spices END,
+            has_advanced = CASE WHEN %s=1 THEN 1 ELSE has_advanced END,
+            pending_purchase=NULL
+        WHERE phone=%s
+    """, (package, has_spices, has_advanced, phone))
     conn.commit()
     DATABASE_POOL.putconn(conn)
 
@@ -2164,29 +2284,22 @@ def build_beverage_menu(phone):
     menu += "\nReply with number\nType *NEXT* to come back here."
     return menu
 
-
 def build_advanced_menu(phone):
-    fresh_user = get_user(phone)
-    package = fresh_user.get("package")
-
-    if package in ["advanced", "premium"]:
-        advanced = ADVANCED_MODULES
-
-    elif package == "custom":
-        allowed = get_custom_modules(phone)
-        advanced = [m for m in ADVANCED_MODULES if m in allowed]
-
-    else:
-        return (
-            "🔒 Advanced Manufacturing is a separate package.\n\n"
-            "💵 Price: $10\n"
-            "Nyora *PAY* kuti ubhadhare."
-        )
+    allowed = get_allowed_modules_for_user(phone)
+    advanced = [m for m in ADVANCED_MODULES if m in allowed]
 
     if not advanced:
-        return "Hauna Advanced Manufacturing lesson yakavhurwa pa package yako."
+        return (
+            "🔒 Advanced Manufacturing is locked.\n\n"
+            "💵 Full Advanced Package: $20\n"
+            "Upgrade prices:\n"
+            "✔ Basic to Advanced: $10\n"
+            "✔ Premium to Advanced: $7\n\n"
+            "Nyora *UPGRADE* kuti uvhure."
+        )
 
     menu = "🏭 *ADVANCED MANUFACTURING*\n\n"
+
     for i, module in enumerate(advanced, start=1):
         menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
 
@@ -2194,25 +2307,17 @@ def build_advanced_menu(phone):
     return menu
 
 def build_spices_menu(phone):
-    fresh_user = get_user(phone)
-    package = fresh_user.get("package")
-
-    if package in ["spices", "premium"]:
-        spices = SPICE_MODULES
-
-    elif package == "custom":
-        allowed = get_custom_modules(phone)
-        spices = [m for m in SPICE_MODULES if m in allowed]
-
-    else:
-        return (
-            "🔒 Spices & Seasonings Manufacturing is a separate package.\n\n"
-            "💵 Price: $10\n"
-            "Nyora *PAY* kuti ubhadhare."
-        )
+    allowed = get_allowed_modules_for_user(phone)
+    spices = [m for m in SPICE_MODULES if m in allowed]
 
     if not spices:
-        return "Hauna Spices & Seasonings lesson yakavhurwa pa package yako."
+        return (
+            "🔒 Spices & Seasonings is locked.\n\n"
+            "💵 Full Spices Package: $10\n"
+            "Upgrade price:\n"
+            "✔ Basic/Premium add Spices: $5\n\n"
+            "Nyora *UPGRADE* kuti uvhure."
+        )
 
     menu = "🌶️ *SPICES & SEASONINGS MANUFACTURING*\n\n"
 
@@ -2542,9 +2647,9 @@ def webhook():
             "1️⃣ Basic – $5\n"
             "2️⃣ Premium – $10\n"
             "3️⃣ Custom – $2 per formula\n"
-            "4️⃣ Advanced Manufacturing – $10\n"
+            "4️⃣ Advanced Manufacturing – $20\n"
             "5️⃣ Spices & Seasonings – $10\n\n"
-            "Reply 1, 2 , 3 or 4"
+            "Reply 1, 2 , 3 , 4 or 5"
         )
 
         return jsonify({"status": "ok"})
@@ -2774,9 +2879,9 @@ def webhook():
             "1️⃣ Basic – $5\n"
             "2️⃣ Premium – $10\n"
             "3️⃣ Custom – $2 per formula\n"
-            "4️⃣ Advanced Manufacturing – $10\n"
+            "4️⃣ Advanced Manufacturing – $20\n"
             "5️⃣ Spices & Seasonings – $10\n\n"
-            "Reply with 1, 2, 3 or 4"
+            "Reply with 1, 2, 3 , 4 or 5"
         )
 
         return jsonify({"status": "ok"})
@@ -2984,7 +3089,7 @@ def webhook():
                 "2️⃣ Drink Ingredients\n"
                 "3️⃣ Containers & Bottles\n"
                 "4️⃣ Ph Paper\n\n"
-                "Reply with 1, 2 or 3.\n"
+                "Reply with 1, 2 ,3 or 4.\n"
                 "↩ Nyora *MENU* kudzokera."
             )
             return jsonify({"status": "ok"})
@@ -3075,7 +3180,7 @@ def webhook():
                 "1️⃣ Basic – $5\n"
                 "2️⃣ Premium – $10\n"
                 "3️⃣ Custom – $2 per formula\n"
-                "4️⃣ Advanced Manufacturing – $10\n"
+                "4️⃣ Advanced Manufacturing – $20\n"
                 "5️⃣ Spices & Seasonings – $10\n\n"
             )
             return jsonify({"status": "ok"})
@@ -3179,7 +3284,7 @@ def webhook():
                 send_message(
                     phone,
                     "🔒 Advanced Manufacturing is a separate package.\n\n"
-                    "💵 Price: $10\n"
+                    "💵 Price: $20\n"
                     "Nyora PAY kuti ubhadhare."
                 )
                 return jsonify({"status":"ok"})
@@ -3396,9 +3501,6 @@ def webhook():
         if package == "advanced":
             advanced = ADVANCED_MODULES
 
-        elif package == "premium":
-            advanced = ADVANCED_MODULES   # remove this if premium must NOT access advanced
-
         elif package == "custom":
             allowed = get_custom_modules(phone)
             advanced = [m for m in ADVANCED_MODULES if m in allowed]
@@ -3411,7 +3513,7 @@ def webhook():
             send_message(
                 phone,
                 "🔒 Advanced Manufacturing is a separate package.\n\n"
-                "💵 Price: $10\n"
+                "💵 Price: $20\n"
                 "Nyora *PAY* kuti ubhadhare."
             )
             return jsonify({"status": "ok"})
@@ -3481,9 +3583,6 @@ def webhook():
         if package == "spices":
             spices = SPICE_MODULES
 
-        elif package == "premium":
-            spices = SPICE_MODULES
-
         elif package == "custom":
             allowed = get_custom_modules(phone)
             spices = [m for m in SPICE_MODULES if m in allowed]
@@ -3517,6 +3616,108 @@ def webhook():
 
         module = spices[index]
         open_lesson_direct(phone, module)
+
+        return jsonify({"status": "ok"})
+
+    if incoming == "upgrade":
+
+        user = get_user(phone)
+        package = user.get("package")
+
+        if package == "basic":
+            set_state(phone, "upgrade_select")
+            send_message(
+                phone,
+                "🚀 *UPGRADE OPTIONS*\n\n"
+                "1️⃣ Upgrade to Premium – $5\n"
+                "2️⃣ Add Spices – $5\n"
+                "3️⃣ Upgrade to Advanced – $10\n\n"
+                "Reply 1, 2 or 3"
+            )
+            return jsonify({"status": "ok"})
+
+        elif package == "premium":
+            set_state(phone, "upgrade_select")
+            send_message(
+                phone,
+                "🚀 *UPGRADE OPTIONS*\n\n"
+                "1️⃣ Add Spices – $5\n"
+                "2️⃣ Upgrade to Advanced – $7\n\n"
+                "Reply 1 or 2"
+            )
+            return jsonify({"status": "ok"})
+
+        else:
+            send_message(phone, "No upgrade option available for your current package.")
+            return jsonify({"status": "ok"})
+
+    elif user["state"] == "upgrade_select":
+
+        package = user.get("package")
+
+        if package == "basic":
+
+            if incoming == "1":
+                pending = "upgrade_basic_to_premium"
+                amount = 5
+                title = "BASIC TO PREMIUM UPGRADE"
+
+            elif incoming == "2":
+                pending = "upgrade_basic_to_spices"
+                amount = 5
+                title = "ADD SPICES"
+
+            elif incoming == "3":
+                pending = "upgrade_basic_to_advanced"
+                amount = 10
+                title = "BASIC TO ADVANCED UPGRADE"
+
+            else:
+                send_message(phone, "Sarudza 1, 2 or 3")
+                return jsonify({"status": "ok"})
+
+        elif package == "premium":
+
+            if incoming == "1":
+                pending = "upgrade_premium_to_spices"
+                amount = 5
+                title = "ADD SPICES"
+
+            elif incoming == "2":
+                pending = "upgrade_premium_to_advanced"
+                amount = 7
+                title = "PREMIUM TO ADVANCED UPGRADE"
+
+            else:
+                send_message(phone, "Sarudza 1 or 2")
+                return jsonify({"status": "ok"})
+
+        else:
+            send_message(phone, "Upgrade not available.")
+            return jsonify({"status": "ok"})
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            UPDATE users
+            SET pending_purchase=%s
+            WHERE phone=%s
+        """, (pending, phone))
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        set_state(phone, "awaiting_payment")
+
+        send_message(
+            phone,
+            f"📲 *{title}*\n\n"
+            f"*153*1*1*0773208904*{amount}#\n\n"
+            "👤 Recipient: Beloved Nkomo\n"
+            f"💵 Amount: ${amount} + charges\n\n"
+            "Send confirmation SMS here."
+        )
 
         return jsonify({"status": "ok"})
 
@@ -3613,25 +3814,23 @@ def webhook():
             send_message(
                 phone,
                 "📲 *ADVANCED MANUFACTURING PAYMENT*\n\n"
-                "*153*1*1*0773208904*10#\n\n"
+                "*153*1*1*0773208904*20#\n\n"
                 "👤 Recipient: Beloved Nkomo\n"
-                "💵 Amount: $10 + charges\n\n"
+                "💵 Amount: $20 + charges\n\n"
                 "Send confirmation SMS here"
             )
 
             return jsonify({"status": "ok"})
 
-        elif incoming == "5":
-            selected_package = "spices"
-            price = 10.0
-
+                elif incoming == "5":
             conn = get_db()
             c = conn.cursor()
 
-            c.execute(
-                "UPDATE users SET package=%s WHERE phone=%s",
-                (selected_package, phone)
-            )
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='spices_full'
+                WHERE phone=%s
+            """, (phone,))
 
             conn.commit()
             DATABASE_POOL.putconn(conn)
@@ -4993,14 +5192,7 @@ def mobile_login():
                 "message": "Payment not approved yet."
             }), 403
 
-        if package == "basic":
-            allowed_modules = PACKAGES["basic"]["modules"]
-
-        elif package == "premium":
-            allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES
-
-        elif package == "advanced":
-            allowed_modules = ADVANCED_MODULES
+        allowed_modules = get_allowed_modules_for_user(phone)
 
         elif package == "custom":
             c.execute("""
