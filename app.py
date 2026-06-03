@@ -1050,6 +1050,14 @@ def verify_and_apply_payment(phone, message):
 
         package = "advanced"
 
+    elif selected_package == "spices":
+
+        if amount < 10:
+            DATABASE_POOL.putconn(conn)
+            return False, "Mari ishoma. Spices & Seasonings package iri $10."
+
+        package = "spices"
+
     else:
         if BASIC_PRICE <= amount < PREMIUM_PRICE:
             package = "basic"
@@ -1737,6 +1745,19 @@ ADVANCED_MODULES = [
     "battery_acid",
     "deo_blocks"
 ]
+SPICE_MODULES = [
+    "chicken_spice",
+    "peri_peri_spice",
+    "curry_powder",
+    "curry_beef_spice",
+    "curry_garlic_herb",
+    "rice_spice",
+    "tea_masala",
+    "ginger_powder",
+    "cinnamon_blend",
+    "royco_style_soup",
+    "sauce_spice_base"
+]
 
 
 
@@ -2062,6 +2083,23 @@ def find_direct_lesson_match(incoming):
         "battery acid": "battery_acid",
         "deo blocks": "deo_blocks",
         "toilet blocks": "deo_blocks",
+
+        #Spices
+        "chicken spice": "chicken_spice",
+        "peri peri": "peri_peri_spice",
+        "peri peri spice": "peri_peri_spice",
+        "curry powder": "curry_powder",
+        "curry beef": "curry_beef_spice",
+        "curry beef spice": "curry_beef_spice",
+        "curry garlic herb": "curry_garlic_herb",
+        "rice spice": "rice_spice",
+        "tea masala": "tea_masala",
+        "ginger powder": "ginger_powder",
+        "cinnamon blend": "cinnamon_blend",
+        "royco": "royco_style_soup",
+        "royco soup": "royco_style_soup",
+        "sauce spice": "sauce_spice_base",
+        "sauce spice base": "sauce_spice_base",
     }
 
     cleaned = incoming.lower().strip()
@@ -2069,7 +2107,7 @@ def find_direct_lesson_match(incoming):
     if cleaned in lesson_aliases:
         return lesson_aliases[cleaned]
 
-    for module in DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES:
+    for module in DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES + SPICE_MODULES:
         if cleaned == module.replace("_", " "):
             return module
 
@@ -2144,6 +2182,35 @@ def build_advanced_menu(phone):
 
     menu = "🏭 *ADVANCED MANUFACTURING*\n\n"
     for i, module in enumerate(advanced, start=1):
+        menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
+
+    menu += "\nReply with number\nType *NEXT* to come back here."
+    return menu
+
+def build_spices_menu(phone):
+    fresh_user = get_user(phone)
+    package = fresh_user.get("package")
+
+    if package in ["spices", "premium"]:
+        spices = SPICE_MODULES
+
+    elif package == "custom":
+        allowed = get_custom_modules(phone)
+        spices = [m for m in SPICE_MODULES if m in allowed]
+
+    else:
+        return (
+            "🔒 Spices & Seasonings Manufacturing is a separate package.\n\n"
+            "💵 Price: $10\n"
+            "Nyora *PAY* kuti ubhadhare."
+        )
+
+    if not spices:
+        return "Hauna Spices & Seasonings lesson yakavhurwa pa package yako."
+
+    menu = "🌶️ *SPICES & SEASONINGS MANUFACTURING*\n\n"
+
+    for i, module in enumerate(spices, start=1):
         menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
 
     menu += "\nReply with number\nType *NEXT* to come back here."
@@ -2351,7 +2418,7 @@ def webhook():
             allowed_modules = PACKAGES["basic"]["modules"]
 
         elif package == "premium":
-            allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES
+            allowed_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES + SPICE_MODULES
 
         elif package == "advanced":
             allowed_modules = ADVANCED_MODULES
@@ -2372,6 +2439,8 @@ def webhook():
             set_state(phone, "beverages_menu")
         elif direct_module in ADVANCED_MODULES:
             set_state(phone, "advanced_menu")
+        elif direct_module in SPICE_MODULES:
+            set_state(phone, "spice_menu")
 
         open_lesson_direct(phone, direct_module)
         return jsonify({"status": "ok"})
@@ -2389,6 +2458,10 @@ def webhook():
         "advanced": "advanced_menu",
         "advanced manufacturing": "advanced_menu",
         "manufacturing": "advanced_menu",
+        "spices": "spices_menu",
+        "spice": "spices_menu",
+        "seasonings": "spices_menu",
+        "spices and seasonings": "spices_menu",
     }
 
     if incoming in lesson_shortcuts:
@@ -2409,6 +2482,9 @@ def webhook():
 
         elif target_state == "advanced_menu":
             send_message(phone, build_advanced_menu(phone))
+
+        elif target_state == "spices_menu":
+            send_message(phone, build_spices_menu(phone))
 
         return jsonify({"status": "ok"})
 
@@ -2438,11 +2514,13 @@ def webhook():
                 "Type one of these:\n\n"
                 "🧪 *Detergents*\n"
                 "🥤 *Beverages*\n"
-                "🏭 *Advanced Manufacturing*\n\n"
+                "🏭 *Advanced Manufacturing*\n"
+                "*Spices & Seasonings*\n\n"
                 "Or reply with number:\n"
                 "1️⃣ Detergents\n"
                 "2️⃣ Beverages\n"
-                "3️⃣ Advanced Manufacturing"
+                "3️⃣ 🏭 Advanced Manufacturing\n"
+                "4️⃣ 🌶️ Spices & Seasonings\n\n"
             )
             return jsonify({"status": "ok"})
 
@@ -2458,7 +2536,8 @@ def webhook():
             "1️⃣ Basic – $5\n"
             "2️⃣ Premium – $10\n"
             "3️⃣ Custom – $2 per formula\n"
-            "4️⃣ Advanced Manufacturing – $10\n\n"
+            "4️⃣ Advanced Manufacturing – $10\n"
+            "5️⃣ Spices & Seasonings – $10\n\n"
             "Reply 1, 2 , 3 or 4"
         )
 
@@ -2530,6 +2609,7 @@ def webhook():
                 "approve +2637xxxx basic\n"
                 "approve +2637xxxx premium\n"
                 "approve +2637xxxx advanced\n"
+                "approve +2637xxxx spices\n"
                 "approve +2637xxxx custom module_name\n\n"
                 "Example:\n"
                 "approve +263773208904 custom dishwash"
@@ -2553,7 +2633,7 @@ def webhook():
 
             module = parts[3].lower().strip()
 
-            all_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES
+            all_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES + SPICE_MODULES
 
             if module not in all_modules:
                 send_message(
@@ -2688,7 +2768,8 @@ def webhook():
             "1️⃣ Basic – $5\n"
             "2️⃣ Premium – $10\n"
             "3️⃣ Custom – $2 per formula\n"
-            "4️⃣ Advanced Manufacturing – $10\n\n"
+            "4️⃣ Advanced Manufacturing – $10\n"
+            "5️⃣ Spices & Seasonings – $10\n\n"
             "Reply with 1, 2, 3 or 4"
         )
 
@@ -2711,7 +2792,8 @@ def webhook():
                 "📚 *COURSE LESSONS*\n\n"
                 "1️⃣ Detergents\n"
                 "2️⃣ Beverages\n"
-                "3️⃣ 🏭 Advanced Manufacturing\n\n"
+                "3️⃣ 🏭 Advanced Manufacturing\n"
+                "4️⃣ 🌶️ Spices & Seasonings\n\n"
                 "Reply with number"
             )
             return jsonify({"status": "ok"})
@@ -2987,7 +3069,8 @@ def webhook():
                 "1️⃣ Basic – $5\n"
                 "2️⃣ Premium – $10\n"
                 "3️⃣ Custom – $2 per formula\n"
-                "4️⃣ Advanced Manufacturing – $10\n\n"
+                "4️⃣ Advanced Manufacturing – $10\n"
+                "5️⃣ Spices & Seasonings – $10\n\n"
             )
             return jsonify({"status": "ok"})
 
@@ -3105,6 +3188,11 @@ def webhook():
 
             send_message(phone, menu)
             return jsonify({"status":"ok"})
+            
+        elif incoming == "4":
+            set_state(phone, "spices_menu")
+            send_message(phone, build_spices_menu(phone))
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "detergents_menu":
 
@@ -3379,6 +3467,53 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
+    elif user["state"] == "spices_menu":
+
+        fresh_user = get_user(phone)
+        package = fresh_user.get("package")
+
+        if package == "spices":
+            spices = SPICE_MODULES
+
+        elif package == "premium":
+            spices = SPICE_MODULES
+
+        elif package == "custom":
+            allowed = get_custom_modules(phone)
+            spices = [m for m in SPICE_MODULES if m in allowed]
+
+            if not spices:
+                send_message(phone, "Hauna Spices lesson yakavhurwa pa custom package yako.")
+                return jsonify({"status": "ok"})
+
+        else:
+            send_message(
+                phone,
+                "🔒 Spices & Seasonings Manufacturing is a separate package.\n\n"
+                "💵 Price: $10\n"
+                "Nyora *PAY* kuti ubhadhare."
+            )
+            return jsonify({"status": "ok"})
+
+        if not incoming.isdigit():
+            allowed_modules = get_user_modules(phone, incoming)
+            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+            send_message(phone, ai_answer)
+            log_activity(phone, "ai_question", incoming)
+            update_metrics(phone, "ai")
+            return jsonify({"status": "ok"})
+
+        index = int(incoming) - 1
+
+        if index < 0 or index >= len(spices):
+            send_message(phone, "Invalid choice")
+            return jsonify({"status": "ok"})
+
+        module = spices[index]
+        open_lesson_direct(phone, module)
+
+        return jsonify({"status": "ok"})
+
     elif user["state"] == "pay_menu":
 
         if incoming == "1":
@@ -3480,8 +3615,36 @@ def webhook():
 
             return jsonify({"status": "ok"})
 
+        elif incoming == "5":
+            selected_package = "spices"
+            price = 10.0
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute(
+                "UPDATE users SET package=%s WHERE phone=%s",
+                (selected_package, phone)
+            )
+
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            set_state(phone, "awaiting_payment")
+
+            send_message(
+                phone,
+                "📲 *SPICES & SEASONINGS PAYMENT*\n\n"
+                "*153*1*1*0773208904*10#\n\n"
+                "👤 Recipient: Beloved Nkomo\n"
+                "💵 Amount: $10 + charges\n\n"
+                "Send confirmation SMS here"
+            )
+
+            return jsonify({"status": "ok"})
+
         else:
-            send_message(phone, "Sarudza 1, 2, 3 or 4")
+            send_message(phone, "Sarudza 1, 2, 3 , 4 or 5")
             return jsonify({"status": "ok"})
 
     elif user["state"] == "custom_selecting":
