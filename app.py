@@ -3475,26 +3475,14 @@ def webhook():
 
     elif user["state"] == "advanced_menu":
 
-        fresh_user = get_user(phone)
-        package = fresh_user.get("package")
+        allowed_modules = get_allowed_modules_for_user(phone)
+        advanced = [m for m in ADVANCED_MODULES if m in allowed_modules]
 
-        if package == "advanced":
-            advanced = ADVANCED_MODULES
-
-        elif package == "custom":
-            allowed = get_custom_modules(phone)
-            advanced = [m for m in ADVANCED_MODULES if m in allowed]
-
-            if not advanced:
-                send_message(phone, "Hauna Advanced Manufacturing lesson yakavhurwa pa custom package yako.")
-                return jsonify({"status": "ok"})
-
-        else:
+        if not advanced:
             send_message(
                 phone,
-                "🔒 Advanced Manufacturing is a separate package.\n\n"
-                "💵 Price: $20\n"
-                "Nyora *PAY* kuti ubhadhare."
+                "🔒 Advanced Manufacturing is locked.\n\n"
+                "Nyora *UPGRADE* kuti uvhure."
             )
             return jsonify({"status": "ok"})
 
@@ -3557,26 +3545,14 @@ def webhook():
 
     elif user["state"] == "spices_menu":
 
-        fresh_user = get_user(phone)
-        package = fresh_user.get("package")
+        allowed_modules = get_allowed_modules_for_user(phone)
+        spices = [m for m in SPICE_MODULES if m in allowed_modules]
 
-        if package == "spices":
-            spices = SPICE_MODULES
-
-        elif package == "custom":
-            allowed = get_custom_modules(phone)
-            spices = [m for m in SPICE_MODULES if m in allowed]
-
-            if not spices:
-                send_message(phone, "Hauna Spices lesson yakavhurwa pa custom package yako.")
-                return jsonify({"status": "ok"})
-
-        else:
+        if not spices:
             send_message(
                 phone,
-                "🔒 Spices & Seasonings Manufacturing is a separate package.\n\n"
-                "💵 Price: $10\n"
-                "Nyora *PAY* kuti ubhadhare."
+                "🔒 Spices & Seasonings is locked.\n\n"
+                "Nyora *UPGRADE* kuti uvhure."
             )
             return jsonify({"status": "ok"})
 
