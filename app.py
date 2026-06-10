@@ -64,8 +64,14 @@ ADMIN_NUMBERS = [
 ]
 DISABLE_WHATSAPP_MEDIA_FROM = "2026-06-15"
 UPLOAD_FOLDER = "static/lessons"
-ALLOWED_EXTENSIONS = {"pdf"}
+APK_FOLDER = "static/apk"
+APP_APK_FILENAME = "arachis.apk"
+APKPURE_URL = "https://apkpure.com/p/com.arachis.training"
+
+ALLOWED_EXTENSIONS = {"pdf", "apk"}
+
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["APK_FOLDER"] = APK_FOLDER
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -561,6 +567,21 @@ def send_voice(phone, audio_url):
 
     print("VOICE STATUS:", response.status_code)
     print("VOICE RESPONSE:", response.text)
+
+def send_app_download(phone):
+    render_apk_url = "https://arachis-whatsapp-bot-2.onrender.com/static/apk/arachis.apk"
+
+    send_message(
+        phone,
+        "📱 *DOWNLOAD ARACHIS ONLINE TRAINING APP*\n\n"
+        "Use any option below:\n\n"
+        "1️⃣ *Direct Download from Arachis*\n"
+        f"{render_apk_url}\n\n"
+        "2️⃣ *Download from APKPure*\n"
+        f"{APKPURE_URL}\n\n"
+        "After installing, open the app and log in using your approved WhatsApp number.\n\n"
+        "The app can work offline after login and lesson sync."
+    )
 
 import time
 
@@ -1926,6 +1947,7 @@ def main_menu():
         "7️⃣ Upgrade Plan\n"
         "8️⃣ Help\n"
         "9️⃣ Account Dashboard\n"
+        "🔟 Download App\n"
     )
 
 def welcome_message():
@@ -2529,6 +2551,13 @@ def webhook():
         return "OK", 200
 
     # =========================
+    # DOWNLOAD APP
+    # =========================
+    if incoming in ["10", "app", "apk", "download app", "download apk", "android app"]:
+        send_app_download(phone)
+        return jsonify({"status": "ok"})
+
+    # =========================
     # DIRECT LESSON OPENING
     # =========================
     direct_module = find_direct_lesson_match(incoming)
@@ -3087,7 +3116,11 @@ def webhook():
             )
 
             return jsonify({"status": "ok"})
-
+            
+        elif incoming == "10":
+            send_app_download(phone)
+            return jsonify({"status": "ok"})
+            
         elif incoming == "6":
             set_state(phone, "supplier_directory")
             send_message(
@@ -4580,7 +4613,7 @@ def webhook():
             send_message(phone, faq)
             return jsonify({"status": "ok"})
 
-        if incoming not in ["menu","start","pay","1","2","3","4","5","6","7","8","9"]:
+        if incoming not in ["menu","start","pay","1","2","3","4","5","6","7","8","9","10","app","apk","download app","download apk","android app"]:
             send_message(
                 phone,
                 "📚 AI trainer & ma formula anovhurwa kune vakabhadhara chete.\nNyora *PAY* kuti utange."
@@ -4667,16 +4700,23 @@ def admin_dashboard():
 
         if file and allowed_file(file.filename):
 
+            filename = secure_filename(file.filename)
+            ext = filename.rsplit(".", 1)[1].lower()
+
+            if ext == "apk":
+                os.makedirs(app.config["APK_FOLDER"], exist_ok=True)
+
+                filepath = os.path.join(app.config["APK_FOLDER"], APP_APK_FILENAME)
+                file.save(filepath)
+
+                return redirect(url_for("admin_dashboard"))
+
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-            filename = secure_filename(file.filename)
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-
             file.save(filepath)
 
-            # determine module name from filename
             module_name = filename.replace(".pdf", "")
-
             save_pdf_to_db(module_name, filename)
 
             return redirect(url_for("admin_dashboard"))
@@ -4808,7 +4848,7 @@ def admin_dashboard():
     
     # ===== UPLOAD =====
     html += """
-    <h3>📤 Upload Lesson PDF</h3>
+    <h3>📤 Upload Lesson PDF or Android APK</h3>
     <form method="POST" enctype="multipart/form-data">
         <input type="file" name="file" required>
         <button type="submit">Upload PDF</button>
