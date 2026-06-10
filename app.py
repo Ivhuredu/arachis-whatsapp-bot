@@ -62,7 +62,7 @@ ADMIN_NUMBERS = [
     "+263773208904",
     "+263719208904"   # backup admin
 ]
-
+DISABLE_WHATSAPP_MEDIA_FROM = "2026-06-15"
 UPLOAD_FOLDER = "static/lessons"
 ALLOWED_EXTENSIONS = {"pdf"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -333,6 +333,17 @@ def init_db():
 def normalize_phone(phone):
     return phone if phone.startswith("+") else "+" + phone
     
+from datetime import date
+
+def whatsapp_media_disabled_for(phone):
+    if phone in ADMIN_NUMBERS:
+        return False
+
+    today = date.today()
+    cutoff = date.fromisoformat(DISABLE_WHATSAPP_MEDIA_FROM)
+
+    return today >= cutoff
+    
 def send_message(phone, text):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
 
@@ -495,6 +506,16 @@ def get_all_prices():
 
 
 def send_pdf(phone, pdf_url, caption):
+
+    if whatsapp_media_disabled_for(phone):
+        send_message(
+            phone,
+            "📱 Lesson notes are now available inside the Arachis App only.\n\n"
+            "Please open the app to read this lesson offline after login.\n\n"
+            "AI support is still available here on WhatsApp 🤖"
+        )
+        return
+
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
 
     headers = {
@@ -516,6 +537,9 @@ def send_pdf(phone, pdf_url, caption):
     print(response.text)
 
 def send_voice(phone, audio_url):
+
+    if whatsapp_media_disabled_for(phone):
+        return
 
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
 
@@ -2109,10 +2133,11 @@ def open_lesson_direct(phone, module):
 
     send_message(
         phone,
-        f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
+        f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
     )
 
-    send_message(phone, "🎧 Lesson audio (listen in order) 👇")
+    if not whatsapp_media_disabled_for(phone):
+        send_message(phone, "🎧 Lesson audio (listen in order) 👇")
 
     send_audio_series(phone, module)
 
@@ -3344,7 +3369,8 @@ def webhook():
         )
 
         # 🔊 FORCE AUDIO FIRST
-        send_message(phone, "🎧 Lesson audio (listen in order) 👇")
+        if not whatsapp_media_disabled_for(phone):
+            send_message(phone, "🎧 Lesson audio (listen in order) 👇")
 
         send_audio_series(phone, module)
 
@@ -3441,7 +3467,8 @@ def webhook():
         )
 
         # 🔊 FORCE AUDIO FIRST
-        send_message(phone, "🎧 Lesson audio (listen in order) 👇")
+        if not whatsapp_media_disabled_for(phone):
+            send_message(phone, "🎧 Lesson audio (listen in order) 👇")
 
         send_audio_series(phone, module)
 
@@ -3515,8 +3542,8 @@ def webhook():
         log_activity(phone, "open_module", module)
 
         send_message(phone, f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇")
-        send_message(phone, "🎧 Lesson audio (listen in order) 👇")
-
+        if not whatsapp_media_disabled_for(phone):
+            send_message(phone, "🎧 Lesson audio (listen in order) 👇")
         send_audio_series(phone, module)
 
         send_pdf(
