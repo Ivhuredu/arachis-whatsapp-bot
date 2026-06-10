@@ -3368,7 +3368,7 @@ def webhook():
         # 📘 Send lesson title
         send_message(
             phone,
-            f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
+             f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
         )
 
         # 🔊 FORCE AUDIO FIRST
@@ -3466,7 +3466,7 @@ def webhook():
         # 📘 Send lesson title
         send_message(
             phone,
-            f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇"
+             f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
         )
 
         # 🔊 FORCE AUDIO FIRST
@@ -3544,7 +3544,11 @@ def webhook():
         update_metrics(phone, "module")
         log_activity(phone, "open_module", module)
 
-        send_message(phone, f"{label}\n\n🎧 Teerera voice lesson wobva waona manotes 👇")
+        send_message(
+            phone,
+            f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
+        )
+        
         if not whatsapp_media_disabled_for(phone):
             send_message(phone, "🎧 Lesson audio (listen in order) 👇")
         send_audio_series(phone, module)
@@ -4134,7 +4138,10 @@ def webhook():
             record_module_access(phone, module)
             update_metrics(phone, "module")
 
-            send_message(phone, f"{label}\n\n🎧 Teerera lesson wobva waona notes 👇")
+            send_message(
+                phone,
+                f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
+            )
 
             send_audio_series(phone, module)
 
