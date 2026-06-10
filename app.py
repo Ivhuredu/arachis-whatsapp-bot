@@ -566,6 +566,9 @@ import time
 
 def send_audio_series(phone, module):
 
+    if whatsapp_media_disabled_for(phone):
+        return
+
     base_url = "https://arachis-whatsapp-bot-2.onrender.com/static/audio"
 
     found = False
