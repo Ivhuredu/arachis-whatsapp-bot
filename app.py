@@ -571,16 +571,44 @@ def send_voice(phone, audio_url):
 def send_app_download(phone):
     render_apk_url = "https://arachis-whatsapp-bot-2.onrender.com/static/apk/arachis.apk"
 
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
     send_message(
         phone,
-        "📱 *DOWNLOAD ARACHIS ONLINE TRAINING APP*\n\n"
-        "Use any option below:\n\n"
-        "1️⃣ *Direct Download from Arachis*\n"
-        f"{render_apk_url}\n\n"
-        "2️⃣ *Download from APKPure*\n"
-        f"{APKPURE_URL}\n\n"
-        "After installing, open the app and log in using your approved WhatsApp number.\n\n"
-        "The app can work offline after login and lesson sync."
+        "📱 *ARACHIS ONLINE TRAINING APP*\n\n"
+        "The app file is being sent below.\n\n"
+        "After downloading:\n"
+        "1️⃣ Tap the APK file\n"
+        "2️⃣ Allow installation if asked\n"
+        "3️⃣ Open the app\n"
+        "4️⃣ Login using your approved WhatsApp number"
+    )
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone.replace("+", ""),
+        "type": "document",
+        "document": {
+            "link": render_apk_url,
+            "filename": "Arachis_Online_Training.apk",
+            "caption": "📱 Arachis Online Training App"
+        }
+    }
+
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+
+    print("APK SEND STATUS:", response.status_code)
+    print("APK SEND RESPONSE:", response.text)
+
+    send_message(
+        phone,
+        "Alternative download from APKPure:\n"
+        f"{APKPURE_URL}"
     )
 
 import time
