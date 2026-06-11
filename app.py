@@ -2579,9 +2579,10 @@ def webhook():
         return "OK", 200
 
     # =========================
-    # DOWNLOAD APP
+    # DOWNLOAD APP SHORTCUTS
+    # Do NOT include "10" here because 10 can also be a lesson number
     # =========================
-    if incoming in ["10", "app", "apk", "download app", "download apk", "android app"]:
+    if incoming in ["app", "apk", "download app", "download apk", "android app"]:
         send_app_download(phone)
         return jsonify({"status": "ok"})
 
