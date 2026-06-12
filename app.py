@@ -338,6 +338,17 @@ def init_db():
 # =========================
 def normalize_phone(phone):
     return phone if phone.startswith("+") else "+" + phone
+
+def safe_text(value):
+    if value is None:
+        return ""
+
+    text = str(value)
+
+    # remove broken emoji surrogate characters like \ud83d
+    text = text.encode("utf-8", "ignore").decode("utf-8", "ignore")
+
+    return text
     
 from datetime import date
 
@@ -361,7 +372,7 @@ def send_message(phone, text):
     if text is None:
         text = ""
 
-    text = str(text).strip()
+    text = safe_text(text).strip()
 
     chunks = []
     max_len = 3000
@@ -1069,6 +1080,7 @@ def already_processed_message(message_id, phone, incoming):
         return False
         
 def log_activity(phone, action, details=""):
+    details = safe_text(details)[:1000]
     conn = get_db()
     c = conn.cursor()
     c.execute("""
@@ -1367,6 +1379,9 @@ def extract_pdf_text(pdf_filename):
 def clean_pdf_text(text: str) -> str:
     if not text:
         return ""
+
+    
+    text = safe_text(text)
 
     # remove null bytes (critical for postgres)
     text = text.replace("\x00", "")
