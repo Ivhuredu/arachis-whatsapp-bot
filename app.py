@@ -527,9 +527,26 @@ def send_pdf(phone, pdf_url, caption):
     if whatsapp_media_disabled_for(phone):
         send_message(
             phone,
-            "📱 Lesson notes are now available inside the Arachis App only.\n\n"
-            "Please open the app to read this lesson offline after login.\n\n"
-            "AI support is still available here on WhatsApp 🤖"
+            "📱 *ARACHIS APP REQUIRED / APP YAVA KUSHANDISWA*\n\n"
+            "🇬🇧 *English Instructions:*\n"
+            "PDF notes are no longer sent directly on WhatsApp.\n\n"
+            "To read this lesson:\n"
+            "1️⃣ Go back to the main menu by typing *MENU*\n"
+            "2️⃣ Choose option *10 - Download App*\n"
+            "3️⃣ Download and install the Arachis App\n"
+            "4️⃣ Open the app\n"
+            "5️⃣ Log in using your approved WhatsApp number\n"
+            "6️⃣ Open your lessons inside the app\n\n"
+            "🇿🇼 *Mirairo yeShona:*\n"
+            "Hatichatumiri maPDF notes paWhatsApp.\n\n"
+            "Kuti uverenge lesson iyi:\n"
+            "1️⃣ Nyora *MENU* kuti udzokere ku main menu\n"
+            "2️⃣ Sarudza option *10 - Download App*\n"
+            "3️⃣ Download woisa Arachis App mufoni yako\n"
+            "4️⃣ Vhura app\n"
+            "5️⃣ Log in nenumber yako yakatenderwa yawakashandisa paWhatsApp\n"
+            "6️⃣ Wobva wavhura ma lessons ako muApp\n\n"
+            "🤖 AI support ichiri kushanda pano paWhatsApp."
         )
         return
 
@@ -2201,7 +2218,7 @@ def open_lesson_direct(phone, module):
 
     send_message(
         phone,
-        f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
+        f"{label}\n\n📱 This lesson is now read inside the Arachis App.\n\nType *MENU* then choose *10 - Download App*.\n\n🤖 AI support is still available here."
     )
 
     if not whatsapp_media_disabled_for(phone):
@@ -3445,7 +3462,7 @@ def webhook():
         # 📘 Send lesson title
         send_message(
             phone,
-             f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
+             f"{label}\n\n📱 This lesson is now read inside the Arachis App.\n\nType *MENU* then choose *10 - Download App*.\n\n🤖 AI support is still available here."
         )
 
         # 🔊 FORCE AUDIO FIRST
@@ -3543,7 +3560,7 @@ def webhook():
         # 📘 Send lesson title
         send_message(
             phone,
-             f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
+             f"{label}\n\n📱 This lesson is now read inside the Arachis App.\n\nType *MENU* then choose *10 - Download App*.\n\n🤖 AI support is still available here."
         )
 
         # 🔊 FORCE AUDIO FIRST
@@ -3623,7 +3640,7 @@ def webhook():
 
         send_message(
             phone,
-            f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
+            f"{label}\n\n📱 This lesson is now read inside the Arachis App.\n\nType *MENU* then choose *10 - Download App*.\n\n🤖 AI support is still available here."
         )
         
         if not whatsapp_media_disabled_for(phone):
@@ -4217,7 +4234,7 @@ def webhook():
 
             send_message(
                 phone,
-                f"{label}\n\n📱 Lesson content is now available inside the Arachis App.\n\nAI support is still available here 🤖"
+                f"{label}\n\n📱 This lesson is now read inside the Arachis App.\n\nType *MENU* then choose *10 - Download App*.\n\n🤖 AI support is still available here."
             )
 
             send_audio_series(phone, module)
