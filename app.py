@@ -307,6 +307,33 @@ def init_db():
     ADD COLUMN IF NOT EXISTS pending_purchase TEXT
     """)
 
+        c.execute("""
+    CREATE TABLE IF NOT EXISTS marketplace_products (
+        id SERIAL PRIMARY KEY,
+        category TEXT,
+        name TEXT,
+        description TEXT,
+        price TEXT,
+        unit TEXT,
+        seller_name TEXT,
+        seller_phone TEXT,
+        seller_location TEXT,
+        image_url TEXT,
+        image_media_id TEXT,
+        status TEXT DEFAULT 'pending',
+        created_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS marketplace_temp (
+        phone TEXT PRIMARY KEY,
+        data TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     c.execute("""
     CREATE TABLE IF NOT EXISTS ingredient_prices (
         id SERIAL PRIMARY KEY,
@@ -474,6 +501,42 @@ def send_image(phone, image_url, caption=""):
     except Exception as e:
         print("SEND IMAGE ERROR:", e)
         log_activity(phone, "send_image_exception", str(e)[:500])
+
+def send_image_by_id(phone, media_id, caption=""):
+    """
+    Sends a WhatsApp image using a stored WhatsApp media ID.
+    Useful for customer-uploaded product pictures.
+    """
+
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone.replace("+", ""),
+        "type": "image",
+        "image": {
+            "id": media_id,
+            "caption": safe_text(caption)[:1000]
+        }
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
+
+        print("IMAGE ID STATUS:", response.status_code)
+        print("IMAGE ID RESPONSE:", response.text)
+
+        if response.status_code != 200:
+            log_activity(phone, "send_image_id_failed", response.text[:500])
+
+    except Exception as e:
+        print("SEND IMAGE ID ERROR:", e)
+        log_activity(phone, "send_image_id_exception", str(e)[:500])
 
 def download_whatsapp_image(media_id):
 
@@ -1822,258 +1885,453 @@ STORE_ITEMS = {
     },
     
 }
-STORE_PACKS = {
-    "dishwash": {
-        "starter": {
-            "name": "Dishwash Starter Pack (20L)",
-            "price": "$14",
-            "items": [
-                "SLES 1.5kg",
-                "Sulphonic Acid 1L",
-                "Caustic Soda 300g",
-                "Salt 500g",
-                "Bermacol 100g",
-                "Dye 20g",
-                "Perfume 30ml"
-            ],
-            "description": "Good for a learner or small seller who wants to make about 20 litres of dishwash.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/dishwash_starter.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Available while stocks last",
-            "delivery_note": "Delivery or collection is confirmed with supplier after order."
-        },
-        "medium": {
-            "name": "Dishwash Medium Pack (40L)",
-            "price": "$27.50",
-            "items": [
-                "SLES 3kg",
-                "Sulphonic Acid 2L",
-                "Caustic Soda 600g",
-                "Salt 1kg",
-                "Bermacol 200g",
-                "Dye 40g",
-                "Perfume 60ml"
-            ],
-            "description": "Suitable for a student who wants to produce a bigger batch for resale.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/dishwash_medium.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Available while stocks last",
-            "delivery_note": "Delivery or collection is confirmed with supplier after order."
-        },
-        "bulk": {
-            "name": "Dishwash Bulk Business Pack (100L)",
-            "price": "$65",
-            "items": [
-                "SLES 7kg",
-                "Sulphonic Acid 5L",
-                "Caustic Soda 1.5kg",
-                "Salt 3kg",
-                "Bermacol 500g",
-                "Dye 100g",
-                "Perfume 150ml"
-            ],
-            "description": "Business pack for students who want to produce in bulk and sell.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/dishwash_bulk.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Confirm stock before payment",
-            "delivery_note": "Delivery or collection is confirmed with supplier after order."
-        }
-    },
 
-    "bleach": {
-        "starter": {
-            "name": "Thick Bleach Starter Pack (20L)",
-            "price": "$15",
-            "items": [
-                "SLES 2kg",
-                "Sodium Hypochlorite 3L",
-                "Caustic Soda 300g"
-            ],
-            "description": "Starter pack for making thick bleach for home use or small resale.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/bleach_starter.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Available while stocks last",
-            "delivery_note": "Bleach ingredients must be handled carefully. Follow the lesson safety instructions."
-        },
-        "medium": {
-            "name": "Thick Bleach Medium Pack (40L)",
-            "price": "$29.50",
-            "items": [
-                "SLES 4kg",
-                "Sodium Hypochlorite 6L",
-                "Caustic Soda 600g"
-            ],
-            "description": "Medium pack for producing more bleach for resale.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/bleach_medium.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Available while stocks last",
-            "delivery_note": "Bleach ingredients must be handled carefully. Follow the lesson safety instructions."
-        },
-        "bulk": {
-            "name": "Thick Bleach Bulk Business Pack (100L)",
-            "price": "$55",
-            "items": [
-                "SLES 10kg",
-                "Sodium Hypochlorite 15L",
-                "Caustic Soda 1.5kg"
-            ],
-            "description": "Bulk pack for serious production and resale.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/bleach_bulk.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Confirm stock before payment",
-            "delivery_note": "Bleach ingredients must be handled carefully. Follow the lesson safety instructions."
-        }
-    },
-
-    "orange_drink": {
-        "starter": {
-            "name": "Orange Concentrate Starter Pack (10L)",
-            "price": "$20",
-            "items": [
-                "Sugar 8kg",
-                "Orange Flavour 100ml",
-                "Citric Acid 50g",
-                "Sodium Benzoate 20g",
-                "Colour"
-            ],
-            "description": "Starter pack for making orange drink concentrate.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/orange_drink_starter.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Available while stocks last",
-            "delivery_note": "Food-grade ingredients must be used for drinks."
-        },
-        "medium": {
-            "name": "Orange Concentrate Medium Pack (20L)",
-            "price": "$35",
-            "items": [
-                "Sugar 16kg",
-                "Orange Flavour 200ml",
-                "Citric Acid 100g",
-                "Sodium Benzoate 40g",
-                "Colour"
-            ],
-            "description": "Medium pack for producing orange concentrate for resale.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/orange_drink_medium.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Available while stocks last",
-            "delivery_note": "Food-grade ingredients must be used for drinks."
-        },
-        "bulk": {
-            "name": "Orange Concentrate Bulk Business Pack (50L)",
-            "price": "$80",
-            "items": [
-                "Sugar 40kg",
-                "Orange Flavour 500ml",
-                "Citric Acid 250g",
-                "Sodium Benzoate 100g",
-                "Colour"
-            ],
-            "description": "Bulk production pack for serious drink concentrate sellers.",
-            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/orange_drink_bulk.jpg",
-            "supplier_name": "Arachis Production Store",
-            "supplier_phone": "+263773208904",
-            "supplier_location": "Zimbabwe",
-            "stock_status": "Confirm stock before payment",
-            "delivery_note": "Food-grade ingredients must be used for drinks."
-        }
-    }
+MARKETPLACE_CATEGORIES = {
+    "1": "Beverages",
+    "2": "Detergents",
+    "3": "Spices",
+    "4": "Advanced Products",
+    "5": "Packaging",
+    "6": "Machinery and Tools",
+    "7": "Branding and Labels"
 }
-def price_to_float(price_text):
-    clean = str(price_text).replace("$", "").replace(",", "").strip()
-    try:
-        return float(clean)
-    except ValueError:
-        return 0.0
 
 
-def get_store_pack_by_name(item_name):
-    for category in STORE_PACKS.values():
-        for size in category.values():
-            if size["name"] == item_name:
-                return size
-    return None
+def save_marketplace_temp(phone, data):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO marketplace_temp (phone, data)
+        VALUES (%s, %s)
+        ON CONFLICT (phone)
+        DO UPDATE SET data = EXCLUDED.data,
+                      created_at = CURRENT_TIMESTAMP
+    """, (phone, data))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
 
 
-def build_marketplace_category_menu():
-    return (
-        "🛒 *ARACHIS INGREDIENTS MARKETPLACE*\n\n"
-        "Buy ready-packed production ingredients from listed suppliers.\n\n"
-        "1️⃣ Dishwash Ingredient Packs\n"
-        "2️⃣ Thick Bleach Ingredient Packs\n"
-        "3️⃣ Orange Drink Ingredient Packs\n\n"
-        "Each product shows:\n"
-        "🖼 Product picture\n"
-        "💵 Price\n"
-        "📦 Pack contents\n"
-        "🏭 Supplier details\n"
-        "🚚 Delivery/collection note\n\n"
-        "Reply with number.\n"
-        "↩ Type *MENU* to go back."
+def get_marketplace_temp(phone):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("SELECT data FROM marketplace_temp WHERE phone=%s", (phone,))
+    row = c.fetchone()
+
+    DATABASE_POOL.putconn(conn)
+
+    return row[0] if row else ""
+
+
+def clear_marketplace_temp(phone):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("DELETE FROM marketplace_temp WHERE phone=%s", (phone,))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+
+def seed_marketplace_products():
+    """
+    Adds a few example products only if marketplace is empty.
+    You can edit these products later.
+    """
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("SELECT COUNT(*) FROM marketplace_products")
+    count = c.fetchone()[0]
+
+    if count > 0:
+        DATABASE_POOL.putconn(conn)
+        return
+
+    products = [
+        {
+            "category": "Detergents",
+            "name": "SLES",
+            "description": "Used for dishwash, foam bath, shampoo and other foaming detergents.",
+            "price": "$3.50",
+            "unit": "per kg",
+            "seller_name": "Arachis Production Store",
+            "seller_phone": "+263773208904",
+            "seller_location": "Zimbabwe",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/sles.jpg",
+            "status": "active"
+        },
+        {
+            "category": "Detergents",
+            "name": "Sulphonic Acid",
+            "description": "Used in dishwash, liquid soap and many detergent formulas.",
+            "price": "$4.50",
+            "unit": "per litre",
+            "seller_name": "Arachis Production Store",
+            "seller_phone": "+263773208904",
+            "seller_location": "Zimbabwe",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/sulphonic_acid.jpg",
+            "status": "active"
+        },
+        {
+            "category": "Detergents",
+            "name": "Caustic Soda",
+            "description": "Used for neutralising sulphonic acid and other detergent applications. Handle with care.",
+            "price": "$3.00",
+            "unit": "per kg",
+            "seller_name": "Arachis Production Store",
+            "seller_phone": "+263773208904",
+            "seller_location": "Zimbabwe",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/caustic_soda.jpg",
+            "status": "active"
+        },
+        {
+            "category": "Packaging",
+            "name": "750ml Dishwash Bottles",
+            "description": "Empty bottles suitable for packaging dishwash and other liquid products.",
+            "price": "$0.25",
+            "unit": "each",
+            "seller_name": "Arachis Production Store",
+            "seller_phone": "+263773208904",
+            "seller_location": "Zimbabwe",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/dishwash_bottle.jpg",
+            "status": "active"
+        },
+        {
+            "category": "Spices",
+            "name": "Chicken Spice Ingredients",
+            "description": "Ingredients for blending chicken spice for resale.",
+            "price": "Contact seller",
+            "unit": "",
+            "seller_name": "Arachis Production Store",
+            "seller_phone": "+263773208904",
+            "seller_location": "Zimbabwe",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/chicken_spice.jpg",
+            "status": "active"
+        },
+        {
+            "category": "Machinery and Tools",
+            "name": "Mixing Bucket",
+            "description": "Plastic bucket for small-scale detergent production.",
+            "price": "Contact seller",
+            "unit": "",
+            "seller_name": "Arachis Production Store",
+            "seller_phone": "+263773208904",
+            "seller_location": "Zimbabwe",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/mixing_bucket.jpg",
+            "status": "active"
+        },
+        {
+            "category": "Branding and Labels",
+            "name": "Product Label Design",
+            "description": "Custom label design for dishwash, bleach, drinks, spices and cosmetics.",
+            "price": "Contact seller",
+            "unit": "",
+            "seller_name": "Arachis Branding Desk",
+            "seller_phone": "+263773208904",
+            "seller_location": "Online",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/label_design.jpg",
+            "status": "active"
+        }
+    ]
+
+    for p in products:
+        c.execute("""
+            INSERT INTO marketplace_products (
+                category, name, description, price, unit,
+                seller_name, seller_phone, seller_location,
+                image_url, status, created_by
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            p["category"],
+            p["name"],
+            p["description"],
+            p["price"],
+            p["unit"],
+            p["seller_name"],
+            p["seller_phone"],
+            p["seller_location"],
+            p["image_url"],
+            p["status"],
+            "system"
+        ))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+
+def get_featured_products(limit=5):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT id, name, category, price, unit, seller_location
+        FROM marketplace_products
+        WHERE status='active'
+        ORDER BY created_at DESC
+        LIMIT %s
+    """, (limit,))
+
+    rows = c.fetchall()
+    DATABASE_POOL.putconn(conn)
+
+    return rows
+
+
+def get_products_by_category(category, limit=20):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT id, name, category, price, unit, seller_location
+        FROM marketplace_products
+        WHERE status='active'
+        AND LOWER(category)=LOWER(%s)
+        ORDER BY created_at DESC
+        LIMIT %s
+    """, (category, limit))
+
+    rows = c.fetchall()
+    DATABASE_POOL.putconn(conn)
+
+    return rows
+
+
+def search_marketplace_products(search_term, limit=20):
+    conn = get_db()
+    c = conn.cursor()
+
+    term = f"%{search_term}%"
+
+    c.execute("""
+        SELECT id, name, category, price, unit, seller_location
+        FROM marketplace_products
+        WHERE status='active'
+        AND (
+            LOWER(name) LIKE LOWER(%s)
+            OR LOWER(category) LIKE LOWER(%s)
+            OR LOWER(description) LIKE LOWER(%s)
+            OR LOWER(seller_location) LIKE LOWER(%s)
+        )
+        ORDER BY created_at DESC
+        LIMIT %s
+    """, (term, term, term, term, limit))
+
+    rows = c.fetchall()
+    DATABASE_POOL.putconn(conn)
+
+    return rows
+
+
+def get_marketplace_product(product_id):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT id, category, name, description, price, unit,
+               seller_name, seller_phone, seller_location,
+               image_url, image_media_id, status
+        FROM marketplace_products
+        WHERE id=%s
+    """, (product_id,))
+
+    row = c.fetchone()
+    DATABASE_POOL.putconn(conn)
+
+    return row
+
+
+def build_marketplace_home(phone):
+    featured = get_featured_products(5)
+
+    save_marketplace_temp(
+        phone,
+        "featured:" + ",".join([str(p[0]) for p in featured])
     )
 
-
-def build_pack_size_menu(category):
-    category_names = {
-        "dishwash": "Dishwash Ingredient Packs",
-        "bleach": "Thick Bleach Ingredient Packs",
-        "orange_drink": "Orange Drink Ingredient Packs"
-    }
-
-    return (
-        f"📦 *{category_names.get(category, 'Ingredient Packs')}*\n\n"
-        "1️⃣ Starter Pack\n"
-        "2️⃣ Medium Pack\n"
-        "3️⃣ Bulk Business Pack\n\n"
-        "Reply with 1, 2 or 3.\n"
-        "↩ Type *MENU* to go back."
+    text = (
+        "🛒 *ARACHIS MARKETPLACE*\n\n"
+        "Buy and sell ingredients, packaging, tools and services used by Arachis students.\n\n"
+        "📂 *CATEGORIES*\n"
+        "1️⃣ Beverages\n"
+        "2️⃣ Detergents\n"
+        "3️⃣ Spices\n"
+        "4️⃣ Advanced Products\n"
+        "5️⃣ Packaging\n"
+        "6️⃣ Machinery and Tools\n"
+        "7️⃣ Branding and Labels\n\n"
+        "🔎 Type *SEARCH* to search for a product.\n"
+        "📤 Type *SELL* to upload your product for sale.\n\n"
     )
 
+    if featured:
+        text += "⭐ *FEATURED PRODUCTS*\n"
+        for i, p in enumerate(featured, start=1):
+            product_id, name, category, price, unit, location = p
+            text += f"P{i}. {name} - {price} {unit} | {location}\n"
 
-def build_pack_detail_message(pack):
-    items_list = "\n".join([f"✔ {i}" for i in pack.get("items", [])])
+        text += "\nReply with category number or featured product code, e.g. *P1*.\n"
 
-    return (
-        f"📦 *{pack['name']}*\n\n"
-        f"📝 {pack.get('description', '')}\n\n"
-        f"📋 *Pack Contents:*\n{items_list}\n\n"
-        f"💵 *Price:* {pack['price']}\n"
-        f"📌 *Stock:* {pack.get('stock_status', 'Confirm with supplier')}\n\n"
-        f"🏭 *Supplier:* {pack.get('supplier_name', 'Arachis Supplier')}\n"
-        f"📞 *Contact:* {pack.get('supplier_phone', '+263773208904')}\n"
-        f"📍 *Location:* {pack.get('supplier_location', 'Zimbabwe')}\n\n"
-        f"🚚 *Delivery/Collection:* {pack.get('delivery_note', 'Confirm with supplier.')}\n\n"
-        "Reply *ORDER* to request this pack.\n"
-        "Reply *MENU* to cancel."
-    )
+    text += "\n↩ Type *MENU* to go back."
+
+    return text
 
 
-def send_marketplace_pack(phone, pack):
-    image_url = pack.get("image_url")
-
-    if image_url:
-        send_image(
-            phone,
-            image_url,
-            f"{pack['name']} | {pack['price']}"
+def build_product_list_message(phone, products, title):
+    if not products:
+        return (
+            f"🛒 *{title}*\n\n"
+            "No products found yet.\n\n"
+            "Type *SELL* to upload your own product.\n"
+            "Type *MARKET* to go back."
         )
 
-    send_message(phone, build_pack_detail_message(pack))
+    save_marketplace_temp(
+        phone,
+        "results:" + ",".join([str(p[0]) for p in products])
+    )
+
+    text = f"🛒 *{title}*\n\n"
+
+    for i, p in enumerate(products, start=1):
+        product_id, name, category, price, unit, location = p
+        text += f"{i}️⃣ {name}\n"
+        text += f"   💵 {price} {unit}\n"
+        text += f"   📍 {location}\n\n"
+
+    text += (
+        "Reply with product number to view details.\n"
+        "Type *SEARCH* to search.\n"
+        "Type *MARKET* to go back."
+    )
+
+    return text
+
+
+def send_marketplace_product_details(phone, product_id):
+    product = get_marketplace_product(product_id)
+
+    if not product:
+        send_message(phone, "❌ Product not found.")
+        return
+
+    (
+        pid, category, name, description, price, unit,
+        seller_name, seller_phone, seller_location,
+        image_url, image_media_id, status
+    ) = product
+
+    caption = f"{name} | {price} {unit}"
+
+    if image_media_id:
+        send_image_by_id(phone, image_media_id, caption)
+
+    elif image_url:
+        send_image(phone, image_url, caption)
+
+    text = (
+        f"🛒 *{name}*\n\n"
+        f"📂 Category: {category}\n"
+        f"📝 Description: {description}\n\n"
+        f"💵 Price: {price} {unit}\n\n"
+        f"🏭 Seller: {seller_name}\n"
+        f"📞 Contact: {seller_phone}\n"
+        f"📍 Location: {seller_location}\n\n"
+        "⚠️ Confirm stock, price and delivery with the seller before paying.\n\n"
+        "Reply *ORDER* to request this product.\n"
+        "Type *MARKET* to go back."
+    )
+
+    save_marketplace_temp(phone, f"selected_product:{pid}")
+
+    send_message(phone, text)
+
+
+def add_marketplace_product(
+    category,
+    name,
+    description,
+    price,
+    unit,
+    seller_name,
+    seller_phone,
+    seller_location,
+    image_media_id,
+    created_by
+):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO marketplace_products (
+            category, name, description, price, unit,
+            seller_name, seller_phone, seller_location,
+            image_media_id, status, created_by
+        )
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending',%s)
+        RETURNING id
+    """, (
+        category,
+        name,
+        description,
+        price,
+        unit,
+        seller_name,
+        seller_phone,
+        seller_location,
+        image_media_id,
+        created_by
+    ))
+
+    product_id = c.fetchone()[0]
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+    return product_id
+
+
+def approve_marketplace_product(product_id):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE marketplace_products
+        SET status='active'
+        WHERE id=%s
+        RETURNING name, seller_phone
+    """, (product_id,))
+
+    row = c.fetchone()
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+    return row
+
+
+def reject_marketplace_product(product_id):
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE marketplace_products
+        SET status='rejected'
+        WHERE id=%s
+        RETURNING name, seller_phone
+    """, (product_id,))
+
+    row = c.fetchone()
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+    return row
+
 DELIVERY_FEES = {
     "mataga": 7,
     "mberengwa": 7,
@@ -2798,6 +3056,11 @@ def webhook():
         send_app_download(phone)
         return jsonify({"status": "ok"})
 
+    if incoming in ["market", "marketplace", "buy", "shop"]:
+        set_state(phone, "marketplace_home")
+        send_message(phone, build_marketplace_home(phone))
+        return jsonify({"status": "ok"})
+
     # =========================
     # DIRECT LESSON OPENING
     # =========================
@@ -2926,6 +3189,71 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
+    if msg_type == "image" and user["state"] == "marketplace_sell_photo":
+
+        media_id = message["image"]["id"]
+
+        temp = get_marketplace_temp(phone)
+
+        data = {}
+
+        for part in temp.split("|"):
+            if "=" in part:
+                key, value = part.split("=", 1)
+                data[key] = value
+
+        category = data.get("category", "Other")
+        name = data.get("name", "Unnamed Product")
+        description = data.get("description", "")
+        price = data.get("price", "Contact seller")
+        unit = data.get("unit", "")
+        seller_name = data.get("seller_name", "Marketplace Seller")
+        seller_location = data.get("seller_location", "Zimbabwe")
+
+        product_id = add_marketplace_product(
+            category=category,
+            name=name,
+            description=description,
+            price=price,
+            unit=unit,
+            seller_name=seller_name,
+            seller_phone=phone,
+            seller_location=seller_location,
+            image_media_id=media_id,
+            created_by=phone
+        )
+
+        clear_marketplace_temp(phone)
+
+        set_state(phone, "main")
+
+        send_message(
+            phone,
+            "✅ *PRODUCT SUBMITTED FOR REVIEW*\n\n"
+            f"Product ID: {product_id}\n"
+            f"Name: {name}\n"
+            f"Category: {category}\n"
+            f"Price: {price} {unit}\n\n"
+            "Your product has been sent to Admin for approval.\n"
+            "It will appear in the marketplace after approval.\n\n"
+            "↩ Type *MENU* to continue."
+        )
+
+        send_admin_alert(
+            "NEW MARKETPLACE PRODUCT UPLOAD",
+            f"Product ID: {product_id}\n"
+            f"Seller: {seller_name}\n"
+            f"Seller Phone: {phone}\n"
+            f"Category: {category}\n"
+            f"Product: {name}\n"
+            f"Price: {price} {unit}\n"
+            f"Location: {seller_location}\n\n"
+            f"Approve using:\napprove product {product_id}\n\n"
+            f"Reject using:\nreject product {product_id}"
+        )
+
+        return jsonify({"status": "ok"})
+
     if msg_type == "image":
 
         if not user["is_paid"]:
@@ -2979,6 +3307,64 @@ def webhook():
         paid = c.fetchone()[0]
         DATABASE_POOL.putconn(conn)
         send_message(phone, f"📊 *ADMIN DASHBOARD*\n\n👥 Users: {total}\n💰 Paid: {paid}")
+        return jsonify({"status": "ok"})
+
+    if incoming.startswith("approve product ") and phone in ADMIN_NUMBERS:
+
+        parts = incoming.split()
+
+        if len(parts) < 3 or not parts[2].isdigit():
+            send_message(phone, "Use: approve product 12")
+            return jsonify({"status": "ok"})
+
+        product_id = int(parts[2])
+        result = approve_marketplace_product(product_id)
+
+        if not result:
+            send_message(phone, "❌ Product not found.")
+            return jsonify({"status": "ok"})
+
+        product_name, seller_phone = result
+
+        send_message(phone, f"✅ Product approved: {product_name}")
+
+        if seller_phone:
+            send_message(
+                seller_phone,
+                f"🎉 Your marketplace product has been approved:\n\n"
+                f"✔ {product_name}\n\n"
+                "It can now appear in Arachis Marketplace."
+            )
+
+        return jsonify({"status": "ok"})
+
+    if incoming.startswith("reject product ") and phone in ADMIN_NUMBERS:
+
+        parts = incoming.split()
+
+        if len(parts) < 3 or not parts[2].isdigit():
+            send_message(phone, "Use: reject product 12")
+            return jsonify({"status": "ok"})
+
+        product_id = int(parts[2])
+        result = reject_marketplace_product(product_id)
+
+        if not result:
+            send_message(phone, "❌ Product not found.")
+            return jsonify({"status": "ok"})
+
+        product_name, seller_phone = result
+
+        send_message(phone, f"❌ Product rejected: {product_name}")
+
+        if seller_phone:
+            send_message(
+                seller_phone,
+                f"Your marketplace product was not approved:\n\n"
+                f"{product_name}\n\n"
+                "Please contact Admin if you need help correcting the listing."
+            )
+
         return jsonify({"status": "ok"})
 
     if incoming.startswith("approve ") and phone in ADMIN_NUMBERS:
@@ -3222,8 +3608,8 @@ def webhook():
             return jsonify({"status": "ok"})
 
         elif incoming == "5":
-            set_state(phone, "store_category")
-            send_message(phone, build_marketplace_category_menu())
+            set_state(phone, "marketplace_home")
+            send_message(phone, build_marketplace_home(phone))
             return jsonify({"status": "ok"})
 
         elif incoming == "4":
@@ -4186,135 +4572,320 @@ def webhook():
             send_message(phone, "Invalid format. Example: 1,3,7")
             return jsonify({"status": "ok"})
 
-    elif user["state"] == "store_category":
+        elif user["state"] == "marketplace_home":
 
-        categories = {
-            "1": "dishwash",
-            "2": "bleach",
-            "3": "orange_drink"
-        }
+        if incoming in MARKETPLACE_CATEGORIES:
+            category = MARKETPLACE_CATEGORIES[incoming]
+            products = get_products_by_category(category)
 
-        if incoming in categories:
-            selected = categories[incoming]
-            set_state(phone, f"store_pack_{selected}")
-            send_message(phone, build_pack_size_menu(selected))
+            set_state(phone, "marketplace_results")
+            send_message(phone, build_product_list_message(phone, products, category))
             return jsonify({"status": "ok"})
 
-        send_message(phone, "Sarudza 1, 2 or 3.\n\n" + build_marketplace_category_menu())
-        return jsonify({"status": "ok"})
-
-
-    elif user["state"].startswith("store_pack_"):
-
-        category = user["state"].replace("store_pack_", "")
-
-        sizes = {
-            "1": "starter",
-            "2": "medium",
-            "3": "bulk"
-        }
-
-        if category not in STORE_PACKS:
-            set_state(phone, "store_category")
-            send_message(phone, "❌ Category not found.\n\n" + build_marketplace_category_menu())
-            return jsonify({"status": "ok"})
-
-        if incoming in sizes:
-
-            size = sizes[incoming]
-            pack = STORE_PACKS[category][size]
-
-            conn = get_db()
-            c = conn.cursor()
-            c.execute("""
-                INSERT INTO temp_orders (phone, item)
-                VALUES (%s, %s)
-                ON CONFLICT (phone)
-                DO UPDATE SET item = EXCLUDED.item
-            """, (phone, pack["name"]))
-            conn.commit()
-            DATABASE_POOL.putconn(conn)
-
-            send_marketplace_pack(phone, pack)
-
-            set_state(phone, "store_confirm")
-            return jsonify({"status": "ok"})
-
-        send_message(phone, "Sarudza 1, 2 or 3.\n\n" + build_pack_size_menu(category))
-        return jsonify({"status": "ok"})
-
-
-    elif user["state"] == "store_confirm":
-
-        if incoming == "order":
-            set_state(phone, "store_delivery")
-
+        elif incoming in ["search", "find"]:
+            set_state(phone, "marketplace_search")
             send_message(
                 phone,
-                "🚚 Enter your *Town / Area* for delivery fee calculation.\n\n"
-                "Example: Gweru"
+                "🔎 *MARKETPLACE SEARCH*\n\n"
+                "Type the product you are looking for.\n\n"
+                "Example:\n"
+                "SLES\n"
+                "bottles\n"
+                "labels\n"
+                "spice\n"
+                "mixing bucket"
             )
             return jsonify({"status": "ok"})
 
-        send_message(phone, "Reply *ORDER* to confirm or *MENU* to cancel.")
-        return jsonify({"status": "ok"})
+        elif incoming in ["sell", "upload", "post product", "sell product"]:
+            set_state(phone, "marketplace_sell_category")
 
-
-    elif user["state"] == "store_delivery":
-
-        town = incoming.lower()
-        delivery_fee = DELIVERY_FEES.get(town, DEFAULT_DELIVERY_FEE)
-
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
-        order = c.fetchone()
-        DATABASE_POOL.putconn(conn)
-
-        if not order:
-            send_message(phone, "❌ Order not found. Nyora *MENU*")
+            send_message(
+                phone,
+                "📤 *SELL YOUR PRODUCT ON ARACHIS MARKETPLACE*\n\n"
+                "Choose product category:\n\n"
+                "1️⃣ Beverages\n"
+                "2️⃣ Detergents\n"
+                "3️⃣ Spices\n"
+                "4️⃣ Advanced Products\n"
+                "5️⃣ Packaging\n"
+                "6️⃣ Machinery and Tools\n"
+                "7️⃣ Branding and Labels\n\n"
+                "Reply with category number."
+            )
             return jsonify({"status": "ok"})
 
-        item_name = order[0]
-        pack = get_store_pack_by_name(item_name)
+        elif incoming.startswith("p") and incoming[1:].isdigit():
 
-        if not pack:
-            send_message(phone, "❌ Price error. Please contact admin.")
+            temp = get_marketplace_temp(phone)
+
+            if not temp.startswith("featured:"):
+                send_message(phone, "Product list expired. Type *MARKET* to refresh.")
+                return jsonify({"status": "ok"})
+
+            ids = temp.replace("featured:", "").split(",")
+            index = int(incoming[1:]) - 1
+
+            if index < 0 or index >= len(ids):
+                send_message(phone, "Invalid featured product.")
+                return jsonify({"status": "ok"})
+
+            set_state(phone, "marketplace_product")
+            send_marketplace_product_details(phone, int(ids[index]))
             return jsonify({"status": "ok"})
 
-        base_price = price_to_float(pack["price"])
-        total = base_price + delivery_fee
+        else:
+            send_message(phone, build_marketplace_home(phone))
+            return jsonify({"status": "ok"})
 
-        set_state(phone, "main")
 
-        supplier_phone = pack.get("supplier_phone", "+263773208904")
-        supplier_name = pack.get("supplier_name", "Arachis Supplier")
+    elif user["state"] == "marketplace_search":
+
+        products = search_marketplace_products(incoming)
+
+        set_state(phone, "marketplace_results")
 
         send_message(
             phone,
-            f"✅ *MARKETPLACE ORDER REQUEST RECEIVED*\n\n"
-            f"📦 Order: {item_name}\n"
-            f"🏭 Supplier: {supplier_name}\n"
-            f"📞 Supplier Contact: {supplier_phone}\n"
-            f"🚚 Delivery to: {town.title()}\n\n"
-            f"💵 Product Price: ${base_price:.2f}\n"
-            f"🚚 Estimated Delivery Fee: ${delivery_fee:.2f}\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"💰 Estimated Total: ${total:.2f}\n\n"
-            "⚠️ Please confirm stock and delivery with the supplier before paying.\n\n"
-            "📲 To complete order, contact supplier or Admin:\n"
-            f"{supplier_phone}\n\n"
-            "↩ Nyora *MENU* kudzokera."
+            build_product_list_message(phone, products, f"Search Results for: {incoming}")
         )
 
-        send_admin_alert(
-            "NEW MARKETPLACE ORDER",
-            f"Customer: {phone}\n"
-            f"Item: {item_name}\n"
-            f"Town: {town.title()}\n"
-            f"Product Price: ${base_price:.2f}\n"
-            f"Delivery Estimate: ${delivery_fee:.2f}\n"
-            f"Estimated Total: ${total:.2f}"
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_results":
+
+        if incoming in ["search", "find"]:
+            set_state(phone, "marketplace_search")
+            send_message(phone, "🔎 Type the product you are looking for.")
+            return jsonify({"status": "ok"})
+
+        if incoming in ["market", "marketplace", "back"]:
+            set_state(phone, "marketplace_home")
+            send_message(phone, build_marketplace_home(phone))
+            return jsonify({"status": "ok"})
+
+        if not incoming.isdigit():
+            send_message(phone, "Reply with product number, or type *MARKET* to go back.")
+            return jsonify({"status": "ok"})
+
+        temp = get_marketplace_temp(phone)
+
+        if not temp.startswith("results:"):
+            send_message(phone, "Product list expired. Type *MARKET* to refresh.")
+            return jsonify({"status": "ok"})
+
+        ids = temp.replace("results:", "").split(",")
+        index = int(incoming) - 1
+
+        if index < 0 or index >= len(ids):
+            send_message(phone, "Invalid product number.")
+            return jsonify({"status": "ok"})
+
+        product_id = int(ids[index])
+
+        set_state(phone, "marketplace_product")
+        send_marketplace_product_details(phone, product_id)
+
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_product":
+
+        temp = get_marketplace_temp(phone)
+
+        if incoming in ["market", "marketplace", "back"]:
+            set_state(phone, "marketplace_home")
+            send_message(phone, build_marketplace_home(phone))
+            return jsonify({"status": "ok"})
+
+        if incoming == "order":
+
+            if not temp.startswith("selected_product:"):
+                send_message(phone, "Product not selected. Type *MARKET*.")
+                return jsonify({"status": "ok"})
+
+            product_id = int(temp.replace("selected_product:", ""))
+            product = get_marketplace_product(product_id)
+
+            if not product:
+                send_message(phone, "❌ Product not found.")
+                return jsonify({"status": "ok"})
+
+            (
+                pid, category, name, description, price, unit,
+                seller_name, seller_phone, seller_location,
+                image_url, image_media_id, status
+            ) = product
+
+            send_message(
+                phone,
+                f"✅ *ORDER REQUEST*\n\n"
+                f"Product: {name}\n"
+                f"Price: {price} {unit}\n"
+                f"Seller: {seller_name}\n"
+                f"Contact: {seller_phone}\n"
+                f"Location: {seller_location}\n\n"
+                "Please contact the seller directly to confirm stock, payment and delivery.\n\n"
+                "⚠️ Arachis advises customers to confirm product quality before payment."
+            )
+
+            send_admin_alert(
+                "MARKETPLACE ORDER REQUEST",
+                f"Customer: {phone}\n"
+                f"Product: {name}\n"
+                f"Seller: {seller_name}\n"
+                f"Seller Contact: {seller_phone}\n"
+                f"Price: {price} {unit}"
+            )
+
+            return jsonify({"status": "ok"})
+
+        send_message(phone, "Reply *ORDER* to request this product or *MARKET* to go back.")
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_sell_category":
+
+        if incoming not in MARKETPLACE_CATEGORIES:
+            send_message(phone, "Choose category number from 1 to 7.")
+            return jsonify({"status": "ok"})
+
+        category = MARKETPLACE_CATEGORIES[incoming]
+        save_marketplace_temp(phone, f"sell|category={category}")
+
+        set_state(phone, "marketplace_sell_name")
+
+        send_message(
+            phone,
+            f"📂 Category selected: *{category}*\n\n"
+            "Enter product name.\n\n"
+            "Example:\n"
+            "SLES\n"
+            "Empty 750ml Bottles\n"
+            "Chicken Spice Ingredients\n"
+            "Label Printing Service"
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_sell_name":
+
+        temp = get_marketplace_temp(phone)
+        temp += f"|name={incoming.title()}"
+        save_marketplace_temp(phone, temp)
+
+        set_state(phone, "marketplace_sell_description")
+
+        send_message(
+            phone,
+            "📝 Enter short product description.\n\n"
+            "Example:\n"
+            "Good quality SLES for dishwash, foam bath and shampoo."
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_sell_description":
+
+        temp = get_marketplace_temp(phone)
+        temp += f"|description={incoming}"
+        save_marketplace_temp(phone, temp)
+
+        set_state(phone, "marketplace_sell_price")
+
+        send_message(
+            phone,
+            "💵 Enter price.\n\n"
+            "Example:\n"
+            "$3.50\n"
+            "$1 per 30ml\n"
+            "Contact seller"
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_sell_price":
+
+        temp = get_marketplace_temp(phone)
+        temp += f"|price={incoming}"
+        save_marketplace_temp(phone, temp)
+
+        set_state(phone, "marketplace_sell_unit")
+
+        send_message(
+            phone,
+            "📏 Enter unit or size.\n\n"
+            "Example:\n"
+            "per kg\n"
+            "per litre\n"
+            "each\n"
+            "per 100 labels\n"
+            "Leave blank by typing *NONE* if not applicable."
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_sell_unit":
+
+        unit = "" if incoming == "none" else incoming
+
+        temp = get_marketplace_temp(phone)
+        temp += f"|unit={unit}"
+        save_marketplace_temp(phone, temp)
+
+        set_state(phone, "marketplace_sell_seller_name")
+
+        send_message(
+            phone,
+            "🏭 Enter seller or business name.\n\n"
+            "Example:\n"
+            "Tariro Chemicals\n"
+            "Arachis Student Supplier\n"
+            "Kuda Packaging"
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_sell_seller_name":
+
+        temp = get_marketplace_temp(phone)
+        temp += f"|seller_name={incoming.title()}"
+        save_marketplace_temp(phone, temp)
+
+        set_state(phone, "marketplace_sell_location")
+
+        send_message(
+            phone,
+            "📍 Enter seller location.\n\n"
+            "Example:\n"
+            "Harare CBD\n"
+            "Gweru\n"
+            "Bulawayo\n"
+            "Online"
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "marketplace_sell_location":
+
+        temp = get_marketplace_temp(phone)
+        temp += f"|seller_location={incoming.title()}"
+        save_marketplace_temp(phone, temp)
+
+        set_state(phone, "marketplace_sell_photo")
+
+        send_message(
+            phone,
+            "🖼 Now upload a clear product picture.\n\n"
+            "Send one photo of the product.\n\n"
+            "⚠️ Product will be reviewed by Admin before appearing in the marketplace."
         )
 
         return jsonify({"status": "ok"})
@@ -5503,6 +6074,7 @@ try:
     init_db()
     auto_sync_lessons()
     seed_prices()
+    seed_marketplace_products()
     print("Startup successful")
 except Exception as e:
     print("Startup error:", e)
