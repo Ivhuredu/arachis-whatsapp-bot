@@ -6066,6 +6066,101 @@ def mobile_login():
             "message": "Server error. Please try again."
         }), 500
 
+@app.route("/api/mobile/marketplace/products", methods=["GET"])
+def mobile_marketplace_products():
+    try:
+        category = request.args.get("category", "").strip()
+        search = request.args.get("search", "").strip()
+
+        conn = get_db()
+        c = conn.cursor()
+
+        if search:
+            term = f"%{search}%"
+
+            c.execute("""
+                SELECT id, category, name, description, price, unit,
+                       seller_name, seller_phone, seller_location,
+                       image_url, image_media_id, status, created_at
+                FROM marketplace_products
+                WHERE status='active'
+                AND (
+                    LOWER(name) LIKE LOWER(%s)
+                    OR LOWER(category) LIKE LOWER(%s)
+                    OR LOWER(description) LIKE LOWER(%s)
+                    OR LOWER(seller_location) LIKE LOWER(%s)
+                )
+                ORDER BY created_at DESC
+                LIMIT 100
+            """, (term, term, term, term))
+
+        elif category:
+            c.execute("""
+                SELECT id, category, name, description, price, unit,
+                       seller_name, seller_phone, seller_location,
+                       image_url, image_media_id, status, created_at
+                FROM marketplace_products
+                WHERE status='active'
+                AND LOWER(category)=LOWER(%s)
+                ORDER BY created_at DESC
+                LIMIT 100
+            """, (category,))
+
+        else:
+            c.execute("""
+                SELECT id, category, name, description, price, unit,
+                       seller_name, seller_phone, seller_location,
+                       image_url, image_media_id, status, created_at
+                FROM marketplace_products
+                WHERE status='active'
+                ORDER BY created_at DESC
+                LIMIT 100
+            """)
+
+        rows = c.fetchall()
+        DATABASE_POOL.putconn(conn)
+
+        products = []
+
+        for r in rows:
+            product_id = r[0]
+            image_url = r[9]
+            image_media_id = r[10]
+
+            # If product has a public image_url, use it.
+            # If it only has WhatsApp media ID, the app may not display it permanently.
+            final_image_url = image_url or ""
+
+            products.append({
+                "id": product_id,
+                "category": r[1] or "",
+                "name": r[2] or "",
+                "description": r[3] or "",
+                "price": r[4] or "Contact seller",
+                "unit": r[5] or "",
+                "seller_name": r[6] or "",
+                "seller_phone": r[7] or "",
+                "seller_location": r[8] or "",
+                "image_url": final_image_url,
+                "image_media_id": image_media_id or "",
+                "status": r[11] or "",
+                "created_at": str(r[12])
+            })
+
+        return jsonify({
+            "success": True,
+            "products": products
+        })
+
+    except Exception as e:
+        print("MOBILE MARKETPLACE PRODUCTS ERROR:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "Failed to load marketplace products",
+            "products": []
+        }), 500
+
 @app.route("/")
 def home():
     return "Arachis WhatsApp Bot Running"
