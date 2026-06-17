@@ -4572,7 +4572,7 @@ def webhook():
             send_message(phone, "Invalid format. Example: 1,3,7")
             return jsonify({"status": "ok"})
 
-        elif user["state"] == "marketplace_home":
+    elif user["state"] == "marketplace_home":
 
         if incoming in MARKETPLACE_CATEGORIES:
             category = MARKETPLACE_CATEGORIES[incoming]
