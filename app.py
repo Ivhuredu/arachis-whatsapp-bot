@@ -437,6 +437,44 @@ def send_message(phone, text):
             print("SEND MESSAGE ERROR:", e)
             log_activity(phone, "send_message_exception", str(e)[:500])
 
+def send_image(phone, image_url, caption=""):
+    """
+    Sends a marketplace product picture through WhatsApp Cloud API.
+
+    The image_url must be public HTTPS, for example:
+    https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/dishwash_starter.jpg
+    """
+
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone.replace("+", ""),
+        "type": "image",
+        "image": {
+            "link": image_url,
+            "caption": safe_text(caption)[:1000]
+        }
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
+
+        print("IMAGE STATUS:", response.status_code)
+        print("IMAGE RESPONSE:", response.text)
+
+        if response.status_code != 200:
+            log_activity(phone, "send_image_failed", response.text[:500])
+
+    except Exception as e:
+        print("SEND IMAGE ERROR:", e)
+        log_activity(phone, "send_image_exception", str(e)[:500])
+
 def download_whatsapp_image(media_id):
 
     url = f"https://graph.facebook.com/v18.0/{media_id}"
@@ -1785,7 +1823,6 @@ STORE_ITEMS = {
     
 }
 STORE_PACKS = {
-
     "dishwash": {
         "starter": {
             "name": "Dishwash Starter Pack (20L)",
@@ -1798,11 +1835,18 @@ STORE_PACKS = {
                 "Bermacol 100g",
                 "Dye 20g",
                 "Perfume 30ml"
-            ]
+            ],
+            "description": "Good for a learner or small seller who wants to make about 20 litres of dishwash.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/dishwash_starter.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Available while stocks last",
+            "delivery_note": "Delivery or collection is confirmed with supplier after order."
         },
         "medium": {
             "name": "Dishwash Medium Pack (40L)",
-            "price": "$27.5",
+            "price": "$27.50",
             "items": [
                 "SLES 3kg",
                 "Sulphonic Acid 2L",
@@ -1811,7 +1855,14 @@ STORE_PACKS = {
                 "Bermacol 200g",
                 "Dye 40g",
                 "Perfume 60ml"
-            ]
+            ],
+            "description": "Suitable for a student who wants to produce a bigger batch for resale.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/dishwash_medium.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Available while stocks last",
+            "delivery_note": "Delivery or collection is confirmed with supplier after order."
         },
         "bulk": {
             "name": "Dishwash Bulk Business Pack (100L)",
@@ -1824,43 +1875,71 @@ STORE_PACKS = {
                 "Bermacol 500g",
                 "Dye 100g",
                 "Perfume 150ml"
-            ]
+            ],
+            "description": "Business pack for students who want to produce in bulk and sell.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/dishwash_bulk.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Confirm stock before payment",
+            "delivery_note": "Delivery or collection is confirmed with supplier after order."
         }
     },
 
     "bleach": {
         "starter": {
-            "name": "Thick Bleach Starter (20L)",
+            "name": "Thick Bleach Starter Pack (20L)",
             "price": "$15",
             "items": [
                 "SLES 2kg",
-                "Hypochlorite 3L",
+                "Sodium Hypochlorite 3L",
                 "Caustic Soda 300g"
-            ]
+            ],
+            "description": "Starter pack for making thick bleach for home use or small resale.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/bleach_starter.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Available while stocks last",
+            "delivery_note": "Bleach ingredients must be handled carefully. Follow the lesson safety instructions."
         },
         "medium": {
-            "name": "Thick Bleach Medium (40L)",
-            "price": "$29.5",
+            "name": "Thick Bleach Medium Pack (40L)",
+            "price": "$29.50",
             "items": [
                 "SLES 4kg",
-                "Hypochlorite 6L",
+                "Sodium Hypochlorite 6L",
                 "Caustic Soda 600g"
-            ]
+            ],
+            "description": "Medium pack for producing more bleach for resale.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/bleach_medium.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Available while stocks last",
+            "delivery_note": "Bleach ingredients must be handled carefully. Follow the lesson safety instructions."
         },
         "bulk": {
-            "name": "Thick Bleach Bulk (100L)",
+            "name": "Thick Bleach Bulk Business Pack (100L)",
             "price": "$55",
             "items": [
                 "SLES 10kg",
-                "Hypochlorite 15L",
+                "Sodium Hypochlorite 15L",
                 "Caustic Soda 1.5kg"
-            ]
+            ],
+            "description": "Bulk pack for serious production and resale.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/bleach_bulk.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Confirm stock before payment",
+            "delivery_note": "Bleach ingredients must be handled carefully. Follow the lesson safety instructions."
         }
     },
 
     "orange_drink": {
         "starter": {
-            "name": "Orange Concentrate Starter (10L)",
+            "name": "Orange Concentrate Starter Pack (10L)",
             "price": "$20",
             "items": [
                 "Sugar 8kg",
@@ -1868,10 +1947,17 @@ STORE_PACKS = {
                 "Citric Acid 50g",
                 "Sodium Benzoate 20g",
                 "Colour"
-            ]
+            ],
+            "description": "Starter pack for making orange drink concentrate.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/orange_drink_starter.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Available while stocks last",
+            "delivery_note": "Food-grade ingredients must be used for drinks."
         },
         "medium": {
-            "name": "Orange Concentrate Medium (20L)",
+            "name": "Orange Concentrate Medium Pack (20L)",
             "price": "$35",
             "items": [
                 "Sugar 16kg",
@@ -1879,10 +1965,17 @@ STORE_PACKS = {
                 "Citric Acid 100g",
                 "Sodium Benzoate 40g",
                 "Colour"
-            ]
+            ],
+            "description": "Medium pack for producing orange concentrate for resale.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/orange_drink_medium.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Available while stocks last",
+            "delivery_note": "Food-grade ingredients must be used for drinks."
         },
         "bulk": {
-            "name": "Orange Concentrate Bulk (50L)",
+            "name": "Orange Concentrate Bulk Business Pack (50L)",
             "price": "$80",
             "items": [
                 "Sugar 40kg",
@@ -1890,10 +1983,97 @@ STORE_PACKS = {
                 "Citric Acid 250g",
                 "Sodium Benzoate 100g",
                 "Colour"
-            ]
+            ],
+            "description": "Bulk production pack for serious drink concentrate sellers.",
+            "image_url": "https://arachis-whatsapp-bot-2.onrender.com/static/marketplace/orange_drink_bulk.jpg",
+            "supplier_name": "Arachis Production Store",
+            "supplier_phone": "+263773208904",
+            "supplier_location": "Zimbabwe",
+            "stock_status": "Confirm stock before payment",
+            "delivery_note": "Food-grade ingredients must be used for drinks."
         }
     }
 }
+def price_to_float(price_text):
+    clean = str(price_text).replace("$", "").replace(",", "").strip()
+    try:
+        return float(clean)
+    except ValueError:
+        return 0.0
+
+
+def get_store_pack_by_name(item_name):
+    for category in STORE_PACKS.values():
+        for size in category.values():
+            if size["name"] == item_name:
+                return size
+    return None
+
+
+def build_marketplace_category_menu():
+    return (
+        "🛒 *ARACHIS INGREDIENTS MARKETPLACE*\n\n"
+        "Buy ready-packed production ingredients from listed suppliers.\n\n"
+        "1️⃣ Dishwash Ingredient Packs\n"
+        "2️⃣ Thick Bleach Ingredient Packs\n"
+        "3️⃣ Orange Drink Ingredient Packs\n\n"
+        "Each product shows:\n"
+        "🖼 Product picture\n"
+        "💵 Price\n"
+        "📦 Pack contents\n"
+        "🏭 Supplier details\n"
+        "🚚 Delivery/collection note\n\n"
+        "Reply with number.\n"
+        "↩ Type *MENU* to go back."
+    )
+
+
+def build_pack_size_menu(category):
+    category_names = {
+        "dishwash": "Dishwash Ingredient Packs",
+        "bleach": "Thick Bleach Ingredient Packs",
+        "orange_drink": "Orange Drink Ingredient Packs"
+    }
+
+    return (
+        f"📦 *{category_names.get(category, 'Ingredient Packs')}*\n\n"
+        "1️⃣ Starter Pack\n"
+        "2️⃣ Medium Pack\n"
+        "3️⃣ Bulk Business Pack\n\n"
+        "Reply with 1, 2 or 3.\n"
+        "↩ Type *MENU* to go back."
+    )
+
+
+def build_pack_detail_message(pack):
+    items_list = "\n".join([f"✔ {i}" for i in pack.get("items", [])])
+
+    return (
+        f"📦 *{pack['name']}*\n\n"
+        f"📝 {pack.get('description', '')}\n\n"
+        f"📋 *Pack Contents:*\n{items_list}\n\n"
+        f"💵 *Price:* {pack['price']}\n"
+        f"📌 *Stock:* {pack.get('stock_status', 'Confirm with supplier')}\n\n"
+        f"🏭 *Supplier:* {pack.get('supplier_name', 'Arachis Supplier')}\n"
+        f"📞 *Contact:* {pack.get('supplier_phone', '+263773208904')}\n"
+        f"📍 *Location:* {pack.get('supplier_location', 'Zimbabwe')}\n\n"
+        f"🚚 *Delivery/Collection:* {pack.get('delivery_note', 'Confirm with supplier.')}\n\n"
+        "Reply *ORDER* to request this pack.\n"
+        "Reply *MENU* to cancel."
+    )
+
+
+def send_marketplace_pack(phone, pack):
+    image_url = pack.get("image_url")
+
+    if image_url:
+        send_image(
+            phone,
+            image_url,
+            f"{pack['name']} | {pack['price']}"
+        )
+
+    send_message(phone, build_pack_detail_message(pack))
 DELIVERY_FEES = {
     "mataga": 7,
     "mberengwa": 7,
@@ -3043,14 +3223,7 @@ def webhook():
 
         elif incoming == "5":
             set_state(phone, "store_category")
-            send_message(
-                phone,
-                "🛒 *ARACHIS PRODUCTION STORE*\n\n"
-                "1️⃣ Dishwash Packs\n"
-                "2️⃣ Thick Bleach Packs\n"
-                "3️⃣ Orange Drink Packs\n\n"
-                "Reply with number."
-            )
+            send_message(phone, build_marketplace_category_menu())
             return jsonify({"status": "ok"})
 
         elif incoming == "4":
@@ -4015,123 +4188,136 @@ def webhook():
 
     elif user["state"] == "store_category":
 
-        categories = {
-            "1": "dishwash",
-            "2": "bleach",
-            "3": "orange_drink"
-        }
+    categories = {
+        "1": "dishwash",
+        "2": "bleach",
+        "3": "orange_drink"
+    }
 
-        if incoming in categories:
-            selected = categories[incoming]
-            set_state(phone, f"store_pack_{selected}")
+    if incoming in categories:
+        selected = categories[incoming]
+        set_state(phone, f"store_pack_{selected}")
+        send_message(phone, build_pack_size_menu(selected))
+        return jsonify({"status": "ok"})
 
-            send_message(
-                phone,
-                "📦 Choose Pack Size:\n\n"
-                "1️⃣ Starter\n"
-                "2️⃣ Medium\n"
-                "3️⃣ Bulk Business\n\n"
-                "Reply with 1, 2 or 3"
-            )
-            return jsonify({"status": "ok"})
+    send_message(phone, "Sarudza 1, 2 or 3.\n\n" + build_marketplace_category_menu())
+    return jsonify({"status": "ok"})
 
-    elif user["state"].startswith("store_pack_"):
 
-        category = user["state"].replace("store_pack_", "")
+elif user["state"].startswith("store_pack_"):
 
-        sizes = {
-            "1": "starter",
-            "2": "medium",
-            "3": "bulk"
-        }
+    category = user["state"].replace("store_pack_", "")
 
-        if incoming in sizes:
+    sizes = {
+        "1": "starter",
+        "2": "medium",
+        "3": "bulk"
+    }
 
-            size = sizes[incoming]
-            pack = STORE_PACKS[category][size]
+    if category not in STORE_PACKS:
+        set_state(phone, "store_category")
+        send_message(phone, "❌ Category not found.\n\n" + build_marketplace_category_menu())
+        return jsonify({"status": "ok"})
 
-            conn = get_db()
-            c = conn.cursor()
-            c.execute("""
-                INSERT INTO temp_orders (phone, item)
-                VALUES (%s, %s)
-                ON CONFLICT (phone)
-                DO UPDATE SET item = EXCLUDED.item
-            """, (phone, pack["name"]))
-            conn.commit()
-            DATABASE_POOL.putconn(conn)
+    if incoming in sizes:
 
-            items_list = "\n".join([f"✔ {i}" for i in pack["items"]])
-
-            send_message(
-                phone,
-                f"📦 *{pack['name']}*\n\n"
-                f"{items_list}\n\n"
-                f"💵 Product Price: {pack['price']}\n\n"
-                "Reply *ORDER* to confirm."
-            )
-
-            set_state(phone, "store_confirm")
-            return jsonify({"status": "ok"})
-
-    elif user["state"] == "store_confirm":
-
-        if incoming == "order":
-            set_state(phone, "store_delivery")
-
-            send_message(
-                phone,
-                "🚚 Enter your *Town / Area* for delivery fee calculation.\n\n"
-                "Example: Gweru"
-            )
-            return jsonify({"status": "ok"})
-
-    elif user["state"] == "store_delivery":
-
-        town = incoming.lower()
-        delivery_fee = DELIVERY_FEES.get(town, DEFAULT_DELIVERY_FEE)
+        size = sizes[incoming]
+        pack = STORE_PACKS[category][size]
 
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
-        order = c.fetchone()
+        c.execute("""
+            INSERT INTO temp_orders (phone, item)
+            VALUES (%s, %s)
+            ON CONFLICT (phone)
+            DO UPDATE SET item = EXCLUDED.item
+        """, (phone, pack["name"]))
+        conn.commit()
         DATABASE_POOL.putconn(conn)
 
-        if not order:
-            send_message(phone, "❌ Order not found. Nyora *MENU*")
-            return jsonify({"status": "ok"})
+        send_marketplace_pack(phone, pack)
 
-        item_name = order[0]
+        set_state(phone, "store_confirm")
+        return jsonify({"status": "ok"})
 
-        base_price = None
-        for category in STORE_PACKS.values():
-            for size in category.values():
-                if size["name"] == item_name:
-                    base_price = int(size["price"].replace("$", ""))
-                    break
+    send_message(phone, "Sarudza 1, 2 or 3.\n\n" + build_pack_size_menu(category))
+    return jsonify({"status": "ok"})
 
-        if base_price is None:
-            send_message(phone, "❌ Price error.")
-            return jsonify({"status": "ok"})
 
-        total = base_price + delivery_fee
+elif user["state"] == "store_confirm":
 
-        set_state(phone, "main")
+    if incoming == "order":
+        set_state(phone, "store_delivery")
 
         send_message(
             phone,
-            f"📦 Order: {item_name}\n"
-            f"🚚 Delivery to: {town.title()}\n"
-            f"💵 Product Price: ${base_price}\n"
-            f"🚚 Delivery Fee: ${delivery_fee}\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"💰 TOTAL: ${total}\n\n"
-            "📲 Pay via EcoCash 0773 208904\n"
-            "Send proof here.\n\n"
-            "↩ Nyora *MENU* kudzokera."
+            "🚚 Enter your *Town / Area* for delivery fee calculation.\n\n"
+            "Example: Gweru"
         )
-
         return jsonify({"status": "ok"})
+
+    send_message(phone, "Reply *ORDER* to confirm or *MENU* to cancel.")
+    return jsonify({"status": "ok"})
+
+
+elif user["state"] == "store_delivery":
+
+    town = incoming.lower()
+    delivery_fee = DELIVERY_FEES.get(town, DEFAULT_DELIVERY_FEE)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
+    order = c.fetchone()
+    DATABASE_POOL.putconn(conn)
+
+    if not order:
+        send_message(phone, "❌ Order not found. Nyora *MENU*")
+        return jsonify({"status": "ok"})
+
+    item_name = order[0]
+    pack = get_store_pack_by_name(item_name)
+
+    if not pack:
+        send_message(phone, "❌ Price error. Please contact admin.")
+        return jsonify({"status": "ok"})
+
+    base_price = price_to_float(pack["price"])
+    total = base_price + delivery_fee
+
+    set_state(phone, "main")
+
+    supplier_phone = pack.get("supplier_phone", "+263773208904")
+    supplier_name = pack.get("supplier_name", "Arachis Supplier")
+
+    send_message(
+        phone,
+        f"✅ *MARKETPLACE ORDER REQUEST RECEIVED*\n\n"
+        f"📦 Order: {item_name}\n"
+        f"🏭 Supplier: {supplier_name}\n"
+        f"📞 Supplier Contact: {supplier_phone}\n"
+        f"🚚 Delivery to: {town.title()}\n\n"
+        f"💵 Product Price: ${base_price:.2f}\n"
+        f"🚚 Estimated Delivery Fee: ${delivery_fee:.2f}\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"💰 Estimated Total: ${total:.2f}\n\n"
+        "⚠️ Please confirm stock and delivery with the supplier before paying.\n\n"
+        "📲 To complete order, contact supplier or Admin:\n"
+        f"{supplier_phone}\n\n"
+        "↩ Nyora *MENU* kudzokera."
+    )
+
+    send_admin_alert(
+        "NEW MARKETPLACE ORDER",
+        f"Customer: {phone}\n"
+        f"Item: {item_name}\n"
+        f"Town: {town.title()}\n"
+        f"Product Price: ${base_price:.2f}\n"
+        f"Delivery Estimate: ${delivery_fee:.2f}\n"
+        f"Estimated Total: ${total:.2f}"
+    )
+
+    return jsonify({"status": "ok"})
 
     elif user["state"] == "supplier_directory":
 
