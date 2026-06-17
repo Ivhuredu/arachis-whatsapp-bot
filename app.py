@@ -2180,7 +2180,7 @@ def main_menu():
         "4️⃣ 🤖 Ask AI Trainer\n\n"
 
         "🛒 *RESOURCES*\n"
-        "5️⃣ 🧪 Buy Ingredients\n"
+        "5️⃣ 🧪 Marketplace\n"
         "6️⃣ 🏭 Supplier Directory\n\n"
 
         "💳 *ACCOUNT*\n"
