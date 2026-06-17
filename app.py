@@ -4321,76 +4321,76 @@ def webhook():
 
     elif user["state"] == "supplier_directory":
 
-    if incoming == "1":
-        send_message(
-            phone,
-            "🧪 *DETERGENT INGREDIENT SUPPLIERS*\n\n"
-            "1. Grace Rita Plastics\n"
-            "📞 +263775641533\n"
-            "📍 Harare\n\n"
-            "2. Tamayi Chemicals\n"
-            "📞 +27655521810\n"
-            "📍 South Africa\n\n"
-            "3. Nastovert Chemicals\n"
-            "📞 +263774692352\n"
-            "📍 Harare\n\n"
-            "4. MazChem\n"
-            "📞 +263772597141\n"
-            "📍 Harare\n\n"
-            "5. ArrowChem\n"
-            "📞 +263780381618\n"
-            "📍 Bulawayo / Gweru\n\n"
-            "↩ Nyora *MENU* kudzokera."
-        )
-        return jsonify({"status": "ok"})
+        if incoming == "1":
+            send_message(
+                phone,
+                "🧪 *DETERGENT INGREDIENT SUPPLIERS*\n\n"
+                "1. Grace Rita Plastics\n"
+                "📞 +263775641533\n"
+                "📍 Harare\n\n"
+                "2. Tamayi Chemicals\n"
+                "📞 +27655521810\n"
+                "📍 South Africa\n\n"
+                "3. Nastovert Chemicals\n"
+                "📞 +263774692352\n"
+                "📍 Harare\n\n"
+                "4. MazChem\n"
+                "📞 +263772597141\n"
+                "📍 Harare\n\n"
+                "5. ArrowChem\n"
+                "📞 +263780381618\n"
+                "📍 Bulawayo / Gweru\n\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
 
-    elif incoming == "2":
-        send_message(
-            phone,
-            "🥤 *DRINK INGREDIENT SUPPLIERS*\n\n"
-            "1. Codchem Chemicals\n"
-            "📞 +263772866766\n"
-            "📍 Harare\n\n"
-            "2. Acol Chemicals\n"
-            "📞 +263778730915\n"
-            "📍 Bulawayo / Harare\n\n"
-            "↩ Nyora *MENU* kudzokera."
-        )
-        return jsonify({"status": "ok"})
+        elif incoming == "2":
+            send_message(
+                phone,
+                "🥤 *DRINK INGREDIENT SUPPLIERS*\n\n"
+                "1. Codchem Chemicals\n"
+                "📞 +263772866766\n"
+                "📍 Harare\n\n"
+                "2. Acol Chemicals\n"
+                "📞 +263778730915\n"
+                "📍 Bulawayo / Harare\n\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
 
-    elif incoming == "3":
-        send_message(
-            phone,
-            "🧴 *CONTAINER & BOTTLE SUPPLIERS*\n\n"
-            "1. Grace Rita Plastics\n"
-            "📞 +263775641533\n"
-            "📍 Harare\n\n"
-            "2. BriPak Packaging\n"
-            "📞 +263783213322\n"
-            "📍 Harare\n\n"
-            "3. TekPak Plastics\n"
-            "📞 +263775142283\n"
-            "📍 Harare\n\n"
-            "↩ Nyora *MENU* kudzokera."
-        )
-        return jsonify({"status": "ok"})
+        elif incoming == "3":
+            send_message(
+                phone,
+                "🧴 *CONTAINER & BOTTLE SUPPLIERS*\n\n"
+                "1. Grace Rita Plastics\n"
+                "📞 +263775641533\n"
+                "📍 Harare\n\n"
+                "2. BriPak Packaging\n"
+                "📞 +263783213322\n"
+                "📍 Harare\n\n"
+                "3. TekPak Plastics\n"
+                "📞 +263775142283\n"
+                "📍 Harare\n\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
 
-    elif incoming == "4":
-        send_message(
-            phone,
-            "🧴 *PH PAPER*\n\n"
-            "1. Reditek Chemicals\n"
-            "📞 +263773903806\n"
-            "📍 Bulawayo\n\n"
-            "2. Graniteside Chemicals\n"
-            "📞 +263774547609\n"
-            "📍 Harare\n\n"
-            "3. Mega Mark Scientific\n"
-            "📞 +263771263978\n"
-            "📍 Bulawayo\n\n"
-            "↩ Nyora *MENU* kudzokera."
-        )
-        return jsonify({"status": "ok"})
+        elif incoming == "4":
+            send_message(
+                phone,
+                "🧴 *PH PAPER*\n\n"
+                "1. Reditek Chemicals\n"
+                "📞 +263773903806\n"
+                "📍 Bulawayo\n\n"
+                "2. Graniteside Chemicals\n"
+                "📞 +263774547609\n"
+                "📍 Harare\n\n"
+                "3. Mega Mark Scientific\n"
+                "📞 +263771263978\n"
+                "📍 Bulawayo\n\n"
+                "↩ Nyora *MENU* kudzokera."
+            )
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "business_lessons":
 
