@@ -4188,140 +4188,140 @@ def webhook():
 
     elif user["state"] == "store_category":
 
-    categories = {
-        "1": "dishwash",
-        "2": "bleach",
-        "3": "orange_drink"
-    }
+        categories = {
+            "1": "dishwash",
+            "2": "bleach",
+            "3": "orange_drink"
+        }
 
-    if incoming in categories:
-        selected = categories[incoming]
-        set_state(phone, f"store_pack_{selected}")
-        send_message(phone, build_pack_size_menu(selected))
+        if incoming in categories:
+            selected = categories[incoming]
+            set_state(phone, f"store_pack_{selected}")
+            send_message(phone, build_pack_size_menu(selected))
+            return jsonify({"status": "ok"})
+
+        send_message(phone, "Sarudza 1, 2 or 3.\n\n" + build_marketplace_category_menu())
         return jsonify({"status": "ok"})
 
-    send_message(phone, "Sarudza 1, 2 or 3.\n\n" + build_marketplace_category_menu())
-    return jsonify({"status": "ok"})
 
+    elif user["state"].startswith("store_pack_"):
 
-elif user["state"].startswith("store_pack_"):
+        category = user["state"].replace("store_pack_", "")
 
-    category = user["state"].replace("store_pack_", "")
+        sizes = {
+            "1": "starter",
+            "2": "medium",
+            "3": "bulk"
+        }
 
-    sizes = {
-        "1": "starter",
-        "2": "medium",
-        "3": "bulk"
-    }
+        if category not in STORE_PACKS:
+            set_state(phone, "store_category")
+            send_message(phone, "❌ Category not found.\n\n" + build_marketplace_category_menu())
+            return jsonify({"status": "ok"})
 
-    if category not in STORE_PACKS:
-        set_state(phone, "store_category")
-        send_message(phone, "❌ Category not found.\n\n" + build_marketplace_category_menu())
+        if incoming in sizes:
+
+            size = sizes[incoming]
+            pack = STORE_PACKS[category][size]
+
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO temp_orders (phone, item)
+                VALUES (%s, %s)
+                ON CONFLICT (phone)
+                DO UPDATE SET item = EXCLUDED.item
+            """, (phone, pack["name"]))
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            send_marketplace_pack(phone, pack)
+
+            set_state(phone, "store_confirm")
+            return jsonify({"status": "ok"})
+
+        send_message(phone, "Sarudza 1, 2 or 3.\n\n" + build_pack_size_menu(category))
         return jsonify({"status": "ok"})
 
-    if incoming in sizes:
 
-        size = sizes[incoming]
-        pack = STORE_PACKS[category][size]
+    elif user["state"] == "store_confirm":
+
+        if incoming == "order":
+            set_state(phone, "store_delivery")
+
+            send_message(
+                phone,
+                "🚚 Enter your *Town / Area* for delivery fee calculation.\n\n"
+                "Example: Gweru"
+            )
+            return jsonify({"status": "ok"})
+
+        send_message(phone, "Reply *ORDER* to confirm or *MENU* to cancel.")
+        return jsonify({"status": "ok"})
+
+
+    elif user["state"] == "store_delivery":
+
+        town = incoming.lower()
+        delivery_fee = DELIVERY_FEES.get(town, DEFAULT_DELIVERY_FEE)
 
         conn = get_db()
         c = conn.cursor()
-        c.execute("""
-            INSERT INTO temp_orders (phone, item)
-            VALUES (%s, %s)
-            ON CONFLICT (phone)
-            DO UPDATE SET item = EXCLUDED.item
-        """, (phone, pack["name"]))
-        conn.commit()
+        c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
+        order = c.fetchone()
         DATABASE_POOL.putconn(conn)
 
-        send_marketplace_pack(phone, pack)
+        if not order:
+            send_message(phone, "❌ Order not found. Nyora *MENU*")
+            return jsonify({"status": "ok"})
 
-        set_state(phone, "store_confirm")
-        return jsonify({"status": "ok"})
+        item_name = order[0]
+        pack = get_store_pack_by_name(item_name)
 
-    send_message(phone, "Sarudza 1, 2 or 3.\n\n" + build_pack_size_menu(category))
-    return jsonify({"status": "ok"})
+        if not pack:
+            send_message(phone, "❌ Price error. Please contact admin.")
+            return jsonify({"status": "ok"})
 
+        base_price = price_to_float(pack["price"])
+        total = base_price + delivery_fee
 
-elif user["state"] == "store_confirm":
+        set_state(phone, "main")
 
-    if incoming == "order":
-        set_state(phone, "store_delivery")
+        supplier_phone = pack.get("supplier_phone", "+263773208904")
+        supplier_name = pack.get("supplier_name", "Arachis Supplier")
 
         send_message(
             phone,
-            "🚚 Enter your *Town / Area* for delivery fee calculation.\n\n"
-            "Example: Gweru"
+            f"✅ *MARKETPLACE ORDER REQUEST RECEIVED*\n\n"
+            f"📦 Order: {item_name}\n"
+            f"🏭 Supplier: {supplier_name}\n"
+            f"📞 Supplier Contact: {supplier_phone}\n"
+            f"🚚 Delivery to: {town.title()}\n\n"
+            f"💵 Product Price: ${base_price:.2f}\n"
+            f"🚚 Estimated Delivery Fee: ${delivery_fee:.2f}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"💰 Estimated Total: ${total:.2f}\n\n"
+            "⚠️ Please confirm stock and delivery with the supplier before paying.\n\n"
+            "📲 To complete order, contact supplier or Admin:\n"
+            f"{supplier_phone}\n\n"
+            "↩ Nyora *MENU* kudzokera."
         )
+
+        send_admin_alert(
+            "NEW MARKETPLACE ORDER",
+            f"Customer: {phone}\n"
+            f"Item: {item_name}\n"
+            f"Town: {town.title()}\n"
+            f"Product Price: ${base_price:.2f}\n"
+            f"Delivery Estimate: ${delivery_fee:.2f}\n"
+            f"Estimated Total: ${total:.2f}"
+        )
+
         return jsonify({"status": "ok"})
-
-    send_message(phone, "Reply *ORDER* to confirm or *MENU* to cancel.")
-    return jsonify({"status": "ok"})
-
-
-elif user["state"] == "store_delivery":
-
-    town = incoming.lower()
-    delivery_fee = DELIVERY_FEES.get(town, DEFAULT_DELIVERY_FEE)
-
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
-    order = c.fetchone()
-    DATABASE_POOL.putconn(conn)
-
-    if not order:
-        send_message(phone, "❌ Order not found. Nyora *MENU*")
-        return jsonify({"status": "ok"})
-
-    item_name = order[0]
-    pack = get_store_pack_by_name(item_name)
-
-    if not pack:
-        send_message(phone, "❌ Price error. Please contact admin.")
-        return jsonify({"status": "ok"})
-
-    base_price = price_to_float(pack["price"])
-    total = base_price + delivery_fee
-
-    set_state(phone, "main")
-
-    supplier_phone = pack.get("supplier_phone", "+263773208904")
-    supplier_name = pack.get("supplier_name", "Arachis Supplier")
-
-    send_message(
-        phone,
-        f"✅ *MARKETPLACE ORDER REQUEST RECEIVED*\n\n"
-        f"📦 Order: {item_name}\n"
-        f"🏭 Supplier: {supplier_name}\n"
-        f"📞 Supplier Contact: {supplier_phone}\n"
-        f"🚚 Delivery to: {town.title()}\n\n"
-        f"💵 Product Price: ${base_price:.2f}\n"
-        f"🚚 Estimated Delivery Fee: ${delivery_fee:.2f}\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"💰 Estimated Total: ${total:.2f}\n\n"
-        "⚠️ Please confirm stock and delivery with the supplier before paying.\n\n"
-        "📲 To complete order, contact supplier or Admin:\n"
-        f"{supplier_phone}\n\n"
-        "↩ Nyora *MENU* kudzokera."
-    )
-
-    send_admin_alert(
-        "NEW MARKETPLACE ORDER",
-        f"Customer: {phone}\n"
-        f"Item: {item_name}\n"
-        f"Town: {town.title()}\n"
-        f"Product Price: ${base_price:.2f}\n"
-        f"Delivery Estimate: ${delivery_fee:.2f}\n"
-        f"Estimated Total: ${total:.2f}"
-    )
-
-    return jsonify({"status": "ok"})
 
     elif user["state"] == "supplier_directory":
 
-        if incoming == "1":
+         if incoming == "1":
             send_message(
                 phone,
                 "🧪 *DETERGENT INGREDIENT SUPPLIERS*\n\n"
