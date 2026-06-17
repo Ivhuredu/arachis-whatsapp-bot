@@ -307,7 +307,7 @@ def init_db():
     ADD COLUMN IF NOT EXISTS pending_purchase TEXT
     """)
 
-        c.execute("""
+    c.execute("""
     CREATE TABLE IF NOT EXISTS marketplace_products (
         id SERIAL PRIMARY KEY,
         category TEXT,
