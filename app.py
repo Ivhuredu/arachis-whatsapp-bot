@@ -2438,7 +2438,7 @@ def main_menu():
         "4️⃣ 🤖 Ask AI Trainer\n\n"
 
         "🛒 *RESOURCES*\n"
-        "5️⃣ 🧪 Marketplace\n"
+        "5️⃣ Marketplace\n"
         "6️⃣ 🏭 Supplier Directory\n\n"
 
         "💳 *ACCOUNT*\n"
@@ -3059,6 +3059,132 @@ def webhook():
     if incoming in ["market", "marketplace", "buy", "shop"]:
         set_state(phone, "marketplace_home")
         send_message(phone, build_marketplace_home(phone))
+        return jsonify({"status": "ok"})
+
+        # =========================
+    # APP SHORTCUTS: MARKETPLACE SELL + PAYMENT CONFIRMATION
+    # These commands come from the Android app buttons.
+    # Put this BEFORE direct lesson opening and BEFORE AI handling.
+    # =========================
+
+    if incoming.startswith("arachis_marketplace_sell") or incoming in ["sell product", "upload product", "post product"]:
+        set_state(phone, "marketplace_sell_category")
+
+        send_message(
+            phone,
+            "📤 *SELL YOUR PRODUCT ON ARACHIS MARKETPLACE*\n\n"
+            "Choose product category:\n\n"
+            "1️⃣ Beverages\n"
+            "2️⃣ Detergents\n"
+            "3️⃣ Spices\n"
+            "4️⃣ Advanced Products\n"
+            "5️⃣ Packaging\n"
+            "6️⃣ Machinery and Tools\n"
+            "7️⃣ Branding and Labels\n\n"
+            "Reply with category number."
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    if incoming.startswith("arachis_app_payment_confirmation"):
+
+        # This message comes from the Android app's "I have paid" button.
+        # It must lead to the payment approval state, not to AI chat.
+
+        selected_plan = "premium"
+
+        if "plan id:" in incoming:
+            try:
+                selected_plan = incoming.split("plan id:", 1)[1].split("\n", 1)[0].strip().lower()
+            except Exception:
+                selected_plan = "premium"
+
+        if selected_plan not in ["basic", "premium", "custom", "advanced", "spices"]:
+            if "basic" in incoming:
+                selected_plan = "basic"
+            elif "advanced" in incoming:
+                selected_plan = "advanced"
+            elif "spices" in incoming:
+                selected_plan = "spices"
+            elif "custom" in incoming:
+                selected_plan = "custom"
+            else:
+                selected_plan = "premium"
+
+        conn = get_db()
+        c = conn.cursor()
+
+        if selected_plan == "advanced":
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='advanced_full',
+                    package='advanced'
+                WHERE phone=%s
+            """, (phone,))
+
+        elif selected_plan == "spices":
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='spices_full',
+                    package='spices'
+                WHERE phone=%s
+            """, (phone,))
+
+        else:
+            c.execute("""
+                UPDATE users
+                SET package=%s,
+                    pending_purchase=NULL
+                WHERE phone=%s
+            """, (selected_plan, phone))
+
+        conn.commit()
+        DATABASE_POOL.putconn(conn)
+
+        if selected_plan == "custom":
+            # If the app includes selected custom formula IDs, save them so auto-approval can work.
+            try:
+                formula_line = ""
+
+                for line in incoming.split("\n"):
+                    if line.lower().startswith("custom formula ids:"):
+                        formula_line = line.split(":", 1)[1].strip()
+                        break
+
+                if formula_line:
+                    clear_custom_modules(phone)
+
+                    all_modules = DETERGENT_MODULES + BEVERAGE_MODULES + ADVANCED_MODULES + SPICE_MODULES
+
+                    for module in [x.strip().lower() for x in formula_line.split(",") if x.strip()]:
+                        if module in all_modules:
+                            add_custom_module(phone, module)
+
+            except Exception as e:
+                print("APP CUSTOM FORMULA SAVE ERROR:", e)
+
+        set_state(phone, "awaiting_payment")
+
+        # If the user already pasted a real EcoCash confirmation in the same WhatsApp message,
+        # try to approve immediately.
+        if any(k in incoming for k in ["ecocash", "reference", "ref", "you have received", "transaction"]):
+            success, reply = verify_and_apply_payment(phone, incoming)
+
+            if success:
+                set_state(phone, "main")
+                send_message(phone, reply)
+                send_message(phone, main_menu())
+                return jsonify({"status": "ok"})
+
+        send_message(
+            phone,
+            "✅ *PAYMENT CONFIRMATION MODE*\n\n"
+            f"Plan selected from app: *{selected_plan.upper()}*\n\n"
+            "Now paste and send your full EcoCash confirmation SMS here.\n\n"
+            "The bot will check the amount and reference automatically."
+        )
+
         return jsonify({"status": "ok"})
 
     # =========================
