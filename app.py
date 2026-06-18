@@ -6316,7 +6316,7 @@ def webhook():
 @requires_auth
 def admin_dashboard():
 
-        if request.method == "POST":
+    if request.method == "POST":
 
         form_action = request.form.get("form_action", "").strip()
 
@@ -6394,7 +6394,9 @@ def admin_dashboard():
 
             return redirect(url_for("admin_dashboard"))
 
-        # Existing PDF/APK upload logic
+        # =========================
+        # EXISTING PDF/APK UPLOAD LOGIC
+        # =========================
         file = request.files.get("file")
 
         if file and allowed_file(file.filename):
