@@ -2332,6 +2332,140 @@ def reject_marketplace_product(product_id):
 
     return row
 
+import re
+
+def parse_app_marketplace_order(raw_text):
+    customer = ""
+    delivery = ""
+    note = ""
+    items = []
+
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+
+    for line in lines:
+        low = line.lower()
+
+        if low.startswith("customer:"):
+            customer = line.split(":", 1)[1].strip()
+
+        elif low.startswith("delivery:"):
+            delivery = line.split(":", 1)[1].strip()
+
+        elif low.startswith("note:"):
+            note = line.split(":", 1)[1].strip()
+
+        elif re.match(r"^\d+\.", line):
+            parts = [p.strip() for p in line.split("|")]
+
+            name = ""
+            qty = "1"
+            price = ""
+            seller_name = ""
+            seller_phone = ""
+
+            first = parts[0]
+            if "." in first:
+                name = first.split(".", 1)[1].strip()
+            else:
+                name = first.strip()
+
+            for p in parts[1:]:
+                pl = p.lower()
+
+                if pl.startswith("qty:"):
+                    qty = p.split(":", 1)[1].strip()
+
+                elif pl.startswith("price:"):
+                    price = p.split(":", 1)[1].strip()
+
+                elif pl.startswith("seller:"):
+                    seller_name = p.split(":", 1)[1].strip()
+
+                elif pl.startswith("seller phone:"):
+                    seller_phone = normalize_phone(p.split(":", 1)[1].strip())
+
+            items.append({
+                "name": name,
+                "qty": qty,
+                "price": price,
+                "seller_name": seller_name,
+                "seller_phone": seller_phone
+            })
+
+    return {
+        "customer": customer,
+        "delivery": delivery,
+        "note": note,
+        "items": items
+    }
+
+
+def send_marketplace_order_to_admin_and_sellers(order_data, buyer_phone):
+    items = order_data.get("items", [])
+    customer = order_data.get("customer", buyer_phone)
+    delivery = order_data.get("delivery", "")
+    note = order_data.get("note", "")
+
+    if not items:
+        return False
+
+    admin_text = "🛒 *NEW MARKETPLACE APP ORDER*\n\n"
+    admin_text += f"Customer: {customer}\n"
+    admin_text += f"WhatsApp: {buyer_phone}\n"
+
+    if delivery:
+        admin_text += f"Delivery: {delivery}\n"
+
+    if note:
+        admin_text += f"Note: {note}\n"
+
+    admin_text += "\nItems:\n"
+
+    for i, item in enumerate(items, start=1):
+        admin_text += (
+            f"{i}. {item['name']} | Qty: {item['qty']} | Price: {item['price']}\n"
+            f"   Seller: {item['seller_name']} | {item['seller_phone']}\n"
+        )
+
+    send_admin_alert("MARKETPLACE ORDER", admin_text)
+
+    grouped = {}
+
+    for item in items:
+        seller_phone = item.get("seller_phone", "").strip()
+
+        if not seller_phone:
+            continue
+
+        if seller_phone not in grouped:
+            grouped[seller_phone] = []
+
+        grouped[seller_phone].append(item)
+
+    for seller_phone, seller_items in grouped.items():
+        seller_name = seller_items[0].get("seller_name", "Seller")
+
+        seller_text = "🛒 *NEW PRODUCT ORDER*\n\n"
+        seller_text += f"Customer: {customer}\n"
+        seller_text += f"Customer WhatsApp: {buyer_phone}\n"
+
+        if delivery:
+            seller_text += f"Delivery: {delivery}\n"
+
+        if note:
+            seller_text += f"Note: {note}\n"
+
+        seller_text += "\nProducts ordered from you:\n"
+
+        for i, item in enumerate(seller_items, start=1):
+            seller_text += f"{i}. {item['name']} | Qty: {item['qty']} | Price: {item['price']}\n"
+
+        seller_text += "\nPlease contact the customer directly."
+
+        send_message(seller_phone, seller_text)
+
+    return True
+
 DELIVERY_FEES = {
     "mataga": 7,
     "mberengwa": 7,
@@ -3086,7 +3220,6 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-
     if incoming.startswith("arachis_app_payment_confirmation"):
 
         # This message comes from the Android app's "I have paid" button.
@@ -3184,6 +3317,43 @@ def webhook():
             "Now paste and send your full EcoCash confirmation SMS here.\n\n"
             "The bot will check the amount and reference automatically."
         )
+
+        return jsonify({"status": "ok"})
+
+        if incoming.startswith("arachis_marketplace_order"):
+
+        raw_text = ""
+
+        if msg_type == "text":
+            raw_text = message["text"]["body"].strip()
+        else:
+            raw_text = incoming
+
+        order_data = parse_app_marketplace_order(raw_text)
+
+        if not order_data.get("items"):
+            send_message(
+                phone,
+                "❌ No valid products were found in your order.\nPlease go back to the app and try again."
+            )
+            return jsonify({"status": "ok"})
+
+        ok = send_marketplace_order_to_admin_and_sellers(order_data, phone)
+
+        if ok:
+            send_message(
+                phone,
+                "✅ *ORDER RECEIVED*\n\n"
+                "Your marketplace order has been sent to:\n"
+                "✔ Admin\n"
+                "✔ Seller(s)\n\n"
+                "The seller will contact you directly to confirm stock, payment and delivery."
+            )
+        else:
+            send_message(
+                phone,
+                "❌ Failed to process your order.\nPlease try again."
+            )
 
         return jsonify({"status": "ok"})
 
