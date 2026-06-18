@@ -65,11 +65,15 @@ ADMIN_NUMBERS = [
 DISABLE_WHATSAPP_MEDIA_FROM = "2026-06-15"
 UPLOAD_FOLDER = "static/lessons"
 APK_FOLDER = "static/apk"
+MARKETPLACE_FOLDER = "static/marketplace"
+
 APP_APK_FILENAME = "arachis.apk"
 APKPURE_URL = "https://apkpure.com/p/com.arachis.training"
 
 ALLOWED_EXTENSIONS = {"pdf", "apk"}
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
+app.config["MARKETPLACE_FOLDER"] = MARKETPLACE_FOLDER
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["APK_FOLDER"] = APK_FOLDER
 
@@ -1758,6 +1762,9 @@ def get_user_modules(phone, message):
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def allowed_image_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
 def load_lessons():
 
     lessons = {}
@@ -2309,7 +2316,7 @@ def send_marketplace_product_details(phone, product_id):
         f"📞 Contact: {seller_phone}\n"
         f"📍 Location: {seller_location}\n\n"
         "⚠️ Confirm stock, price and delivery with the seller before paying.\n\n"
-        "Reply *ADD* to add this product to your cart.\n"
+        "Reply *ADD* to choose quantity and add this product to your cart.\n"
         "Reply *CART* to view your cart.\n"
         "Type *MARKET* to continue shopping."
     )
@@ -5328,25 +5335,97 @@ def webhook():
                 image_url, image_media_id, status
             ) = product
 
-            add_product_to_cart(phone, pid, 1)
+            save_marketplace_temp(phone, f"add_quantity:{pid}")
 
-            set_state(phone, "marketplace_cart")
+            set_state(phone, "marketplace_quantity")
 
             send_message(
                 phone,
-                f"✅ *ADDED TO CART*\n\n"
-                f"Product: {name}\n"
+                f"🔢 *QUANTITY REQUIRED*\n\n"
+                f"Product: *{name}*\n"
                 f"Price: {price} {unit}\n\n"
-                "You can continue shopping or place your order.\n\n"
-                + build_cart_message(phone)
+                "How many do you want to add to cart?\n\n"
+                "Example:\n"
+                "1\n"
+                "5\n"
+                "10\n"
+                "25\n\n"
+                "Reply with quantity number."
             )
 
             return jsonify({"status": "ok"})
 
         send_message(
             phone,
-            "Reply *ADD* to add this product to cart, *CART* to view cart, or *MARKET* to continue shopping."
+            "Reply *ADD* to choose quantity and add this product to cart, *CART* to view cart, or *MARKET* to continue shopping."
         )
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "marketplace_quantity":
+
+        temp = get_marketplace_temp(phone)
+
+        if incoming in ["market", "marketplace", "back"]:
+            set_state(phone, "marketplace_home")
+            send_message(phone, build_marketplace_home(phone))
+            return jsonify({"status": "ok"})
+
+        if incoming in ["cart", "my cart", "basket"]:
+            set_state(phone, "marketplace_cart")
+            send_message(phone, build_cart_message(phone))
+            return jsonify({"status": "ok"})
+
+        if not temp.startswith("add_quantity:"):
+            set_state(phone, "marketplace_home")
+            send_message(phone, "Product selection expired. Type *MARKET* to start again.")
+            return jsonify({"status": "ok"})
+
+        if not incoming.isdigit():
+            send_message(
+                phone,
+                "Please enter quantity as a number.\n\n"
+                "Example:\n"
+                "10"
+            )
+            return jsonify({"status": "ok"})
+
+        qty = int(incoming)
+
+        if qty <= 0:
+            send_message(phone, "Quantity must be 1 or more.")
+            return jsonify({"status": "ok"})
+
+        if qty > 1000:
+            send_message(phone, "Quantity is too high. Please enter a smaller quantity.")
+            return jsonify({"status": "ok"})
+
+        product_id = int(temp.replace("add_quantity:", ""))
+        product = get_marketplace_product(product_id)
+
+        if not product:
+            set_state(phone, "marketplace_home")
+            send_message(phone, "❌ Product not found. Type *MARKET* to continue.")
+            return jsonify({"status": "ok"})
+
+        (
+            pid, category, name, description, price, unit,
+            seller_name, seller_phone, seller_location,
+            image_url, image_media_id, status
+        ) = product
+
+        add_product_to_cart(phone, pid, qty)
+
+        set_state(phone, "marketplace_cart")
+
+        send_message(
+            phone,
+            f"✅ *ADDED TO CART*\n\n"
+            f"Product: {name}\n"
+            f"Quantity: {qty}\n"
+            f"Price: {price} {unit}\n\n"
+            + build_cart_message(phone)
+        )
+
         return jsonify({"status": "ok"})
 
     elif user["state"] == "marketplace_cart":
@@ -6237,7 +6316,85 @@ def webhook():
 @requires_auth
 def admin_dashboard():
 
-    if request.method == "POST":
+        if request.method == "POST":
+
+        form_action = request.form.get("form_action", "").strip()
+
+        # =========================
+        # ADMIN ADD MARKETPLACE PRODUCT
+        # =========================
+        if form_action == "add_marketplace_product":
+
+            category = request.form.get("category", "").strip()
+            name = request.form.get("name", "").strip()
+            description = request.form.get("description", "").strip()
+            price = request.form.get("price", "").strip()
+            unit = request.form.get("unit", "").strip()
+            seller_name = request.form.get("seller_name", "").strip()
+            seller_phone = request.form.get("seller_phone", "").strip()
+            seller_location = request.form.get("seller_location", "").strip()
+            image_url = request.form.get("image_url", "").strip()
+
+            image_file = request.files.get("marketplace_image")
+
+            if not category or not name:
+                return "Category and product name are required. Go back and complete the form."
+
+            if not price:
+                price = "Contact seller"
+
+            if not seller_name:
+                seller_name = "Arachis Marketplace"
+
+            if not seller_phone:
+                seller_phone = ADMIN_NUMBERS[0]
+
+            seller_phone = normalize_phone(seller_phone)
+
+            if not seller_location:
+                seller_location = "Zimbabwe"
+
+            # Optional image upload
+            if image_file and image_file.filename and allowed_image_file(image_file.filename):
+                os.makedirs(app.config["MARKETPLACE_FOLDER"], exist_ok=True)
+
+                filename = secure_filename(image_file.filename)
+                filename = f"marketplace_{int(time.time())}_{filename}"
+
+                filepath = os.path.join(app.config["MARKETPLACE_FOLDER"], filename)
+                image_file.save(filepath)
+
+                base_url = request.host_url.rstrip("/")
+                image_url = f"{base_url}/static/marketplace/{filename}"
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute("""
+                INSERT INTO marketplace_products (
+                    category, name, description, price, unit,
+                    seller_name, seller_phone, seller_location,
+                    image_url, image_media_id, status, created_by
+                )
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NULL,'active','admin_dashboard')
+            """, (
+                category,
+                name,
+                description,
+                price,
+                unit,
+                seller_name,
+                seller_phone,
+                seller_location,
+                image_url
+            ))
+
+            conn.commit()
+            DATABASE_POOL.putconn(conn)
+
+            return redirect(url_for("admin_dashboard"))
+
+        # Existing PDF/APK upload logic
         file = request.files.get("file")
 
         if file and allowed_file(file.filename):
@@ -6341,6 +6498,15 @@ def admin_dashboard():
     """)
     template_logs = c.fetchall()
 
+    c.execute("""
+        SELECT id, category, name, price, unit, seller_name, seller_phone,
+               seller_location, status, created_at
+        FROM marketplace_products
+        ORDER BY created_at DESC
+        LIMIT 100
+    """)
+    marketplace_products = c.fetchall()
+
 
     DATABASE_POOL.putconn(conn)
 
@@ -6397,6 +6563,117 @@ def admin_dashboard():
     </form>
     <hr>
     """
+    html += """
+    <h3>🛒 Add Marketplace Product</h3>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="form_action" value="add_marketplace_product">
+
+        <label>Category</label><br>
+        <select name="category" required>
+            <option value="">-- Select Category --</option>
+            <option value="Beverages">Beverages</option>
+            <option value="Detergents">Detergents</option>
+            <option value="Spices">Spices</option>
+            <option value="Advanced Products">Advanced Products</option>
+            <option value="Packaging">Packaging</option>
+            <option value="Machinery and Tools">Machinery and Tools</option>
+            <option value="Branding and Labels">Branding and Labels</option>
+        </select>
+        <br><br>
+
+        <label>Product Name</label><br>
+        <input type="text" name="name" required placeholder="Example: 750ml Dishwash Bottles">
+        <br><br>
+
+        <label>Description</label><br>
+        <textarea name="description" rows="4" cols="60" placeholder="Short product description"></textarea>
+        <br><br>
+
+        <label>Price</label><br>
+        <input type="text" name="price" placeholder="Example: $0.25">
+        <br><br>
+
+        <label>Unit / Size</label><br>
+        <input type="text" name="unit" placeholder="Example: each, per kg, per litre">
+        <br><br>
+
+        <label>Seller Name</label><br>
+        <input type="text" name="seller_name" placeholder="Example: Arachis Production Store">
+        <br><br>
+
+        <label>Seller Phone</label><br>
+        <input type="text" name="seller_phone" placeholder="Example: +263773208904">
+        <br><br>
+
+        <label>Seller Location</label><br>
+        <input type="text" name="seller_location" placeholder="Example: Harare CBD">
+        <br><br>
+
+        <label>Product Image Upload</label><br>
+        <input type="file" name="marketplace_image" accept="image/*">
+        <br><br>
+
+        <label>OR Product Image URL</label><br>
+        <input type="text" name="image_url" size="80" placeholder="https://example.com/product.jpg">
+        <br><br>
+
+        <button type="submit">✅ Add Product To Marketplace</button>
+    </form>
+
+    <hr>
+    """
+    html += "<h3>🛒 Marketplace Products</h3>"
+
+    if not marketplace_products:
+        html += "<p>No marketplace products yet.</p>"
+    else:
+        html += """
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>ID</th>
+                <th>Category</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Seller</th>
+                <th>Phone</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        """
+
+        for p in marketplace_products:
+            product_id = p[0]
+            category = p[1]
+            name = p[2]
+            price = p[3]
+            unit = p[4]
+            seller_name = p[5]
+            seller_phone = p[6]
+            seller_location = p[7]
+            status = p[8]
+
+            html += f"""
+            <tr>
+                <td>{product_id}</td>
+                <td>{category}</td>
+                <td>{name}</td>
+                <td>{price} {unit}</td>
+                <td>{seller_name}</td>
+                <td>{seller_phone}</td>
+                <td>{seller_location}</td>
+                <td><b>{status}</b></td>
+                <td>
+                    <a href="/admin/marketplace/status/{product_id}/active">Approve/Active</a> |
+                    <a href="/admin/marketplace/status/{product_id}/pending">Pending</a> |
+                    <a href="/admin/marketplace/status/{product_id}/rejected">Reject</a> |
+                    <a href="/admin/marketplace/delete/{product_id}" style="color:red;">Delete</a>
+                </td>
+            </tr>
+            """
+
+        html += "</table><hr>"
 
     # ===== USERS =====
     html += "<h3>👥 Users</h3>"
@@ -6581,6 +6858,55 @@ def approve_offline(phone):
 
     # send confirmation message
     send_message(phone, "🎉 Wagamuchirwa! Wava kukwanisa kuona zvidzidzo zviripo.")
+
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/marketplace/status/<int:product_id>/<status>")
+@requires_auth
+def admin_marketplace_status(product_id, status):
+
+    if status not in ["active", "pending", "rejected"]:
+        return "Invalid status"
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE marketplace_products
+        SET status=%s
+        WHERE id=%s
+        RETURNING name, seller_phone
+    """, (status, product_id))
+
+    row = c.fetchone()
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+    if row:
+        product_name, seller_phone = row
+
+        if seller_phone and status == "active":
+            send_message(
+                seller_phone,
+                f"🎉 Your marketplace product is now active:\n\n"
+                f"✔ {product_name}\n\n"
+                "It can now appear in Arachis Marketplace."
+            )
+
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/marketplace/delete/<int:product_id>")
+@requires_auth
+def admin_marketplace_delete(product_id):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("DELETE FROM marketplace_products WHERE id=%s", (product_id,))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
 
     return redirect(url_for("admin_dashboard"))
 
