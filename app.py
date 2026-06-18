@@ -1250,15 +1250,72 @@ def get_app_install_stats():
 import re
 
 def extract_ecocash_details(text):
+    """
+    Extract payment amount and EcoCash reference from a real EcoCash confirmation SMS.
 
+    This function deliberately rejects app shortcut messages such as:
+    ARACHIS_APP_PAYMENT_CONFIRMATION
+
+    The app message must only move the user into awaiting_payment.
+    It must never approve payment by itself.
+    """
+
+    if not text:
+        return None, None, None
+
+    original_text = text
     text = text.replace(",", "")
+    lower_text = text.lower()
 
-    amount_match = re.search(r"\$?(\d+(\.\d{1,2})?)", text)
-    ref_match = re.search(r"(reference|ref|code)[:\s]*([A-Za-z0-9]{5,})", text, re.I)
-    phone_match = re.search(r"07\d{8}", text)
+    # Never treat app commands as payment proof
+    blocked_app_commands = [
+        "arachis_app_payment_confirmation",
+        "arachis_marketplace_order",
+        "arachis_marketplace_sell"
+    ]
 
-    amount = float(amount_match.group(1)) if amount_match else None
-    reference = ref_match.group(2) if ref_match else None
+    if any(cmd in lower_text for cmd in blocked_app_commands):
+        return None, None, None
+
+    # Must look like a real EcoCash message
+    ecocash_keywords = [
+        "ecocash",
+        "you have received",
+        "received",
+        "transfer",
+        "transaction",
+        "txn",
+        "ref",
+        "reference"
+    ]
+
+    if not any(k in lower_text for k in ecocash_keywords):
+        return None, None, None
+
+    # Amount patterns commonly seen in EcoCash messages
+    amount_match = re.search(
+        r"(?:usd|zwg|\$)\s*(\d+(?:\.\d{1,2})?)|amount[:\s]*(\d+(?:\.\d{1,2})?)",
+        text,
+        re.I
+    )
+
+    amount = None
+
+    if amount_match:
+        amount_text = amount_match.group(1) or amount_match.group(2)
+        amount = float(amount_text)
+
+    # Reference must be explicit and reasonably long
+    ref_match = re.search(
+        r"(?:reference|ref|transaction\s*id|txn\s*id|code)[:\s#-]*([A-Za-z0-9]{6,})",
+        text,
+        re.I
+    )
+
+    reference = ref_match.group(1).strip() if ref_match else None
+
+    # Optional sender number
+    phone_match = re.search(r"07\d{8}", original_text)
     sender = phone_match.group(0) if phone_match else None
 
     return amount, reference, sender
@@ -3223,7 +3280,8 @@ def webhook():
     if incoming.startswith("arachis_app_payment_confirmation"):
 
         # This message comes from the Android app's "I have paid" button.
-        # It must lead to the payment approval state, not to AI chat.
+        # It must NOT approve payment.
+        # It only prepares the user for EcoCash SMS verification.
 
         selected_plan = "premium"
 
@@ -3252,7 +3310,9 @@ def webhook():
             c.execute("""
                 UPDATE users
                 SET pending_purchase='advanced_full',
-                    package='advanced'
+                    package='none',
+                    payment_status='awaiting',
+                    is_paid=0
                 WHERE phone=%s
             """, (phone,))
 
@@ -3260,23 +3320,46 @@ def webhook():
             c.execute("""
                 UPDATE users
                 SET pending_purchase='spices_full',
-                    package='spices'
+                    package='none',
+                    payment_status='awaiting',
+                    is_paid=0
+                WHERE phone=%s
+            """, (phone,))
+
+        elif selected_plan == "basic":
+            c.execute("""
+                UPDATE users
+                SET package='basic',
+                    pending_purchase=NULL,
+                    payment_status='awaiting',
+                    is_paid=0
+                WHERE phone=%s
+            """, (phone,))
+
+        elif selected_plan == "custom":
+            c.execute("""
+                UPDATE users
+                SET package='custom',
+                    pending_purchase=NULL,
+                    payment_status='awaiting',
+                    is_paid=0
                 WHERE phone=%s
             """, (phone,))
 
         else:
             c.execute("""
                 UPDATE users
-                SET package=%s,
-                    pending_purchase=NULL
+                SET package='premium',
+                    pending_purchase=NULL,
+                    payment_status='awaiting',
+                    is_paid=0
                 WHERE phone=%s
-            """, (selected_plan, phone))
+            """, (phone,))
 
         conn.commit()
         DATABASE_POOL.putconn(conn)
 
         if selected_plan == "custom":
-            # If the app includes selected custom formula IDs, save them so auto-approval can work.
             try:
                 formula_line = ""
 
@@ -3299,28 +3382,22 @@ def webhook():
 
         set_state(phone, "awaiting_payment")
 
-        # If the user already pasted a real EcoCash confirmation in the same WhatsApp message,
-        # try to approve immediately.
-        if any(k in incoming for k in ["ecocash", "reference", "ref", "you have received", "transaction"]):
-            success, reply = verify_and_apply_payment(phone, incoming)
-
-            if success:
-                set_state(phone, "main")
-                send_message(phone, reply)
-                send_message(phone, main_menu())
-                return jsonify({"status": "ok"})
-
         send_message(
             phone,
             "✅ *PAYMENT CONFIRMATION MODE*\n\n"
             f"Plan selected from app: *{selected_plan.upper()}*\n\n"
-            "Now paste and send your full EcoCash confirmation SMS here.\n\n"
-            "The bot will check the amount and reference automatically."
+            "Now send your full EcoCash confirmation SMS here.\n\n"
+            "⚠️ Do not type only 'I have paid'.\n"
+            "The message must include:\n"
+            "✔ Amount paid\n"
+            "✔ EcoCash reference number\n"
+            "✔ EcoCash confirmation wording\n\n"
+            "The bot will approve automatically only after receiving a valid EcoCash confirmation SMS."
         )
 
         return jsonify({"status": "ok"})
 
-        if incoming.startswith("arachis_marketplace_order"):
+    if incoming.startswith("arachis_marketplace_order"):
 
         raw_text = ""
 
