@@ -2222,6 +2222,7 @@ def build_marketplace_home(phone):
         "6️⃣ Machinery and Tools\n"
         "7️⃣ Branding and Labels\n\n"
         "🔎 Type *SEARCH* to search for a product.\n"
+        "🛒 Type *CART* to view selected products.\n"
         "📤 Type *SELL* to upload your product for sale.\n\n"
     )
 
@@ -2262,6 +2263,7 @@ def build_product_list_message(phone, products, title):
 
     text += (
         "Reply with product number to view details.\n"
+        "Type *CART* to view selected products.\n"
         "Type *SEARCH* to search.\n"
         "Type *MARKET* to go back."
     )
@@ -2299,8 +2301,9 @@ def send_marketplace_product_details(phone, product_id):
         f"📞 Contact: {seller_phone}\n"
         f"📍 Location: {seller_location}\n\n"
         "⚠️ Confirm stock, price and delivery with the seller before paying.\n\n"
-        "Reply *ORDER* to request this product.\n"
-        "Type *MARKET* to go back."
+        "Reply *ADD* to add this product to your cart.\n"
+        "Reply *CART* to view your cart.\n"
+        "Type *MARKET* to continue shopping."
     )
 
     save_marketplace_temp(phone, f"selected_product:{pid}")
@@ -2522,6 +2525,183 @@ def send_marketplace_order_to_admin_and_sellers(order_data, buyer_phone):
         send_message(seller_phone, seller_text)
 
     return True
+
+def parse_marketplace_cart(cart_text):
+    """
+    Cart format stored in marketplace_temp:
+    cart:12:2,15:1,20:4
+
+    Means:
+    product 12 qty 2
+    product 15 qty 1
+    product 20 qty 4
+    """
+
+    cart = {}
+
+    if not cart_text or not cart_text.startswith("cart:"):
+        return cart
+
+    raw = cart_text.replace("cart:", "").strip()
+
+    if not raw:
+        return cart
+
+    for part in raw.split(","):
+        if ":" not in part:
+            continue
+
+        product_id, qty = part.split(":", 1)
+
+        if product_id.strip().isdigit() and qty.strip().isdigit():
+            cart[int(product_id.strip())] = int(qty.strip())
+
+    return cart
+
+
+def save_marketplace_cart(phone, cart):
+    """
+    Saves cart into marketplace_temp.
+    """
+
+    if not cart:
+        save_marketplace_temp(phone, "cart:")
+        return
+
+    cart_text = "cart:" + ",".join(
+        [f"{product_id}:{qty}" for product_id, qty in cart.items()]
+    )
+
+    save_marketplace_temp(phone, cart_text)
+
+
+def get_marketplace_cart(phone):
+    temp = get_marketplace_temp(phone)
+    return parse_marketplace_cart(temp)
+
+
+def add_product_to_cart(phone, product_id, qty=1):
+    cart = get_marketplace_cart(phone)
+
+    if product_id in cart:
+        cart[product_id] += qty
+    else:
+        cart[product_id] = qty
+
+    save_marketplace_cart(phone, cart)
+
+    return cart
+
+
+def remove_product_from_cart(phone, product_id):
+    cart = get_marketplace_cart(phone)
+
+    if product_id in cart:
+        del cart[product_id]
+
+    save_marketplace_cart(phone, cart)
+
+    return cart
+
+
+def clear_marketplace_cart(phone):
+    save_marketplace_temp(phone, "cart:")
+
+
+def get_products_from_cart(cart):
+    """
+    Returns full product details for all cart items.
+    """
+
+    products = []
+
+    for product_id, qty in cart.items():
+        product = get_marketplace_product(product_id)
+
+        if not product:
+            continue
+
+        (
+            pid, category, name, description, price, unit,
+            seller_name, seller_phone, seller_location,
+            image_url, image_media_id, status
+        ) = product
+
+        products.append({
+            "id": pid,
+            "category": category,
+            "name": name,
+            "description": description,
+            "price": price,
+            "unit": unit,
+            "seller_name": seller_name,
+            "seller_phone": seller_phone,
+            "seller_location": seller_location,
+            "qty": qty
+        })
+
+    return products
+
+
+def build_cart_message(phone):
+    cart = get_marketplace_cart(phone)
+    products = get_products_from_cart(cart)
+
+    if not products:
+        return (
+            "🛒 *YOUR CART IS EMPTY*\n\n"
+            "Go back to the marketplace and add products first.\n\n"
+            "Type *MARKET* to continue shopping."
+        )
+
+    text = "🛒 *YOUR MARKETPLACE CART*\n\n"
+
+    for i, p in enumerate(products, start=1):
+        text += (
+            f"{i}. {p['name']}\n"
+            f"   Qty: {p['qty']}\n"
+            f"   Price: {p['price']} {p['unit']}\n"
+            f"   Seller: {p['seller_name']}\n"
+            f"   Contact: {p['seller_phone']}\n\n"
+        )
+
+    text += (
+        "Reply:\n"
+        "✅ *CHECKOUT* to place order\n"
+        "🗑 *REMOVE 1* to remove item number 1\n"
+        "❌ *CLEAR* to empty cart\n"
+        "🛒 *MARKET* to continue shopping"
+    )
+
+    return text
+
+
+def build_order_data_from_cart(phone, delivery="", note=""):
+    cart = get_marketplace_cart(phone)
+    products = get_products_from_cart(cart)
+
+    items = []
+
+    for p in products:
+        seller_phone = p["seller_phone"] or ""
+
+        if seller_phone:
+            seller_phone = normalize_phone(seller_phone)
+
+        items.append({
+            "name": p["name"],
+            "qty": str(p["qty"]),
+            "price": f"{p['price']} {p['unit']}".strip(),
+            "seller_name": p["seller_name"],
+            "seller_phone": seller_phone
+        })
+
+    return {
+        "customer": phone,
+        "delivery": delivery,
+        "note": note,
+        "items": items
+    }
 
 DELIVERY_FEES = {
     "mataga": 7,
@@ -3252,7 +3432,12 @@ def webhook():
         send_message(phone, build_marketplace_home(phone))
         return jsonify({"status": "ok"})
 
-        # =========================
+    if incoming in ["cart", "my cart", "basket"]:
+        set_state(phone, "marketplace_cart")
+        send_message(phone, build_cart_message(phone))
+        return jsonify({"status": "ok"})
+
+    # =========================
     # APP SHORTCUTS: MARKETPLACE SELL + PAYMENT CONFIRMATION
     # These commands come from the Android app buttons.
     # Put this BEFORE direct lesson opening and BEFORE AI handling.
@@ -4947,6 +5132,11 @@ def webhook():
 
     elif user["state"] == "marketplace_home":
 
+        if incoming in ["cart", "my cart", "basket"]:
+            set_state(phone, "marketplace_cart")
+            send_message(phone, build_cart_message(phone))
+            return jsonify({"status": "ok"})
+
         if incoming in MARKETPLACE_CATEGORIES:
             category = MARKETPLACE_CATEGORIES[incoming]
             products = get_products_by_category(category)
@@ -5028,6 +5218,11 @@ def webhook():
 
     elif user["state"] == "marketplace_results":
 
+         if incoming in ["cart", "my cart", "basket"]:
+            set_state(phone, "marketplace_cart")
+            send_message(phone, build_cart_message(phone))
+            return jsonify({"status": "ok"})
+
         if incoming in ["search", "find"]:
             set_state(phone, "marketplace_search")
             send_message(phone, "🔎 Type the product you are looking for.")
@@ -5062,7 +5257,6 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-
     elif user["state"] == "marketplace_product":
 
         temp = get_marketplace_temp(phone)
@@ -5072,7 +5266,12 @@ def webhook():
             send_message(phone, build_marketplace_home(phone))
             return jsonify({"status": "ok"})
 
-        if incoming == "order":
+        if incoming in ["cart", "my cart", "basket"]:
+            set_state(phone, "marketplace_cart")
+            send_message(phone, build_cart_message(phone))
+            return jsonify({"status": "ok"})
+
+        if incoming in ["add", "add to cart"]:
 
             if not temp.startswith("selected_product:"):
                 send_message(phone, "Product not selected. Type *MARKET*.")
@@ -5091,30 +5290,144 @@ def webhook():
                 image_url, image_media_id, status
             ) = product
 
+            add_product_to_cart(phone, pid, 1)
+
+            set_state(phone, "marketplace_cart")
+
             send_message(
                 phone,
-                f"✅ *ORDER REQUEST*\n\n"
+                f"✅ *ADDED TO CART*\n\n"
                 f"Product: {name}\n"
-                f"Price: {price} {unit}\n"
-                f"Seller: {seller_name}\n"
-                f"Contact: {seller_phone}\n"
-                f"Location: {seller_location}\n\n"
-                "Please contact the seller directly to confirm stock, payment and delivery.\n\n"
-                "⚠️ Arachis advises customers to confirm product quality before payment."
-            )
-
-            send_admin_alert(
-                "MARKETPLACE ORDER REQUEST",
-                f"Customer: {phone}\n"
-                f"Product: {name}\n"
-                f"Seller: {seller_name}\n"
-                f"Seller Contact: {seller_phone}\n"
-                f"Price: {price} {unit}"
+                f"Price: {price} {unit}\n\n"
+                "You can continue shopping or place your order.\n\n"
+                + build_cart_message(phone)
             )
 
             return jsonify({"status": "ok"})
 
-        send_message(phone, "Reply *ORDER* to request this product or *MARKET* to go back.")
+        send_message(
+            phone,
+            "Reply *ADD* to add this product to cart, *CART* to view cart, or *MARKET* to continue shopping."
+        )
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "marketplace_cart":
+
+        if incoming in ["market", "marketplace", "shop", "back"]:
+            set_state(phone, "marketplace_home")
+            send_message(phone, build_marketplace_home(phone))
+            return jsonify({"status": "ok"})
+
+        if incoming in ["cart", "my cart", "basket"]:
+            send_message(phone, build_cart_message(phone))
+            return jsonify({"status": "ok"})
+
+        if incoming == "clear":
+            clear_marketplace_cart(phone)
+            send_message(
+                phone,
+                "🗑 Cart cleared.\n\nType *MARKET* to continue shopping."
+            )
+            return jsonify({"status": "ok"})
+
+        if incoming.startswith("remove "):
+            parts = incoming.split()
+
+            if len(parts) < 2 or not parts[1].isdigit():
+                send_message(phone, "Use: *REMOVE 1*")
+                return jsonify({"status": "ok"})
+
+            remove_index = int(parts[1]) - 1
+
+            cart = get_marketplace_cart(phone)
+            product_ids = list(cart.keys())
+
+            if remove_index < 0 or remove_index >= len(product_ids):
+                send_message(phone, "Invalid cart item number.")
+                return jsonify({"status": "ok"})
+
+            product_id = product_ids[remove_index]
+            remove_product_from_cart(phone, product_id)
+
+            send_message(
+                phone,
+                "✅ Item removed.\n\n" + build_cart_message(phone)
+            )
+
+            return jsonify({"status": "ok"})
+
+        if incoming in ["checkout", "place order", "order"]:
+
+            cart = get_marketplace_cart(phone)
+
+            if not cart:
+                send_message(phone, build_cart_message(phone))
+                return jsonify({"status": "ok"})
+
+            set_state(phone, "marketplace_checkout_location")
+
+            send_message(
+                phone,
+                "📍 *DELIVERY / PICKUP LOCATION*\n\n"
+                "Please enter your town or pickup location.\n\n"
+                "Example:\n"
+                "Harare CBD\n"
+                "Gweru\n"
+                "Bulawayo\n"
+                "Mataga\n\n"
+                "If you will collect from seller, type *COLLECT*."
+            )
+
+            return jsonify({"status": "ok"})
+
+        send_message(
+            phone,
+            "Reply *CHECKOUT* to place order, *REMOVE 1* to remove item, *CLEAR* to empty cart, or *MARKET* to continue shopping."
+        )
+        return jsonify({"status": "ok"})
+
+    elif user["state"] == "marketplace_checkout_location":
+
+        delivery_location = incoming.title()
+
+        order_data = build_order_data_from_cart(
+            phone=phone,
+            delivery=delivery_location,
+            note="Order created inside WhatsApp marketplace cart."
+        )
+
+        if not order_data.get("items"):
+            set_state(phone, "marketplace_home")
+            send_message(
+                phone,
+                "❌ Your cart is empty.\n\nType *MARKET* to continue shopping."
+            )
+            return jsonify({"status": "ok"})
+
+        ok = send_marketplace_order_to_admin_and_sellers(order_data, phone)
+
+        if ok:
+            clear_marketplace_cart(phone)
+            set_state(phone, "main")
+
+            send_message(
+                phone,
+                "✅ *ORDER RECEIVED*\n\n"
+                "Your marketplace order has been sent to:\n"
+                "✔ Admin\n"
+                "✔ Seller(s)\n\n"
+                f"📍 Location: {delivery_location}\n\n"
+                "The seller will contact you directly to confirm stock, payment and delivery.\n\n"
+                "⚠️ Do not pay before confirming stock and seller details."
+            )
+
+            send_message(phone, main_menu())
+            return jsonify({"status": "ok"})
+
+        send_message(
+            phone,
+            "❌ Failed to process your order. Please try again."
+        )
         return jsonify({"status": "ok"})
 
 
