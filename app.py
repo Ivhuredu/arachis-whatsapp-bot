@@ -335,6 +335,14 @@ def init_db():
     """)
 
     c.execute("""
+    CREATE TABLE IF NOT EXISTS marketplace_carts (
+        phone TEXT PRIMARY KEY,
+        cart TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    c.execute("""
     CREATE TABLE IF NOT EXISTS ingredient_prices (
         id SERIAL PRIMARY KEY,
         name TEXT UNIQUE,
@@ -2528,8 +2536,8 @@ def send_marketplace_order_to_admin_and_sellers(order_data, buyer_phone):
 
 def parse_marketplace_cart(cart_text):
     """
-    Cart format stored in marketplace_temp:
-    cart:12:2,15:1,20:4
+    Cart format stored in marketplace_carts.cart:
+    12:2,15:1,20:4
 
     Means:
     product 12 qty 2
@@ -2539,7 +2547,7 @@ def parse_marketplace_cart(cart_text):
 
     cart = {}
 
-    if not cart_text or not cart_text.startswith("cart:"):
+    if not cart_text:
         return cart
 
     raw = cart_text.replace("cart:", "").strip()
@@ -2554,30 +2562,54 @@ def parse_marketplace_cart(cart_text):
         product_id, qty = part.split(":", 1)
 
         if product_id.strip().isdigit() and qty.strip().isdigit():
-            cart[int(product_id.strip())] = int(qty.strip())
+            qty_value = int(qty.strip())
+
+            if qty_value > 0:
+                cart[int(product_id.strip())] = qty_value
 
     return cart
 
 
 def save_marketplace_cart(phone, cart):
     """
-    Saves cart into marketplace_temp.
+    Saves cart in marketplace_carts so browsing/searching does not erase it.
     """
 
-    if not cart:
-        save_marketplace_temp(phone, "cart:")
-        return
-
-    cart_text = "cart:" + ",".join(
-        [f"{product_id}:{qty}" for product_id, qty in cart.items()]
+    cart_text = ",".join(
+        [f"{product_id}:{qty}" for product_id, qty in cart.items() if qty > 0]
     )
 
-    save_marketplace_temp(phone, cart_text)
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO marketplace_carts (phone, cart)
+        VALUES (%s, %s)
+        ON CONFLICT (phone)
+        DO UPDATE SET cart = EXCLUDED.cart,
+                      updated_at = CURRENT_TIMESTAMP
+    """, (phone, cart_text))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
 
 
 def get_marketplace_cart(phone):
-    temp = get_marketplace_temp(phone)
-    return parse_marketplace_cart(temp)
+    """
+    Reads cart from marketplace_carts.
+    Do NOT read from marketplace_temp because marketplace_temp is used for
+    featured/results/selected_product/seller-upload states.
+    """
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("SELECT cart FROM marketplace_carts WHERE phone=%s", (phone,))
+    row = c.fetchone()
+
+    DATABASE_POOL.putconn(conn)
+
+    return parse_marketplace_cart(row[0]) if row and row[0] else {}
 
 
 def add_product_to_cart(phone, product_id, qty=1):
@@ -2605,7 +2637,13 @@ def remove_product_from_cart(phone, product_id):
 
 
 def clear_marketplace_cart(phone):
-    save_marketplace_temp(phone, "cart:")
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("DELETE FROM marketplace_carts WHERE phone=%s", (phone,))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
 
 
 def get_products_from_cart(cart):
@@ -5218,7 +5256,7 @@ def webhook():
 
     elif user["state"] == "marketplace_results":
 
-         if incoming in ["cart", "my cart", "basket"]:
+        if incoming in ["cart", "my cart", "basket"]:
             set_state(phone, "marketplace_cart")
             send_message(phone, build_cart_message(phone))
             return jsonify({"status": "ok"})
