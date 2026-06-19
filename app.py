@@ -2369,6 +2369,90 @@ def add_marketplace_product(
 
     return product_id
 
+def finalize_marketplace_product_upload(phone, image_media_id=None):
+    """
+    Finalizes a WhatsApp marketplace product upload.
+
+    Works for:
+    - product uploaded with photo
+    - product uploaded with SKIP / no photo
+
+    It saves product as pending, alerts all admin numbers,
+    and gives seller the option to add another product.
+    """
+
+    temp = get_marketplace_temp(phone)
+
+    data = {}
+
+    for part in temp.split("|"):
+        if "=" in part:
+            key, value = part.split("=", 1)
+            data[key] = value
+
+    category = data.get("category", "Other")
+    name = data.get("name", "Unnamed Product")
+    description = data.get("description", "")
+    price = data.get("price", "Contact seller")
+    unit = data.get("unit", "")
+    seller_name = data.get("seller_name", "Marketplace Seller")
+    seller_location = data.get("seller_location", "Zimbabwe")
+
+    product_id = add_marketplace_product(
+        category=category,
+        name=name,
+        description=description,
+        price=price,
+        unit=unit,
+        seller_name=seller_name,
+        seller_phone=phone,
+        seller_location=seller_location,
+        image_media_id=image_media_id,
+        created_by=phone
+    )
+
+    clear_marketplace_temp(phone)
+
+    # Keep seller in a follow-up state so they can add another product quickly.
+    set_state(phone, "marketplace_after_upload")
+
+    photo_status = "Photo attached" if image_media_id else "No photo / placeholder will be used"
+
+    send_message(
+        phone,
+        "✅ *PRODUCT SUBMITTED FOR REVIEW*\n\n"
+        f"Product ID: {product_id}\n"
+        f"Name: {name}\n"
+        f"Category: {category}\n"
+        f"Price: {price} {unit}\n"
+        f"Photo: {photo_status}\n\n"
+        "Your product has been sent to Admin for approval.\n"
+        "It will appear in the marketplace after approval.\n\n"
+        "What do you want to do next?\n\n"
+        "1️⃣ Add another product\n"
+        "2️⃣ Go to main menu\n\n"
+        "Reply with *1* or *2*."
+    )
+
+    send_admin_alert(
+        "NEW MARKETPLACE PRODUCT NEEDS APPROVAL",
+        f"Product ID: {product_id}\n"
+        f"Seller: {seller_name}\n"
+        f"Seller Phone: {phone}\n"
+        f"Category: {category}\n"
+        f"Product: {name}\n"
+        f"Description: {description}\n"
+        f"Price: {price} {unit}\n"
+        f"Location: {seller_location}\n"
+        f"Photo: {photo_status}\n\n"
+        f"✅ Approve using:\n"
+        f"approve product {product_id}\n\n"
+        f"❌ Reject using:\n"
+        f"reject product {product_id}"
+    )
+
+    return product_id
+
 
 def approve_marketplace_product(product_id):
     conn = get_db()
@@ -2854,7 +2938,7 @@ def main_menu():
         "4️⃣ 🤖 Ask AI Trainer\n\n"
 
         "🛒 *RESOURCES*\n"
-        "5️⃣ Marketplace\n"
+        "5️⃣ 🛒 Marketplace - Buy & Sell Products\n"
         "6️⃣ 🏭 Supplier Directory\n\n"
 
         "💳 *ACCOUNT*\n"
@@ -3796,63 +3880,18 @@ def webhook():
 
         media_id = message["image"]["id"]
 
-        temp = get_marketplace_temp(phone)
-
-        data = {}
-
-        for part in temp.split("|"):
-            if "=" in part:
-                key, value = part.split("=", 1)
-                data[key] = value
-
-        category = data.get("category", "Other")
-        name = data.get("name", "Unnamed Product")
-        description = data.get("description", "")
-        price = data.get("price", "Contact seller")
-        unit = data.get("unit", "")
-        seller_name = data.get("seller_name", "Marketplace Seller")
-        seller_location = data.get("seller_location", "Zimbabwe")
-
-        product_id = add_marketplace_product(
-            category=category,
-            name=name,
-            description=description,
-            price=price,
-            unit=unit,
-            seller_name=seller_name,
-            seller_phone=phone,
-            seller_location=seller_location,
-            image_media_id=media_id,
-            created_by=phone
+        finalize_marketplace_product_upload(
+            phone=phone,
+            image_media_id=media_id
         )
 
-        clear_marketplace_temp(phone)
+        return jsonify({"status": "ok"})
 
-        set_state(phone, "main")
+    if user["state"] == "marketplace_sell_photo" and incoming in ["skip", "no photo", "none", "0"]:
 
-        send_message(
-            phone,
-            "✅ *PRODUCT SUBMITTED FOR REVIEW*\n\n"
-            f"Product ID: {product_id}\n"
-            f"Name: {name}\n"
-            f"Category: {category}\n"
-            f"Price: {price} {unit}\n\n"
-            "Your product has been sent to Admin for approval.\n"
-            "It will appear in the marketplace after approval.\n\n"
-            "↩ Type *MENU* to continue."
-        )
-
-        send_admin_alert(
-            "NEW MARKETPLACE PRODUCT UPLOAD",
-            f"Product ID: {product_id}\n"
-            f"Seller: {seller_name}\n"
-            f"Seller Phone: {phone}\n"
-            f"Category: {category}\n"
-            f"Product: {name}\n"
-            f"Price: {price} {unit}\n"
-            f"Location: {seller_location}\n\n"
-            f"Approve using:\napprove product {product_id}\n\n"
-            f"Reject using:\nreject product {product_id}"
+        finalize_marketplace_product_upload(
+            phone=phone,
+            image_media_id=None
         )
 
         return jsonify({"status": "ok"})
@@ -5686,12 +5725,48 @@ def webhook():
 
         send_message(
             phone,
-            "🖼 Now upload a clear product picture.\n\n"
-            "Send one photo of the product.\n\n"
+            "🖼 *PRODUCT PICTURE*\n\n"
+            "Upload a clear product picture if you have one.\n\n"
+            "Or type *SKIP* if you do not want to add a picture now.\n\n"
             "⚠️ Product will be reviewed by Admin before appearing in the marketplace."
         )
 
         return jsonify({"status": "ok"})
+
+    elif user["state"] == "marketplace_after_upload":
+
+        if incoming in ["1", "add", "add another", "another", "next", "next product"]:
+            set_state(phone, "marketplace_sell_category")
+
+            send_message(
+                phone,
+                "📤 *ADD ANOTHER PRODUCT*\n\n"
+                "Choose product category:\n\n"
+                "1️⃣ Beverages\n"
+                "2️⃣ Detergents\n"
+                "3️⃣ Spices\n"
+                "4️⃣ Advanced Products\n"
+                "5️⃣ Packaging\n"
+                "6️⃣ Machinery and Tools\n"
+                "7️⃣ Branding and Labels\n\n"
+                "Reply with category number."
+            )
+
+            return jsonify({"status": "ok"})
+
+        elif incoming in ["2", "menu", "main", "done", "finish"]:
+            set_state(phone, "main")
+            send_main_menu_with_marketplace_placeholder(phone)
+            return jsonify({"status": "ok"})
+
+        else:
+            send_message(
+                phone,
+                "Reply:\n"
+                "1️⃣ Add another product\n"
+                "2️⃣ Go to main menu"
+            )
+            return jsonify({"status": "ok"})
 
     elif user["state"] == "supplier_directory":
 
