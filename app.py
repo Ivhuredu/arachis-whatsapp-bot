@@ -62,6 +62,8 @@ ADMIN_NUMBERS = [
     "+263773208904",
     "+263719208904"   # backup admin
 ]
+DEVICE_LOCK_DAYS = 30
+
 DISABLE_WHATSAPP_MEDIA_FROM = "2026-06-15"
 UPLOAD_FOLDER = "static/lessons"
 APK_FOLDER = "static/apk"
@@ -291,6 +293,21 @@ def init_db():
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS package TEXT DEFAULT 'none'
     """)
+    
+    c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS device_id TEXT
+    """)
+
+    c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS device_model TEXT
+    """)
+
+    c.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS device_locked_at TIMESTAMP
+    """)
     c.execute("""
     ALTER TABLE module_access
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -377,6 +394,9 @@ def init_db():
 # =========================
 def normalize_phone(phone):
     return phone if phone.startswith("+") else "+" + phone
+
+def is_admin_phone(phone):
+    return phone in ADMIN_NUMBERS
 
 def safe_text(value):
     if value is None:
@@ -3951,6 +3971,30 @@ def webhook():
         send_message(phone, f"📊 *ADMIN DASHBOARD*\n\n👥 Users: {total}\n💰 Paid: {paid}")
         return jsonify({"status": "ok"})
 
+    if incoming.startswith("reset device ") and phone in ADMIN_NUMBERS:
+        target = incoming.replace("reset device ", "").strip()
+
+        if not target:
+            send_message(phone, "Use: reset device +2637xxxxxxxx")
+            return jsonify({"status": "ok"})
+
+        target = normalize_phone(target)
+
+        reset_device_lock(target, reset_by=phone)
+
+        send_message(
+            target,
+            "✅ Your Arachis app device has been reset.\n\n"
+            "You can now login on your new phone using your approved WhatsApp number."
+        )
+
+        send_message(
+            phone,
+            f"✅ Device lock reset for {target}"
+        )
+
+        return jsonify({"status": "ok"})
+
     if incoming.startswith("approve product ") and phone in ADMIN_NUMBERS:
 
         parts = incoming.split()
@@ -6765,6 +6809,7 @@ def admin_dashboard():
         | <a href='/admin/approve-package/{phone}/premium'>Approve Premium</a>
         | <a href='/admin/approve-package/{phone}/advanced'>Approve Advanced</a>
         | <a href='/admin/approve-package/{phone}/spices'>Approve Spices</a>
+        | <a href='/admin/reset-device/{phone}'>Reset Device</a>
         | <a href='/admin/revoke/{phone}' style='color:red;'>Revoke Access</a><br>
         """
 
@@ -6918,6 +6963,35 @@ def admin_revoke(phone):
     send_message(
         phone,
         "⚠️ Your course access has been removed. If this is a mistake, contact Admin."
+    )
+
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/reset-device/<phone>")
+@requires_auth
+def admin_reset_device(phone):
+    phone = normalize_phone(phone)
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE users
+        SET device_id=NULL,
+            device_model=NULL,
+            device_locked_at=NULL
+        WHERE phone=%s
+    """, (phone,))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
+
+    log_activity(phone, "device_lock_reset", "admin")
+
+    send_message(
+        phone,
+        "✅ Your Arachis app device access has been reset.\n\n"
+        "You can now login again using your approved WhatsApp number on your new phone."
     )
 
     return redirect(url_for("admin_dashboard"))
@@ -7139,6 +7213,9 @@ def mobile_login():
         data = request.get_json() or {}
 
         phone = data.get("phone", "").strip()
+        device_id = data.get("device_id", "").strip()
+        device_model = data.get("device_model", "").strip()
+        app_version = data.get("app_version", "").strip()
 
         if not phone:
             return jsonify({
@@ -7148,11 +7225,21 @@ def mobile_login():
 
         phone = normalize_phone(phone)
 
+        # Admin can login without device restriction
+        admin_login = is_admin_phone(phone)
+
+        # Non-admin students must send device_id
+        if not admin_login and not device_id:
+            return jsonify({
+                "success": False,
+                "message": "Device verification failed. Please update your Arachis app or contact admin."
+            }), 400
+
         conn = get_db()
         c = conn.cursor()
 
         c.execute("""
-            SELECT phone, is_paid, package
+            SELECT phone, is_paid, package, device_id, device_model, device_locked_at
             FROM users
             WHERE phone = %s
         """, (phone,))
@@ -7166,7 +7253,7 @@ def mobile_login():
                 "message": "Number not found. Please contact admin."
             }), 404
 
-        db_phone, is_paid, package = user
+        db_phone, is_paid, package, saved_device_id, saved_device_model, device_locked_at = user
 
         if not is_paid:
             DATABASE_POOL.putconn(conn)
@@ -7174,6 +7261,116 @@ def mobile_login():
                 "success": False,
                 "message": "Payment not approved yet."
             }), 403
+
+        # =========================
+        # DEVICE LOCK SECURITY
+        # =========================
+        if not admin_login:
+
+            # First successful login: bind this WhatsApp number to this device
+            if not saved_device_id:
+                c.execute("""
+                    UPDATE users
+                    SET device_id=%s,
+                        device_model=%s,
+                        device_locked_at=CURRENT_TIMESTAMP
+                    WHERE phone=%s
+                """, (device_id, device_model, phone))
+
+                conn.commit()
+
+                log_activity(
+                    phone,
+                    "device_lock_created",
+                    f"{device_model} | {device_id[:12]}"
+                )
+
+            # Same device: allow login and refresh device model
+            elif saved_device_id == device_id:
+                c.execute("""
+                    UPDATE users
+                    SET device_model=%s
+                    WHERE phone=%s
+                """, (device_model, phone))
+
+                conn.commit()
+
+            # Different device: check if 30 days have passed
+            else:
+                c.execute("""
+                    SELECT
+                    CASE
+                        WHEN device_locked_at IS NULL THEN TRUE
+                        WHEN device_locked_at < NOW() - INTERVAL '30 DAYS' THEN TRUE
+                        ELSE FALSE
+                    END
+                    FROM users
+                    WHERE phone=%s
+                """, (phone,))
+
+                can_change_device = c.fetchone()[0]
+
+                if can_change_device:
+                    c.execute("""
+                        UPDATE users
+                        SET device_id=%s,
+                            device_model=%s,
+                            device_locked_at=CURRENT_TIMESTAMP
+                        WHERE phone=%s
+                    """, (device_id, device_model, phone))
+
+                    conn.commit()
+
+                    log_activity(
+                        phone,
+                        "device_lock_changed_after_30_days",
+                        f"New: {device_model} | {device_id[:12]}"
+                    )
+
+                else:
+                    DATABASE_POOL.putconn(conn)
+
+                    log_activity(
+                        phone,
+                        "device_lock_blocked",
+                        f"Attempted device: {device_model} | {device_id[:12]}"
+                    )
+
+                    return jsonify({
+                        "success": False,
+                        "message": (
+                            "This WhatsApp number is already linked to another device for 30 days. "
+                            "If you changed phone, please contact Arachis Admin to reset your device access."
+                        ),
+                        "device_locked": True,
+                        "reset_required": True
+                    }), 403
+
+        # Track install/open after successful login
+        if device_id:
+            c.execute("""
+                INSERT INTO app_installs (
+                    device_id,
+                    phone,
+                    app_version,
+                    device_model
+                )
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (device_id)
+                DO UPDATE SET
+                    phone = COALESCE(NULLIF(EXCLUDED.phone, ''), app_installs.phone),
+                    app_version = EXCLUDED.app_version,
+                    device_model = EXCLUDED.device_model,
+                    last_opened_at = CURRENT_TIMESTAMP,
+                    open_count = app_installs.open_count + 1
+            """, (
+                device_id,
+                phone,
+                app_version,
+                device_model
+            ))
+
+            conn.commit()
 
         DATABASE_POOL.putconn(conn)
 
@@ -7183,7 +7380,9 @@ def mobile_login():
             "success": True,
             "phone": db_phone,
             "package": package,
-            "allowed_modules": allowed_modules
+            "allowed_modules": allowed_modules,
+            "device_locked": False,
+            "admin": admin_login
         })
 
     except Exception as e:
