@@ -7229,11 +7229,14 @@ def mobile_login():
         admin_login = is_admin_phone(phone)
 
         # Non-admin students must send device_id
+        # TEMPORARY LEGACY APP SUPPORT
+        # Old app versions such as v3.5 may not send device_id.
+        # Allow them for now, but do not apply device lock.
+        # Remove this grace support after most students update.
+        legacy_app_without_device_id = False
+
         if not admin_login and not device_id:
-            return jsonify({
-                "success": False,
-                "message": "Device verification failed. Please update your Arachis app or contact admin."
-            }), 400
+            legacy_app_without_device_id = True
 
         conn = get_db()
         c = conn.cursor()
@@ -7261,6 +7264,29 @@ def mobile_login():
                 "success": False,
                 "message": "Payment not approved yet."
             }), 403
+
+        # TEMPORARY: allow old app versions without device_id
+        # This keeps v3.5 students working while you push the new APK.
+        if legacy_app_without_device_id:
+            DATABASE_POOL.putconn(conn)
+
+            allowed_modules = get_allowed_modules_for_user(phone)
+
+            return jsonify({
+                "success": True,
+                "phone": db_phone,
+                "package": package,
+                "allowed_modules": allowed_modules,
+                "device_lock": {
+                    "locked": False,
+                    "legacy_mode": True,
+                    "message": (
+                        "Login allowed temporarily. "
+                        "Please update your Arachis app to the latest version for secure access."
+                    )
+                },
+                "warning": "Please update your Arachis app to the latest version."
+            })
 
         # =========================
         # DEVICE LOCK SECURITY
