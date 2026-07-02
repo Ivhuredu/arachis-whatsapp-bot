@@ -3050,37 +3050,25 @@ def ai_trainer_reply(phone, question, allowed_modules=None):
     instructions = f"""
 You are Arachis AI Trainer.
 
-You help Zimbabwean students learn:
-- detergent manufacturing
-- drink manufacturing
-- small business management
+Help Zimbabwean students with:
+- detergent production
+- drink production
+- business advice
 
-You explain things simply and professionally.
+Reply simply in English or Shona.
 
-You must:
-- give exact measurements
-- explain production steps clearly
-- explain causes of product failures
+Use lesson files first before answering.
 
-When users ask in Shona, reply in proper Shona.
-
-Always behave like a serious business mentor.
-
-Never invent dangerous chemical procedures.
-
-Always prioritize practical low-cost production suitable for Zimbabwe.
-
-
-Recent conversation:
+Recent memory:
 {memory_text}
-
+"""
 Current student question:
 {question}
 """
 
     try:
         response = openai_client.responses.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
             instructions=instructions,
             input=question,
             tools=[
