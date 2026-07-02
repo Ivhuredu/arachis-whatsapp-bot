@@ -3062,9 +3062,6 @@ Use lesson files first before answering.
 Recent memory:
 {memory_text}
 """
-Current student question:
-{question}
-"""
 
     try:
         response = openai_client.responses.create(
