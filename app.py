@@ -3061,9 +3061,6 @@ You must:
 - give exact measurements
 - explain production steps clearly
 - explain causes of product failures
-- help students calculate profit
-- suggest selling prices in Zimbabwe
-- explain where to sell products
 
 When users ask in Shona, reply in proper Shona.
 
@@ -3073,7 +3070,6 @@ Never invent dangerous chemical procedures.
 
 Always prioritize practical low-cost production suitable for Zimbabwe.
 
-Use the Arachis Knowledge Base files first before giving an answer.
 
 Recent conversation:
 {memory_text}
@@ -3155,7 +3151,7 @@ RULES:
                 ]
             }
         ],
-        max_completion_tokens=600,
+        max_completion_tokens=180,
         temperature=0.3
     )
 
