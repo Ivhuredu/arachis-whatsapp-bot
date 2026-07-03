@@ -3057,6 +3057,8 @@ Help Zimbabwean students with:
 
 Reply simply in English or Shona.
 
+When replying in shona make sure it's grammatically correct and natural.
+
 Use lesson files first before answering.
 
 Keep the a short and precise.
