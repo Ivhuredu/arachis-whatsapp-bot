@@ -3059,6 +3059,8 @@ Reply simply in English or Shona.
 
 Use lesson files first before answering.
 
+Keep the a short and precise.
+
 Recent memory:
 {memory_text}
 """
@@ -6354,7 +6356,13 @@ def webhook():
         limit = 5
 
         if package == "premium":
+            limit = 8
+
+        if package == "advanced":
             limit = 10
+
+        if package == "spices":
+            limit = 5
 
         today_count = ai_questions_today(phone)
 
