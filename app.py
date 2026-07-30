@@ -1,7 +1,3 @@
-import PyPDF2
-import requests
-from openai import OpenAI
-from flask import Flask, request, jsonify, redirect, url_for
 import psycopg2
 from psycopg2 import pool
 from urllib.parse import urlparse
