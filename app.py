@@ -10,6 +10,22 @@ import base64
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask import Response
+from config import (
+    DEBUG,
+    HOST,
+    PORT,
+    VERIFY_TOKEN,
+    WHATSAPP_TOKEN,
+    PHONE_NUMBER_ID,
+    GRAPH_API_URL,
+    MESSAGES_URL,
+    MEDIA_URL,
+    OPENAI_API_KEY,
+    OPENAI_MODEL,
+    VECTOR_STORE_ID,
+    DATABASE_URL,
+    SECRET_KEY,
+)
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
