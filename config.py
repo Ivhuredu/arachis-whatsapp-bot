@@ -227,3 +227,32 @@ PAYMENT_TOLERANCE = 1.5
 
 MIN_ACCEPTABLE = BASIC_PRICE
 MAX_ACCEPTABLE = PREMIUM_PRICE + PAYMENT_TOLERANCE
+
+# =========================
+# PACKAGES
+# =========================
+
+PACKAGES = {
+    "basic": {
+        "price": BASIC_PRICE,
+        "modules": [
+            "dishwash",
+            "liquid_laundry_soap",
+            "fabric_softener",
+            "thick_bleach",
+            "washing_paste",
+            "petroleum_jelly",
+            "hair_shampoo",
+            "universal_cordial",
+            "low_cost_orange_drink",
+            "low_cost_raspberry_drink",
+            "freezits",
+            "baobab_drink"
+        ]
+    },
+
+    "premium": {
+        "price": PREMIUM_PRICE,
+        "modules": "ALL"
+    }
+}
