@@ -3460,6 +3460,7 @@ def webhook():
     ai_handled = False
 
     print("WEBHOOK RECEIVED")
+    print(request.get_json())
 
     try:
         statuses = data["entry"][0]["changes"][0]["value"].get("statuses", [])
