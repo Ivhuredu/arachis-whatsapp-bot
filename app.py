@@ -63,13 +63,6 @@ PAYMENT_TOLERANCE = 1.5   # allows EcoCash charges
 MIN_ACCEPTABLE = BASIC_PRICE
 MAX_ACCEPTABLE = PREMIUM_PRICE + PAYMENT_TOLERANCE
 
-# =========================
-# CONFIG
-# =========================
-WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
-PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
-
 ADMIN_NUMBERS = [
     "+263773208904",
     "+263719208904"   # backup admin
@@ -91,7 +84,7 @@ app.config["MARKETPLACE_FOLDER"] = MARKETPLACE_FOLDER
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["APK_FOLDER"] = APK_FOLDER
 
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 PACKAGES = {
     "basic": {
@@ -126,7 +119,7 @@ def get_db():
 
     if DATABASE_POOL is None:
 
-        database_url = os.getenv("DATABASE_URL")
+        database_url = DATABASE_URL
 
         url = urlparse(database_url)
 
