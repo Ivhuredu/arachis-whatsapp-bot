@@ -7,7 +7,7 @@ import os
 import base64
 from werkzeug.utils import secure_filename
 from functools import wraps
-from flask import Response
+from openai import OpenAI
 from config import (
     DEBUG,
     HOST,
