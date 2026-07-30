@@ -10,6 +10,7 @@ from functools import wraps
 from openai import OpenAI
 from constants import *
 from database import *
+from marketplace import *
 from config import (
     DEBUG,
     HOST,
