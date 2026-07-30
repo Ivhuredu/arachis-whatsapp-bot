@@ -1826,3 +1826,106 @@ def get_active_module(phone):
 
     finally:
         release_db(conn)
+
+def auto_sync_lessons():
+
+    folder = "static/lessons"
+
+    if not os.path.exists(folder):
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+
+    for file in os.listdir(folder):
+
+        if not file.endswith(".pdf"):
+            continue
+
+        module = file.replace(".pdf","")
+
+        c.execute("SELECT 1 FROM lesson_content WHERE module=%s",(module,))
+        exists = c.fetchone()
+
+        if not exists:
+            print("Auto learning lesson:", module)
+            save_pdf_to_db(module, file)
+
+    DATABASE_POOL.putconn(conn)
+
+
+def get_lesson_from_db(module_name):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute(
+        "SELECT content FROM lesson_content WHERE module=%s",
+        (module_name,)
+    )
+
+    row = c.fetchone()
+    DATABASE_POOL.putconn(conn)
+
+    if row:
+        return row[0]
+
+    return ""
+
+
+def get_relevant_lesson_chunk(module, question):
+
+    lesson = get_lesson_from_db(module)
+
+    if not lesson:
+        return ""
+
+    chunks = lesson.split("\n")
+    question_words = question.lower().split()
+
+    scored_chunks = []
+
+    for chunk in chunks:
+        text = chunk.lower()
+        score = sum(1 for w in question_words if w in text)
+
+        if score > 0:
+            scored_chunks.append((score, chunk))
+
+    scored_chunks.sort(reverse=True)
+
+    top_chunks = [c[1] for c in scored_chunks[:3]]
+
+    return "\n".join(top_chunks) if top_chunks else lesson[:1000]
+
+
+def get_dashboard_stats():
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("SELECT COUNT(*) FROM users")
+    total_users = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM users WHERE is_paid=1")
+    paid_users = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM activity_log WHERE action='open_module'")
+    module_opens = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM activity_log WHERE action='ai_question'")
+    ai_questions = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM activity_log WHERE action='blocked_access'")
+    blocked_attempts = c.fetchone()[0]
+
+    DATABASE_POOL.putconn(conn)
+
+    return {
+        "total_users": total_users,
+        "paid_users": paid_users,
+        "module_opens": module_opens,
+        "ai_questions": ai_questions,
+        "blocked_attempts": blocked_attempts,
+    }
+
+   
