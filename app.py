@@ -8,7 +8,8 @@ import base64
 from werkzeug.utils import secure_filename
 from functools import wraps
 from openai import OpenAI
-from constants import 
+from constants import *
+from database import *
 from config import (
     DEBUG,
     HOST,
