@@ -72,15 +72,6 @@ ADMIN_NUMBERS = [
 DEVICE_LOCK_DAYS = 30
 
 DISABLE_WHATSAPP_MEDIA_FROM = "2026-06-15"
-UPLOAD_FOLDER = "static/lessons"
-APK_FOLDER = "static/apk"
-MARKETPLACE_FOLDER = "static/marketplace"
-
-APP_APK_FILENAME = "arachis.apk"
-APKPURE_URL = "https://apkpure.com/p/com.arachis.training"
-
-ALLOWED_EXTENSIONS = {"pdf", "apk"}
-ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
 app.config["MARKETPLACE_FOLDER"] = MARKETPLACE_FOLDER
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
