@@ -34,6 +34,7 @@ from config import (
     PAYMENT_TOLERANCE,
     MIN_ACCEPTABLE,
     MAX_ACCEPTABLE,
+    PACKAGES,
 )
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
@@ -61,21 +62,6 @@ DATABASE_POOL = None
 
 app = Flask(__name__)
 
-BASIC_PRICE = 5.0
-PREMIUM_PRICE = 10.0
-SPICES_PRICE = 10.0
-ADVANCED_PRICE = 20.0
-CUSTOM_PRICE_PER_MODULE = 2.0
-
-UPGRADE_BASIC_TO_PREMIUM = 5.0
-UPGRADE_BASIC_TO_SPICES = 5.0
-UPGRADE_BASIC_TO_ADVANCED = 10.0
-UPGRADE_PREMIUM_TO_SPICES = 5.0
-UPGRADE_PREMIUM_TO_ADVANCED = 7.0    
-PAYMENT_TOLERANCE = 1.5   # allows EcoCash charges
-MIN_ACCEPTABLE = BASIC_PRICE
-MAX_ACCEPTABLE = PREMIUM_PRICE + PAYMENT_TOLERANCE
-
 ADMIN_NUMBERS = [
     "+263773208904",
     "+263719208904"   # backup admin
@@ -98,30 +84,6 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["APK_FOLDER"] = APK_FOLDER
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
-
-PACKAGES = {
-    "basic": {
-        "price": 5.0,
-        "modules": [
-            "dishwash",
-            "liquid_laundry_soap",
-            "fabric_softener",
-            "thick_bleach",
-            "washing_paste",
-            "petroleum_jelly",
-            "hair_shampoo",
-            "universal_cordial",
-            "low_cost_orange_drink",
-            "low_cost_raspberry_drink",
-            "freezits",
-            "baobab_drink"
-        ]
-    },
-    "premium": {
-        "price": 10.0,
-        "modules": "ALL"
-    }
-}
 
 # =========================
 # DATABASE
