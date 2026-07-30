@@ -151,7 +151,7 @@ def init_db():
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
-      c.execute("""
+    c.execute("""
     CREATE TABLE IF NOT EXISTS processed_messages (
         whatsapp_message_id TEXT PRIMARY KEY,
         phone TEXT,
