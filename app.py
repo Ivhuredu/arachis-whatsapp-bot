@@ -3319,6 +3319,8 @@ Give step-by-step instructions.
 
     "general": """
 You are the Arachis Receptionist.
+Always start your reply with:
+[Reception]
 
 Welcome visitors.
 Answer general questions.
