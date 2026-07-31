@@ -6,6 +6,7 @@ import psycopg2
 from psycopg2 import pool
 from urllib.parse import urlparse
 import os
+import json
 import base64
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -1660,6 +1661,134 @@ def save_customer_profile(phone, profile):
 
     conn.commit()
     DATABASE_POOL.putconn(conn)
+
+def update_customer_profile_ai(phone, question, answer):
+
+    profile = get_customer_profile(phone)
+
+    prompt = f"""
+You are an AI CRM assistant for Arachis.
+
+Your job is to update a customer's profile.
+
+Current Profile:
+
+{json.dumps(profile, indent=2)}
+
+Customer Question:
+
+{question}
+
+AI Reply:
+
+{answer}
+
+Extract ONLY new or updated customer information.
+
+Do NOT include fields that have not changed.
+
+Do NOT return empty strings.
+
+Do NOT guess or invent information.
+
+Return ONLY valid JSON.
+
+Example:
+
+{
+    "capital": 250,
+    "goals": "Start a detergent business"
+}
+
+JSON format:
+
+{{
+    "full_name":"",
+    "location":"",
+    "language":"english",
+    "business_stage":"planning",
+    "experience_level":"beginner",
+    "business_type":"",
+    "capital":"",
+    "interests":"",
+    "goals":"",
+    "problems":"",
+    "equipment":"",
+    "preferred_department":"",
+    "ai_summary":""
+}}
+"""
+
+    try:
+
+        response = openai_client.responses.create(
+
+        model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+
+        input=prompt,
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "customer_profile_update",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "full_name": {"type": "string"},
+                        "location": {"type": "string"},
+                        "language": {"type": "string"},
+                        "business_stage": {"type": "string"},
+                        "experience_level": {"type": "string"},
+                        "business_type": {"type": "string"},
+                        "capital": {
+                            "type": ["number", "null"]
+                        },
+                        "interests": {"type": "string"},
+                        "goals": {"type": "string"},
+                        "problems": {"type": "string"},
+                        "equipment": {"type": "string"},
+                        "preferred_department": {"type": "string"},
+                        "ai_summary": {"type": "string"}
+                    },
+                    "additionalProperties": False
+                }
+            }
+        }
+    )
+
+        new_profile = json.loads(response.output_text)
+
+            if not isinstance(new_profile, dict):
+
+            print("PROFILE UPDATE ERROR: Invalid JSON object")
+
+            return
+
+        if key in merged_profile:
+            merged_profile[key] = value
+
+        for key, value in new_profile.items():
+
+            # Skip None values
+            if value is None:
+                continue
+
+            # Skip blank strings
+            if isinstance(value, str) and value.strip() == "":
+                continue
+
+            # Skip empty lists
+            if isinstance(value, list) and len(value) == 0:
+                continue
+
+            merged_profile[key] = value
+
+        save_customer_profile(phone, merged_profile)
+
+    except Exception as e:
+
+        print("PROFILE UPDATE ERROR:", e)
 
 def extract_pdf_text(pdf_filename):
 
@@ -3428,7 +3557,15 @@ General Company Rules
             ]
         )
 
-        return response.output_text.strip()
+        answer = response.output_text.strip()
+
+        update_customer_profile_ai(
+            phone,
+            question,
+            answer
+        )
+
+        return answer
 
     except Exception as e:
 
