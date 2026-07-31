@@ -3337,6 +3337,8 @@ def ai_virtual_employee(phone, question, department):
 
     user = get_user(phone)
 
+    profile = get_customer_profile(phone)
+
     department_prompt = DEPARTMENT_PROMPTS.get(
         department,
         DEPARTMENT_PROMPTS["general"]
@@ -3345,23 +3347,65 @@ def ai_virtual_employee(phone, question, department):
     instructions = f"""
 {department_prompt}
 
-Customer Phone:
+Customer Information
+
+Phone:
 {phone}
 
-Customer Package:
-{user.get("package", "none")}
+Package:
+{user.get("package","none")}
 
-Today's Department:
+Department:
 {department}
 
-General Company Rules:
+Customer Profile
 
+Name:
+{profile.get("full_name","Unknown")}
+
+Location:
+{profile.get("location","Unknown")}
+
+Language:
+{profile.get("language","english")}
+
+Business Stage:
+{profile.get("business_stage","planning")}
+
+Experience:
+{profile.get("experience_level","beginner")}
+
+Business Type:
+{profile.get("business_type","")}
+
+Capital:
+{profile.get("capital","Unknown")}
+
+Interests:
+{profile.get("interests","")}
+
+Goals:
+{profile.get("goals","")}
+
+Problems:
+{profile.get("problems","")}
+
+Equipment:
+{profile.get("equipment","")}
+
+AI Summary:
+{profile.get("ai_summary","")}
+
+General Company Rules
+
+- Always personalise your replies using the customer's profile.
+- If the profile contains useful information, use it naturally.
+- Never invent profile information.
+- If information is missing, continue helping normally.
 - Be professional.
 - Keep answers concise.
 - Use English or Shona naturally.
-- Never invent facts.
 - Promote Arachis where appropriate.
-- If you don't know something, say so.
 """
 
     try:
