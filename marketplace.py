@@ -159,27 +159,6 @@ def build_product_list_message(phone, products, title):
 
     return text
 
-
-def send_marketplace_product_details(phone, product_id):
-    product = get_marketplace_product(product_id)
-
-    if not product:
-        send_message(phone, "❌ Product not found.")
-        return
-
-    (
-        pid, category, name, description, price, unit,
-        seller_name, seller_phone, seller_location,
-        image_url, image_media_id, status
-    ) = product
-
-    caption = f"{name} | {price} {unit}"
-
-    if image_media_id:
-        send_image_by_id(phone, image_media_id, caption)
-
-    elif image_url:
-        send_image(phone, image_url,
 def send_marketplace_product_details(phone, product_id):
     product = get_marketplace_product(product_id)
 
