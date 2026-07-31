@@ -3658,18 +3658,18 @@ def webhook():
     if not user:
         return "OK", 200
 
-# =====================================
-# AI ROUTER (NEW)
-# =====================================
+    # =====================================
+    # AI ROUTER (NEW)
+    # =====================================
 
-route = router.route(incoming)
+    route = router.route(incoming)
 
-print("=" * 50)
-print("AI ROUTER")
-print("Message:", incoming)
-print("Department:", route.department)
-print("Confidence:", route.confidence)
-print("=" * 50)
+    print("=" * 50)
+    print("AI ROUTER")
+    print("Message:", incoming)
+    print("Department:", route.department)
+    print("Confidence:", route.confidence)
+    print("=" * 50)
 
     # =========================
     # DOWNLOAD APP SHORTCUTS
