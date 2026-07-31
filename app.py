@@ -1695,94 +1695,40 @@ Return ONLY valid JSON.
 
 Example:
 
-{
+{{
     "capital": 250,
     "goals": "Start a detergent business"
-}
-
-JSON format:
-
-{{
-    "full_name":"",
-    "location":"",
-    "language":"english",
-    "business_stage":"planning",
-    "experience_level":"beginner",
-    "business_type":"",
-    "capital":"",
-    "interests":"",
-    "goals":"",
-    "problems":"",
-    "equipment":"",
-    "preferred_department":"",
-    "ai_summary":""
 }}
 """
 
     try:
 
         response = openai_client.responses.create(
-
-        model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
-
-        input=prompt,
-
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": "customer_profile_update",
-                "strict": True,
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "full_name": {"type": "string"},
-                        "location": {"type": "string"},
-                        "language": {"type": "string"},
-                        "business_stage": {"type": "string"},
-                        "experience_level": {"type": "string"},
-                        "business_type": {"type": "string"},
-                        "capital": {
-                            "type": ["number", "null"]
-                        },
-                        "interests": {"type": "string"},
-                        "goals": {"type": "string"},
-                        "problems": {"type": "string"},
-                        "equipment": {"type": "string"},
-                        "preferred_department": {"type": "string"},
-                        "ai_summary": {"type": "string"}
-                    },
-                    "additionalProperties": False
-                }
-            }
-        }
-    )
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            input=prompt
+        )
 
         new_profile = json.loads(response.output_text)
 
-            if not isinstance(new_profile, dict):
-
+        if not isinstance(new_profile, dict):
             print("PROFILE UPDATE ERROR: Invalid JSON object")
-
             return
 
-        if key in merged_profile:
-            merged_profile[key] = value
+        merged_profile = profile.copy()
 
         for key, value in new_profile.items():
 
-            # Skip None values
             if value is None:
                 continue
 
-            # Skip blank strings
             if isinstance(value, str) and value.strip() == "":
                 continue
 
-            # Skip empty lists
             if isinstance(value, list) and len(value) == 0:
                 continue
 
-            merged_profile[key] = value
+            if key in merged_profile:
+                merged_profile[key] = value
 
         save_customer_profile(phone, merged_profile)
 
