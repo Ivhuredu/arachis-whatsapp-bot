@@ -3095,6 +3095,74 @@ Recent memory:
         print("OPENAI AGENT ERROR:", e)
         return "Pane problem paAI trainer parizvino. Ndapota edzai zvakare kana taurai naAdmin."
 
+# ==========================================
+# ARACHIS AI VIRTUAL EMPLOYEE
+# ==========================================
+
+def ai_virtual_employee(phone, message, department):
+
+    user = get_user(phone)
+
+    system_prompt = f"""
+You are Arachis AI Virtual Employee.
+
+Customer phone:
+{phone}
+
+Customer package:
+{user.get("package","none")}
+
+Department:
+{department}
+
+Your personality:
+
+- Professional
+- Friendly
+- Practical
+- Short answers
+- Ask questions if unsure.
+- Promote Arachis naturally.
+- If you don't know something, say so.
+"""
+
+    try:
+
+        response = client.chat.completions.create(
+
+            model="gpt-4.1-mini",
+
+            messages=[
+
+                {
+                    "role":"system",
+                    "content":system_prompt
+                },
+
+                {
+                    "role":"user",
+                    "content":message
+                }
+
+            ],
+
+            temperature=0.3
+
+        )
+
+        answer = response.choices[0].message.content
+
+        return answer
+
+    except Exception as e:
+
+        print("AI EMPLOYEE ERROR:", e)
+
+        return (
+            "Sorry, I'm having trouble responding at the moment. "
+            "Please try again in a few seconds."
+        )
+
 def ai_analyze_product(image_path, student_details):
 
     import base64
@@ -3663,6 +3731,24 @@ def webhook():
     # =====================================
 
     route = router.route(incoming)
+
+    if incoming.startswith("ai "):
+
+        question = incoming[3:]
+
+        answer = ai_virtual_employee(
+
+            phone,
+
+            question,
+
+            route.department
+
+        )
+
+        send_message(phone, answer)
+
+        return jsonify({"status":"ok"})
 
     print("=" * 50)
     print("AI ROUTER")
