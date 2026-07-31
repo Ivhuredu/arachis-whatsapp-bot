@@ -1,5 +1,7 @@
+import PyPDF2
+import requests
+from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
-from flask import Response
 import psycopg2
 from psycopg2 import pool
 from urllib.parse import urlparse
@@ -7,41 +9,7 @@ import os
 import base64
 from werkzeug.utils import secure_filename
 from functools import wraps
-from openai import OpenAI
-from constants import *
-from database import *
-from marketplace import *
-from admin import *
-from config import (
-    DEBUG,
-    HOST,
-    PORT,
-    VERIFY_TOKEN,
-    WHATSAPP_TOKEN,
-    PHONE_NUMBER_ID,
-    GRAPH_API_URL,
-    MESSAGES_URL,
-    MEDIA_URL,
-    OPENAI_API_KEY,
-    OPENAI_MODEL,
-    VECTOR_STORE_ID,
-    DATABASE_URL,
-    SECRET_KEY,
-    BASIC_PRICE,
-    PREMIUM_PRICE,
-    SPICES_PRICE,
-    ADVANCED_PRICE,
-    CUSTOM_PRICE_PER_MODULE,
-    UPGRADE_BASIC_TO_PREMIUM,
-    UPGRADE_BASIC_TO_SPICES,
-    UPGRADE_BASIC_TO_ADVANCED,
-    UPGRADE_PREMIUM_TO_SPICES,
-    UPGRADE_PREMIUM_TO_ADVANCED,
-    PAYMENT_TOLERANCE,
-    MIN_ACCEPTABLE,
-    MAX_ACCEPTABLE,
-    PACKAGES,
-)
+from flask import Response
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -68,6 +36,28 @@ DATABASE_POOL = None
 
 app = Flask(__name__)
 
+BASIC_PRICE = 5.0
+PREMIUM_PRICE = 10.0
+SPICES_PRICE = 10.0
+ADVANCED_PRICE = 20.0
+CUSTOM_PRICE_PER_MODULE = 2.0
+
+UPGRADE_BASIC_TO_PREMIUM = 5.0
+UPGRADE_BASIC_TO_SPICES = 5.0
+UPGRADE_BASIC_TO_ADVANCED = 10.0
+UPGRADE_PREMIUM_TO_SPICES = 5.0
+UPGRADE_PREMIUM_TO_ADVANCED = 7.0    
+PAYMENT_TOLERANCE = 1.5   # allows EcoCash charges
+MIN_ACCEPTABLE = BASIC_PRICE
+MAX_ACCEPTABLE = PREMIUM_PRICE + PAYMENT_TOLERANCE
+
+# =========================
+# CONFIG
+# =========================
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+
 ADMIN_NUMBERS = [
     "+263773208904",
     "+263719208904"   # backup admin
@@ -75,12 +65,45 @@ ADMIN_NUMBERS = [
 DEVICE_LOCK_DAYS = 30
 
 DISABLE_WHATSAPP_MEDIA_FROM = "2026-06-15"
+UPLOAD_FOLDER = "static/lessons"
+APK_FOLDER = "static/apk"
+MARKETPLACE_FOLDER = "static/marketplace"
+
+APP_APK_FILENAME = "arachis.apk"
+APKPURE_URL = "https://apkpure.com/p/com.arachis.training"
+
+ALLOWED_EXTENSIONS = {"pdf", "apk"}
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
 app.config["MARKETPLACE_FOLDER"] = MARKETPLACE_FOLDER
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["APK_FOLDER"] = APK_FOLDER
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+PACKAGES = {
+    "basic": {
+        "price": 5.0,
+        "modules": [
+            "dishwash",
+            "liquid_laundry_soap",
+            "fabric_softener",
+            "thick_bleach",
+            "washing_paste",
+            "petroleum_jelly",
+            "hair_shampoo",
+            "universal_cordial",
+            "low_cost_orange_drink",
+            "low_cost_raspberry_drink",
+            "freezits",
+            "baobab_drink"
+        ]
+    },
+    "premium": {
+        "price": 10.0,
+        "modules": "ALL"
+    }
+}
 
 # =========================
 # DATABASE
@@ -91,7 +114,7 @@ def get_db():
 
     if DATABASE_POOL is None:
 
-        database_url = DATABASE_URL
+        database_url = os.getenv("DATABASE_URL")
 
         url = urlparse(database_url)
 
@@ -3455,7 +3478,6 @@ def webhook():
     ai_handled = False
 
     print("WEBHOOK RECEIVED")
-    print(request.get_json())
 
     try:
         statuses = data["entry"][0]["changes"][0]["value"].get("statuses", [])
@@ -7507,11 +7529,264 @@ def test_template():
     return "Template sent"
 
 if __name__ == "__main__":
-    app.run(
-        host=HOST,
-        port=PORT,
-        debug=DEBUG
-    )
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
