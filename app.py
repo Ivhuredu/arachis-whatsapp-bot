@@ -3099,69 +3099,85 @@ Recent memory:
 # ARACHIS AI VIRTUAL EMPLOYEE
 # ==========================================
 
-def ai_virtual_employee(phone, message, department):
+def ai_virtual_employee(phone, question, department):
 
     user = get_user(phone)
 
-    system_prompt = f"""
-You are Arachis AI Virtual Employee.
-
-Customer phone:
-{phone}
-
-Customer package:
-{user.get("package","none")}
+    instructions = f"""
+You are an Arachis AI Virtual Employee.
 
 Department:
 {department}
 
-Your personality:
+Customer package:
+{user.get("package","none")}
 
-- Professional
-- Friendly
-- Practical
-- Short answers
-- Ask questions if unsure.
+Your job depends on the department.
+
+If department is:
+
+sales
+- Help customers choose packages.
+- Explain prices.
+- Encourage registration.
+
+manufacturing
+- Help solve production problems.
+- Explain formulas.
+- Diagnose manufacturing issues.
+
+supplier
+- Recommend ingredients.
+- Recommend suppliers.
+- Suggest alternatives.
+
+advisor
+- Help customers start businesses.
+- Give pricing and profit advice.
+
+marketing
+- Help with adverts, branding and selling.
+
+marketplace
+- Help customers buy and sell products.
+
+support
+- Help with login, app, payment and account problems.
+
+Always:
+- Keep answers short.
+- Be friendly.
+- Use English or Shona.
 - Promote Arachis naturally.
-- If you don't know something, say so.
 """
 
     try:
 
-        response = client.chat.completions.create(
+        response = openai_client.responses.create(
 
-            model="gpt-4.1-mini",
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
 
-            messages=[
+            instructions=instructions,
 
+            input=question,
+
+            tools=[
                 {
-                    "role":"system",
-                    "content":system_prompt
-                },
-
-                {
-                    "role":"user",
-                    "content":message
+                    "type": "file_search",
+                    "vector_store_ids": [
+                        os.getenv("ARACHIS_VECTOR_STORE_ID")
+                    ]
                 }
-
-            ],
-
-            temperature=0.3
-
+            ]
         )
 
-        answer = response.choices[0].message.content
-
-        return answer
+        return response.output_text.strip()
 
     except Exception as e:
 
-        print("AI EMPLOYEE ERROR:", e)
+        print("VIRTUAL EMPLOYEE ERROR:", e)
 
-        return (
-            "Sorry, I'm having trouble responding at the moment. "
-            "Please try again in a few seconds."
-        )
+        return f"DEBUG: {str(e)}"
 
 def ai_analyze_product(image_path, student_details):
 
