@@ -384,6 +384,22 @@ def init_db():
         open_count INTEGER DEFAULT 1
     )
     """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS customer_profiles (
+        phone TEXT PRIMARY KEY,
+
+        interests TEXT,
+        goals TEXT,
+        problems TEXT,
+        equipment TEXT,
+
+        preferred_department TEXT,
+
+        ai_summary TEXT,
+
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
     
     conn.commit()
     DATABASE_POOL.putconn(conn)
@@ -1565,6 +1581,85 @@ def get_memory(phone, module):
         memory.append({"role": r[0], "content": r[1]})
 
     return memory
+
+def get_customer_profile(phone):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT interests, goals, problems, equipment,
+               preferred_department, ai_summary
+        FROM customer_profiles
+        WHERE phone=%s
+    """, (phone,))
+
+    row = c.fetchone()
+
+    DATABASE_POOL.putconn(conn)
+
+    if not row:
+        return {
+            "interests": "",
+            "goals": "",
+            "problems": "",
+            "equipment": "",
+            "preferred_department": "",
+            "ai_summary": ""
+        }
+
+    return {
+        "interests": row[0] or "",
+        "goals": row[1] or "",
+        "problems": row[2] or "",
+        "equipment": row[3] or "",
+        "preferred_department": row[4] or "",
+        "ai_summary": row[5] or ""
+    }
+
+def save_customer_profile(phone, profile):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO customer_profiles (
+            phone,
+            interests,
+            goals,
+            problems,
+            equipment,
+            preferred_department,
+            ai_summary
+        )
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
+
+        ON CONFLICT(phone)
+        DO UPDATE SET
+
+            interests=EXCLUDED.interests,
+            goals=EXCLUDED.goals,
+            problems=EXCLUDED.problems,
+            equipment=EXCLUDED.equipment,
+            preferred_department=EXCLUDED.preferred_department,
+            ai_summary=EXCLUDED.ai_summary,
+
+            updated_at=CURRENT_TIMESTAMP
+    """, (
+
+        phone,
+
+        profile.get("interests",""),
+        profile.get("goals",""),
+        profile.get("problems",""),
+        profile.get("equipment",""),
+        profile.get("preferred_department",""),
+        profile.get("ai_summary","")
+
+    ))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
 
 def extract_pdf_text(pdf_filename):
 
