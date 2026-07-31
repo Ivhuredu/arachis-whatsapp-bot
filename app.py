@@ -10,6 +10,7 @@ import base64
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask import Response
+from dataclasses import dataclass
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -3454,6 +3455,110 @@ def detect_module_from_question(question, allowed_modules):
 
     # 3️⃣ fallback = last opened module
     return allowed_modules[-1] if allowed_modules else None
+
+# =========================
+# AI ROUTER
+# =========================
+
+from dataclasses import dataclass
+import re
+
+
+@dataclass
+class RouteResult:
+    department: str
+    confidence: float
+    reason: str
+
+
+class AIRouter:
+
+    def __init__(self):
+
+        self.departments = {
+
+            "sales": [
+                "buy","price","cost","package","training",
+                "course","register","join","pay","promotion","discount"
+            ],
+
+            "manufacturing": [
+                "formula","recipe","manufacture","make",
+                "problem","batch","foam","bleach",
+                "soap","detergent","drink","paint",
+                "polish","quality"
+            ],
+
+            "supplier": [
+                "supplier","ingredients","chemical",
+                "where can i buy","where do i buy",
+                "sles","caustic","perfume",
+                "citric acid","cmc","wax"
+            ],
+
+            "support": [
+                "app","login","password",
+                "download","payment failed",
+                "approved","unlock","cannot open"
+            ],
+
+            "advisor": [
+                "business","capital","profit",
+                "pricing","investment","start business"
+            ],
+
+            "marketing": [
+                "advert","poster","branding",
+                "facebook","whatsapp marketing"
+            ],
+
+            "marketplace": [
+                "marketplace","order","shopping",
+                "cart","buy ingredients"
+            ]
+        }
+
+    def clean(self, text):
+
+        text = text.lower()
+        text = re.sub(r"[^\w\s]", " ", text)
+        return text
+
+    def route(self, message):
+
+        message = self.clean(message)
+
+        scores = {}
+
+        for department, keywords in self.departments.items():
+
+            score = 0
+
+            for keyword in keywords:
+
+                if keyword in message:
+                    score += 1
+
+            scores[department] = score
+
+        best = max(scores, key=scores.get)
+
+        if scores[best] == 0:
+
+            return RouteResult(
+                department="general",
+                confidence=0,
+                reason="No keyword matched"
+            )
+
+        return RouteResult(
+            department=best,
+            confidence=scores[best],
+            reason=f"{scores[best]} keywords matched"
+        )
+
+
+router = AIRouter()
     
 # =========================
 # WEBHOOK
@@ -3552,6 +3657,19 @@ def webhook():
     user = get_user(phone)
     if not user:
         return "OK", 200
+
+# =====================================
+# AI ROUTER (NEW)
+# =====================================
+
+route = router.route(incoming)
+
+print("=" * 50)
+print("AI ROUTER")
+print("Message:", incoming)
+print("Department:", route.department)
+print("Confidence:", route.confidence)
+print("=" * 50)
 
     # =========================
     # DOWNLOAD APP SHORTCUTS
