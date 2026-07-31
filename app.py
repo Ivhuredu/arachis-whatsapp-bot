@@ -3226,19 +3226,19 @@ def ai_virtual_employee(phone, question, department):
 
     user = get_user(phone)
 
-department_prompt = DEPARTMENT_PROMPTS.get(
-    department,
-    DEPARTMENT_PROMPTS["general"]
-)
+    department_prompt = DEPARTMENT_PROMPTS.get(
+        department,
+        DEPARTMENT_PROMPTS["general"]
+    )
 
-instructions = f"""
+    instructions = f"""
 {department_prompt}
 
 Customer Phone:
 {phone}
 
 Customer Package:
-{user.get("package","none")}
+{user.get("package", "none")}
 
 Today's Department:
 {department}
@@ -3253,33 +3253,33 @@ General Company Rules:
 - If you don't know something, say so.
 """
 
-try:
+    try:
 
-    response = openai_client.responses.create(
+        response = openai_client.responses.create(
 
-        model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
 
-        instructions=instructions,
+            instructions=instructions,
 
-        input=question,
+            input=question,
 
-         tools=[
-            {
-                 "type": "file_search",
-                 "vector_store_ids": [
-                    os.getenv("ARACHIS_VECTOR_STORE_ID")
-                ]
-            }
-        ]
-    )
+            tools=[
+                {
+                    "type": "file_search",
+                    "vector_store_ids": [
+                        os.getenv("ARACHIS_VECTOR_STORE_ID")
+                    ]
+                }
+            ]
+        )
 
-    return response.output_text.strip()
+        return response.output_text.strip()
 
-except Exception as e:
+    except Exception as e:
 
-    print("VIRTUAL EMPLOYEE ERROR:", e)
+        print("VIRTUAL EMPLOYEE ERROR:", e)
 
-    return f"DEBUG: {str(e)}"
+        return f"DEBUG: {str(e)}"
 
 def ai_analyze_product(image_path, student_details):
 
