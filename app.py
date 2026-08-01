@@ -4041,14 +4041,14 @@ General Company Rules
             input=question,
 
             tools=[
-            {
-                "type":"file_search",
-                "vector_store_ids":[
-                    department_knowledge["vector_store"]
-                ]
-            }
-        ]
-
+                {
+                    "type":"file_search",
+                    "vector_store_ids":[
+                        department_knowledge["vector_store"]
+                    ]
+                }
+            ]
+        )
         answer = response.output_text.strip()
 
         update_customer_profile_ai(
