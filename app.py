@@ -387,7 +387,18 @@ def init_db():
     """)
     c.execute("""
     CREATE TABLE IF NOT EXISTS customer_profiles (
+
         phone TEXT PRIMARY KEY,
+
+        full_name TEXT,
+        location TEXT,
+        language TEXT DEFAULT 'english',
+
+        business_stage TEXT DEFAULT 'planning',
+        experience_level TEXT DEFAULT 'beginner',
+
+        business_type TEXT,
+        capital REAL,
 
         interests TEXT,
         goals TEXT,
@@ -401,6 +412,45 @@ def init_db():
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    # ===============================
+    # Upgrade customer_profiles table
+    # ===============================
+
+    try:
+        c.execute("ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS full_name TEXT")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS location TEXT")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'english'")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS business_stage TEXT DEFAULT 'planning'")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS experience_level TEXT DEFAULT 'beginner'")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS business_type TEXT")
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS capital REAL")
+    except Exception:
+        pass
+    
     
     conn.commit()
     DATABASE_POOL.putconn(conn)
@@ -1589,8 +1639,27 @@ def get_customer_profile(phone):
     c = conn.cursor()
 
     c.execute("""
-        SELECT interests, goals, problems, equipment,
-               preferred_department, ai_summary
+        SELECT
+
+            full_name,
+            location,
+            language,
+
+            business_stage,
+            experience_level,
+
+            business_type,
+            capital,
+
+            interests,
+            goals,
+            problems,
+            equipment,
+
+            preferred_department,
+
+            ai_summary
+
         FROM customer_profiles
         WHERE phone=%s
     """, (phone,))
@@ -1601,21 +1670,47 @@ def get_customer_profile(phone):
 
     if not row:
         return {
-            "interests": "",
-            "goals": "",
-            "problems": "",
-            "equipment": "",
-            "preferred_department": "",
-            "ai_summary": ""
+            "full_name":"",
+            "location":"",
+            "language":"english",
+
+            "business_stage":"planning",
+            "experience_level":"beginner",
+
+            "business_type":"",
+            "capital":None,
+
+            "interests":"",
+            "goals":"",
+            "problems":"",
+            "equipment":"",
+
+            "preferred_department":"",
+
+            "ai_summary":""
         }
 
     return {
-        "interests": row[0] or "",
-        "goals": row[1] or "",
-        "problems": row[2] or "",
-        "equipment": row[3] or "",
-        "preferred_department": row[4] or "",
-        "ai_summary": row[5] or ""
+
+        "full_name":row[0] or "",
+        "location":row[1] or "",
+        "language":row[2] or "english",
+
+        "business_stage":row[3] or "planning",
+        "experience_level":row[4] or "beginner",
+
+        "business_type":row[5] or "",
+        "capital":row[6],
+
+        "interests":row[7] or "",
+        "goals":row[8] or "",
+        "problems":row[9] or "",
+        "equipment":row[10] or "",
+
+        "preferred_department":row[11] or "",
+
+        "ai_summary":row[12] or ""
+
     }
 
 def save_customer_profile(phone, profile):
@@ -1624,37 +1719,96 @@ def save_customer_profile(phone, profile):
     c = conn.cursor()
 
     c.execute("""
-        INSERT INTO customer_profiles (
-            phone,
-            interests,
-            goals,
-            problems,
-            equipment,
-            preferred_department,
-            ai_summary
-        )
-        VALUES (%s,%s,%s,%s,%s,%s,%s)
 
-        ON CONFLICT(phone)
-        DO UPDATE SET
-
-            interests=EXCLUDED.interests,
-            goals=EXCLUDED.goals,
-            problems=EXCLUDED.problems,
-            equipment=EXCLUDED.equipment,
-            preferred_department=EXCLUDED.preferred_department,
-            ai_summary=EXCLUDED.ai_summary,
-
-            updated_at=CURRENT_TIMESTAMP
-    """, (
+    INSERT INTO customer_profiles(
 
         phone,
+
+        full_name,
+        location,
+        language,
+
+        business_stage,
+        experience_level,
+
+        business_type,
+        capital,
+
+        interests,
+        goals,
+        problems,
+        equipment,
+
+        preferred_department,
+
+        ai_summary
+
+    )
+
+    VALUES(
+
+        %s,
+
+        %s,%s,%s,
+
+        %s,%s,
+
+        %s,%s,
+
+        %s,%s,%s,%s,
+
+        %s,
+
+        %s
+
+    )
+
+    ON CONFLICT(phone)
+
+    DO UPDATE SET
+
+        full_name=EXCLUDED.full_name,
+        location=EXCLUDED.location,
+        language=EXCLUDED.language,
+
+        business_stage=EXCLUDED.business_stage,
+        experience_level=EXCLUDED.experience_level,
+
+        business_type=EXCLUDED.business_type,
+        capital=EXCLUDED.capital,
+
+        interests=EXCLUDED.interests,
+        goals=EXCLUDED.goals,
+        problems=EXCLUDED.problems,
+        equipment=EXCLUDED.equipment,
+
+        preferred_department=EXCLUDED.preferred_department,
+
+        ai_summary=EXCLUDED.ai_summary,
+
+        updated_at=CURRENT_TIMESTAMP
+
+    """,(
+
+        phone,
+
+        profile.get("full_name",""),
+        profile.get("location",""),
+        profile.get("language","english"),
+
+        profile.get("business_stage","planning"),
+        profile.get("experience_level","beginner"),
+
+        profile.get("business_type",""),
+        profile.get("capital"),
 
         profile.get("interests",""),
         profile.get("goals",""),
         profile.get("problems",""),
         profile.get("equipment",""),
+
         profile.get("preferred_department",""),
+
         profile.get("ai_summary","")
 
     ))
