@@ -3641,6 +3641,23 @@ DEPARTMENTS = {
 
         "personality":
             "Precise, practical, patient, quality-focused and technically competent.",
+        "communication_style": """
+            Talk like a senior manufacturing engineer.
+
+            Diagnose before giving solutions.
+
+            Keep replies practical.
+
+            Usually 100-180 words.
+
+            Explain the cause first.
+
+            Avoid unnecessary introductions.
+
+            Ask diagnostic questions only when necessary.
+
+            Use bullet points for troubleshooting.
+            """,
 
         "responsibilities":[
 
@@ -3817,6 +3834,21 @@ DEPARTMENTS = {
 
         "personality":
             "Friendly, calm and patient.",
+        "communication_style": """
+            Reply like a friendly WhatsApp customer support officer.
+
+            Most replies should be under 80 words.
+
+            Answer the customer's question first.
+
+            Do not overload the customer.
+
+            Ask only one question at a time.
+
+            Avoid long explanations.
+
+            Guide the customer step by step.
+            """,
 
         "responsibilities":[
 
@@ -3860,6 +3892,27 @@ DEPARTMENTS = {
     Organised.
     Always uses the latest approved training schedule.
     """,
+        "communication_style": """
+            Reply like an event coordinator.
+
+            Be enthusiastic.
+
+            Highlight:
+
+            Date
+
+            • Venue
+
+            • Fee
+
+            • Deposit
+
+            • Registration
+
+            Keep replies under 100 words.
+
+            Finish by inviting the customer to book.
+            """,
 
         "responsibilities": [
 
@@ -4032,6 +4085,10 @@ PERSONALITY
 
 {dept['personality']}
 
+COMMUNICATION STYLE
+
+{dept.get('communication_style','')}
+
 YOUR RESPONSIBILITIES
 
 {responsibilities}
@@ -4045,15 +4102,33 @@ YOUR RULES
 {rules}
 
 GENERAL COMPANY RULES
+GENERAL COMPANY RULES
 
-- Always represent Arachis professionally.
-- Be honest.
-- Never invent facts.
-- If you don't know something, say so.
-- Use simple English or natural Shona.
-- Keep replies practical.
-- Help the customer succeed.
-- Promote Arachis only when it genuinely benefits the customer.
+- Reply naturally as if chatting on WhatsApp.
+
+- Don't sound like ChatGPT.
+
+- Don't write essays.
+
+- Don't repeat yourself.
+
+- Answer the customer's exact question first.
+
+- Give additional information only if it helps.
+
+- Most replies should be under 120 words.
+
+- Use short paragraphs.
+
+- Avoid unnecessary numbered lists.
+
+- Ask only one follow-up question at a time.
+
+- Be warm, confident and practical.
+
+- Never overwhelm the customer.
+
+- If live database information is available, use it before general knowledge.
 """
 
     return prompt
@@ -4118,6 +4193,20 @@ def get_department_knowledge(department):
 
             "description":
                 "Training packages and promotions."
+
+        },
+        "training_events": {
+
+            "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
+
+            "tables": [
+
+                "training_events"
+
+            ],
+
+            "description":
+                "Training schedules, events, registrations and bookings."
 
         },
 
@@ -4401,18 +4490,7 @@ def ai_virtual_employee(phone, question, department=None):
 
         city = None
 
-        for c in [
-            "Bulawayo",
-            "Harare",
-            "Gweru",
-            "Mutare",
-            "Masvingo",
-            "Kwekwe",
-            "Victoria Falls"
-        ]:
-            if c.lower() in question.lower():
-                city = c
-                break
+        # Find city...
 
         event = get_next_training(city)
 
@@ -4433,22 +4511,20 @@ def ai_virtual_employee(phone, question, department=None):
                 seats
             ) = event
 
-        live_training_info = f"""
-Current Training Event
+            live_training_info = f"""
+    Title: {title}
+    City: {city}
+    Venue: {venue}
+    Date: {event_date}
+    Time: {start_time}
+    Fee: ${fee}
+    Deposit: ${deposit}
+    Products: {products}
+    """
 
-Title: {title}
-City: {city}
-Venue: {venue}
-Date: {event_date}
-Start Time: {start_time}
-Fee: ${fee}
-Deposit: ${deposit}
-Products: {products}
-Registration Status: {status}
-Booked Seats: {booked}/{seats}
-"""
-    else:
-        live_training_info = "There are currently no upcoming training events."
+        else:
+
+            live_training_info = "There are currently no upcoming training events."
 
     instructions = f"""
 {department_prompt}
@@ -5598,7 +5674,7 @@ def webhook():
         send_message(phone, f"📊 *ADMIN DASHBOARD*\n\n👥 Users: {total}\n💰 Paid: {paid}")
         return jsonify({"status": "ok"})
 
-    if msg.upper() == "ADMIN EVENTS":
+    if incoming.lower() == "admin events":
 
         if phone not in ADMINS:
             return send_text(phone, "Unauthorized.")
