@@ -4986,7 +4986,7 @@ class AIRouter:
                 "discount"
 
             ],
-            ],
+            
 
             "manufacturing": [
                 "formula","recipe","manufacture","make",
