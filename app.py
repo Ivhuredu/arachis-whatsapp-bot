@@ -483,6 +483,7 @@ def init_db():
             80
         )
         """)
+        
     c.execute("""
     CREATE TABLE IF NOT EXISTS customer_profiles (
 
@@ -1035,76 +1036,6 @@ def get_unpaid_active_users():
 
     return [r[0] for r in rows]
     
-def followup_message(stage):
-
-    stage = stage % 7   # 🔁 recycle messages forever
-
-    messages = {
-
-        0: (
-            "👋 Makadii!\n\n"
-            "Makamboshandisa Arachis Training Bot asi hamusati majoina training.\n\n"
-            "Vanhu vakawanda vari kutotanga kugadzira dishwash & bleach kumba.\n\n"
-            "💵 Full training: $5 once-off.\n"
-            "Nyora *PAY* kuti utange."
-        ),
-
-        1: (
-            "🧼 Vanhu vakawanda vari kutotanga kugadzira ma detergents kumba.\n\n"
-            "Course ine:\n"
-            "✔ 20 detergent modules\n"
-            "✔ 10 drink modules\n"
-            "✔ Rubatsiro rwe AI kana product yako ikakanganisika\n\n"
-            "Nyora *PAY* kuti utange kudzidza."
-        ),
-
-        2: (
-            "🎉 Ma students akawanda ari kutotanga mabhizinesi madiki.\n\n"
-            "Vamwe vari kutengesa:\n"
-            "✔ Dishwash\n"
-            "✔ Bleach\n"
-            "✔ Cream soda\n\n"
-            "Unogonawo kutanga.\n"
-            "Nyora *PAY* kuti utange course."
-        ),
-
-        3: (
-            "🤖 Course iyi ine *AI trainer*.\n\n"
-            "Kana formula yako yakanganisika unogona kubvunza bot.\n\n"
-            "Inokuudza:\n"
-            "✔ chii chakanganisika\n"
-            "✔ kuti ugadzirise sei\n\n"
-            "Nyora *PAY* kuti uvhure course."
-        ),
-
-        4: (
-            "💰 Bhizinesi re madetergents rinogona kutangwa nemari shoma.\n\n"
-            "Example:\n"
-            "20L Dishwash inogona kugadzirwa nemari isingapfuuri $15\n"
-            "wozoitengesa mari ingasvika $25.\n\n"
-            "Nyora *PAY* kuti udzidze maformula."
-        ),
-
-        5: (
-            "📚 Course yedu inosanganisira:\n\n"
-            "✔ 30 production lessons\n"
-            "✔ AI trainer\n"
-            "✔ Supplier directory\n"
-            "✔ Business guidance\n\n"
-            "💵 Only $5 once-off.\n"
-            "Nyora *PAY* kuti utange."
-        ),
-
-        6: (
-            "⚠ *Reminder*\n\n"
-            "Course ichiri $5 chete asi promotion iyi inogona kupera mumazuva mashoma anotevera.\n\n"
-            "Kana uchida kudzidza kugadzira detergents nemadrinks,\n"
-            "Nyora *PAY* kuti utange."
-        )
-    }
-
-    return messages.get(stage)
-
 def send_template(phone, template_name):
 
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
@@ -2044,6 +1975,78 @@ def get_next_training(city=None):
     DATABASE_POOL.putconn(conn)
 
     return row
+
+def get_all_training_events():
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT
+            id,
+            title,
+            city,
+            venue,
+            event_date,
+            start_time,
+            fee,
+            deposit,
+            registration_status,
+            booked_seats,
+            total_seats
+        FROM training_events
+        ORDER BY event_date ASC
+    """)
+
+    events = c.fetchall()
+
+    DATABASE_POOL.putconn(conn)
+
+    return events
+
+def admin_training_events():
+
+    events = get_all_training_events()
+
+    if not events:
+        return "❌ No training events found."
+
+    msg = "📅 *TRAINING EVENTS*\n\n"
+
+    for e in events:
+
+        (
+            event_id,
+            title,
+            city,
+            venue,
+            event_date,
+            start_time,
+            fee,
+            deposit,
+            status,
+            booked,
+            seats
+        ) = e
+
+        available = seats - booked
+
+        msg += (
+            f"🆔 {event_id}\n"
+            f"📌 {title}\n"
+            f"🏙 City: {city}\n"
+            f"📍 Venue: {venue}\n"
+            f"📅 Date: {event_date}\n"
+            f"🕘 Time: {start_time}\n"
+            f"💵 Fee: ${fee}\n"
+            f"💰 Deposit: ${deposit}\n"
+            f"👥 Seats: {booked}/{seats}\n"
+            f"✅ Available: {available}\n"
+            f"📖 Status: {status}\n"
+            "-----------------------------\n"
+        )
+
+    return msg
 
 def add_training_event(
     title,
@@ -4936,9 +4939,53 @@ class AIRouter:
 
         self.departments = {
 
-            "sales": [
-                "buy","price","cost","package","training",
-                "course","register","join","pay","promotion","discount"
+            "training_events": [
+
+                "training",
+                "practical",
+                "offline",
+                "online",
+
+                "bulawayo",
+                "harare",
+                "gweru",
+                "mutare",
+                "masvingo",
+
+                "venue",
+                "schedule",
+                "date",
+                "event",
+
+                "seat",
+                "booking",
+                "book",
+
+                "deposit",
+
+                "next training"
+
+            ],
+
+            "sales":[
+
+                "price",
+
+                "cost",
+
+                "package",
+
+                "premium",
+
+                "basic",
+
+                "upgrade",
+
+                "promotion",
+
+                "discount"
+
+            ],
             ],
 
             "manufacturing": [
@@ -5550,6 +5597,16 @@ def webhook():
         DATABASE_POOL.putconn(conn)
         send_message(phone, f"📊 *ADMIN DASHBOARD*\n\n👥 Users: {total}\n💰 Paid: {paid}")
         return jsonify({"status": "ok"})
+
+    if msg.upper() == "ADMIN EVENTS":
+
+        if phone not in ADMINS:
+            return send_text(phone, "Unauthorized.")
+
+        return send_text(
+            phone,
+            admin_training_events()
+        )
 
     if incoming.startswith("reset device ") and phone in ADMIN_NUMBERS:
         target = incoming.replace("reset device ", "").strip()
