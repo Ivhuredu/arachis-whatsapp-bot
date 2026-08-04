@@ -4197,12 +4197,94 @@ def get_department_knowledge(department):
         }
     )
 
+def detect_department(question):
+
+    q = question.lower()
+
+    training_keywords = [
+        "training", "practical", "offline", "online",
+        "venue", "schedule", "date", "book", "booking",
+        "seat", "deposit", "event",
+        "bulawayo", "harare", "gweru",
+        "mutare", "masvingo", "kwekwe",
+        "victoria falls"
+    ]
+
+    manufacturing_keywords = [
+        "dishwash", "foam bath", "pine gel",
+        "bleach", "soap", "detergent",
+        "formula", "ingredient",
+        "batch", "cmc", "sles",
+        "np9", "np6", "salt",
+        "thick", "viscosity"
+    ]
+
+    supplier_keywords = [
+        "supplier",
+        "ingredient",
+        "where can i buy",
+        "packaging",
+        "chemical supplier"
+    ]
+
+    sales_keywords = [
+        "price",
+        "package",
+        "premium",
+        "basic",
+        "upgrade",
+        "promotion"
+    ]
+
+    support_keywords = [
+        "payment",
+        "paid",
+        "login",
+        "lesson",
+        "download",
+        "app",
+        "password",
+        "access"
+    ]
+
+    business_keywords = [
+        "business",
+        "profit",
+        "pricing",
+        "marketing",
+        "customer",
+        "startup"
+    ]
+
+    if any(k in q for k in training_keywords):
+        return "training_events"
+
+    if any(k in q for k in manufacturing_keywords):
+        return "manufacturing"
+
+    if any(k in q for k in supplier_keywords):
+        return "supplier"
+
+    if any(k in q for k in sales_keywords):
+        return "sales"
+
+    if any(k in q for k in support_keywords):
+        return "support"
+
+    if any(k in q for k in business_keywords):
+        return "advisor"
+
+    return "general"
+
 # ==========================================
 # ARACHIS AI VIRTUAL EMPLOYEE
 # ==========================================
 
-def ai_virtual_employee(phone, question, department):
+def ai_virtual_employee(phone, question, department=None):
 
+    if department is None:
+        department = detect_department(question)
+        
     user = get_user(phone)
 
     profile = get_customer_profile(phone)
@@ -4210,6 +4292,61 @@ def ai_virtual_employee(phone, question, department):
     department_prompt = build_department_prompt(department)
 
     department_knowledge = get_department_knowledge(department)
+
+    live_training_info = ""
+
+    if department == "training_events":
+
+        city = None
+
+        for c in [
+            "Bulawayo",
+            "Harare",
+            "Gweru",
+            "Mutare",
+            "Masvingo",
+            "Kwekwe",
+            "Victoria Falls"
+        ]:
+            if c.lower() in question.lower():
+                city = c
+                break
+
+        event = get_next_training(city)
+
+        if event:
+
+            (
+                event_id,
+                title,
+                city,
+                venue,
+                event_date,
+                start_time,
+                fee,
+                deposit,
+                products,
+                status,
+                booked,
+                seats
+            ) = event
+
+        live_training_info = f"""
+Current Training Event
+
+Title: {title}
+City: {city}
+Venue: {venue}
+Date: {event_date}
+Start Time: {start_time}
+Fee: ${fee}
+Deposit: ${deposit}
+Products: {products}
+Registration Status: {status}
+Booked Seats: {booked}/{seats}
+"""
+    else:
+        live_training_info = "There are currently no upcoming training events."
 
     instructions = f"""
 {department_prompt}
@@ -4266,6 +4403,10 @@ Equipment:
 
 AI Summary:
 {profile.get("ai_summary","")}
+
+Live Training Information
+
+{live_training_info}
 
 General Company Rules
 
