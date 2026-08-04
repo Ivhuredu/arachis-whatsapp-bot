@@ -386,6 +386,104 @@ def init_db():
     )
     """)
     c.execute("""
+    CREATE TABLE IF NOT EXISTS training_events (
+        id SERIAL PRIMARY KEY,
+
+        title TEXT NOT NULL,
+        event_type TEXT DEFAULT 'practical',
+
+        city TEXT NOT NULL,
+        venue TEXT NOT NULL,
+        venue_address TEXT,
+
+        event_date DATE NOT NULL,
+        start_time TEXT,
+        end_time TEXT,
+
+        fee REAL DEFAULT 0,
+        deposit REAL DEFAULT 0,
+
+        products_taught TEXT,
+
+        registration_status TEXT DEFAULT 'open',
+
+        total_seats INTEGER DEFAULT 0,
+        booked_seats INTEGER DEFAULT 0,
+
+        registration_deadline DATE,
+
+        notes TEXT,
+
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    c.execute("SELECT COUNT(*) FROM training_events")
+
+    if c.fetchone()[0] == 0:
+
+        c.execute("""
+        INSERT INTO training_events
+        (
+            title,
+            city,
+            venue,
+            event_date,
+            start_time,
+            end_time,
+            fee,
+            deposit,
+            products_taught,
+            total_seats
+        )
+
+        VALUES
+
+        (
+            'Bulawayo Practical Training',
+
+            'Bulawayo',
+
+            'Cillas Conference Centre',
+
+            '2026-08-22',
+
+            '09:00',
+
+            '14:00',
+
+            20,
+
+            5,
+
+            'Dishwash, Pine Gel, Foam Bath, Perfumes, Spices',
+
+            80
+        ),
+
+        (
+            'Harare Practical Training',
+
+            'Harare',
+
+            'Karigamombe Centre',
+
+            '2026-09-05',
+
+            '09:00',
+
+            '14:00',
+
+            20,
+
+            5,
+
+            'Metal Degreaser, Pine Gel, Foam Bath, Perfumes, Spices',
+
+            80
+        )
+        """)
+    c.execute("""
     CREATE TABLE IF NOT EXISTS customer_profiles (
 
         phone TEXT PRIMARY KEY,
@@ -1889,6 +1987,109 @@ Example:
     except Exception as e:
 
         print("PROFILE UPDATE ERROR:", e)
+
+def get_next_training(city=None):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    if city:
+        c.execute("""
+            SELECT
+                id,
+                title,
+                city,
+                venue,
+                event_date,
+                start_time,
+                fee,
+                deposit,
+                products_taught,
+                registration_status,
+                booked_seats,
+                total_seats
+            FROM training_events
+            WHERE
+                LOWER(city)=LOWER(%s)
+                AND registration_status='open'
+                AND event_date >= CURRENT_DATE
+            ORDER BY event_date ASC
+            LIMIT 1
+        """, (city,))
+    else:
+        c.execute("""
+            SELECT
+                id,
+                title,
+                city,
+                venue,
+                event_date,
+                start_time,
+                fee,
+                deposit,
+                products_taught,
+                registration_status,
+                booked_seats,
+                total_seats
+            FROM training_events
+            WHERE
+                registration_status='open'
+                AND event_date >= CURRENT_DATE
+            ORDER BY event_date ASC
+            LIMIT 1
+        """)
+
+    row = c.fetchone()
+
+    DATABASE_POOL.putconn(conn)
+
+    return row
+
+def add_training_event(
+    title,
+    city,
+    venue,
+    event_date,
+    start_time,
+    end_time,
+    fee,
+    deposit,
+    products,
+    seats
+):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO training_events(
+            title,
+            city,
+            venue,
+            event_date,
+            start_time,
+            end_time,
+            fee,
+            deposit,
+            products_taught,
+            total_seats
+        )
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """,(
+        title,
+        city,
+        venue,
+        event_date,
+        start_time,
+        end_time,
+        fee,
+        deposit,
+        products,
+        seats
+    ))
+
+    conn.commit()
+    DATABASE_POOL.putconn(conn)
 
 def extract_pdf_text(pdf_filename):
 
@@ -3641,6 +3842,54 @@ DEPARTMENTS = {
             "Solve the customer's problem step by step."
 
         ]
+    },
+    
+    "training_events": {
+
+        "title": "Training & Events Department",
+
+        "mission": "Help customers with training schedules, venues, registrations, deposits, bookings and all practical or online training enquiries.",
+
+        "personality": """
+    Friendly.
+    Professional.
+    Helpful.
+    Organised.
+    Always uses the latest approved training schedule.
+    """,
+
+        "responsibilities": [
+
+            "Training schedules",
+            "Training venues",
+            "Practical training",
+            "Online training",
+            "Training registration",
+            "Training bookings",
+            "Deposits",
+            "Training fees",
+            "Seat availability",
+            "Training preparation"
+
+        ],
+
+        "knowledge":[
+
+            "TRN-001",
+            "TRN-002",
+            "TRN-003"
+
+        ],
+
+        "rules":[
+
+            "Never invent dates.",
+            "Always retrieve current training information from the database.",
+            "Never confirm bookings without verification.",
+            "Use the database for live events instead of the Vector Store."
+
+        ]
+
     },
 
     "marketing":{
