@@ -4276,6 +4276,105 @@ def detect_department(question):
 
     return "general"
 
+def ai_department_router(question):
+    
+    print(f"Department selected: {department}")
+
+    prompt = f"""
+You are the Arachis Department Router.
+
+Your ONLY job is to choose which department should answer the customer's question.
+
+Available departments:
+
+manufacturing
+- Product formulas
+- Manufacturing
+- Quality control
+- Troubleshooting
+- Ingredients
+- Batch calculations
+
+supplier
+- Suppliers
+- Ingredients
+- Packaging
+- Equipment
+
+sales
+- Training packages
+- Promotions
+- Pricing
+- Upgrades
+
+advisor
+- Business advice
+- Profit
+- Marketing
+- Pricing
+- Business growth
+
+support
+- Payments
+- Lesson access
+- Login
+- Mobile App
+- Downloads
+- Account problems
+
+training_events
+- Training dates
+- Practical training
+- Online training
+- Venues
+- Registration
+- Bookings
+- Deposits
+- Seat availability
+
+marketing
+- Advertising
+- Branding
+- WhatsApp marketing
+- Facebook marketing
+
+marketplace
+- Buying
+- Selling
+- Marketplace
+
+general
+- Anything else
+
+Return ONLY one department name.
+
+Customer Question:
+
+""" + question
+
+    try:
+
+        response = openai_client.responses.create(
+
+            model=os.getenv("OPENAI_MODEL","gpt-4.1-mini"),
+
+            input=prompt
+
+        )
+
+        dept = response.output_text.strip().lower()
+
+        if dept not in DEPARTMENTS:
+            dept = "general"
+
+        return dept
+
+    except Exception as e:
+
+        print("ROUTER ERROR:", e)
+
+        return "general"
+
 # ==========================================
 # ARACHIS AI VIRTUAL EMPLOYEE
 # ==========================================
@@ -4283,7 +4382,7 @@ def detect_department(question):
 def ai_virtual_employee(phone, question, department=None):
 
     if department is None:
-        department = detect_department(question)
+        department = ai_department_router(question)
         
     user = get_user(phone)
 
