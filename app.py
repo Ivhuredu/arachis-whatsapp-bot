@@ -3575,7 +3575,7 @@ Keep answers concise unless the customer asks for more detail.
 When information comes from the Arachis manuals, base your answer on those manuals.
 
 Your goal is to teach the customer how to become a better manufacturer rather than simply fixing one batch.
-"""
+""",
 
     "supplier":{
 
