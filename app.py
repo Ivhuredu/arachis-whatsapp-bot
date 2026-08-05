@@ -11,6 +11,7 @@ from flask import Response
 from dataclasses import dataclass
 from menus import *
 from config import *
+from utils import safe_text
 from services import (
     create_user,
     get_user,
@@ -65,17 +66,6 @@ def normalize_phone(phone):
 
 def is_admin_phone(phone):
     return phone in ADMIN_NUMBERS
-
-def safe_text(value):
-    if value is None:
-        return ""
-
-    text = str(value)
-
-    # remove broken emoji surrogate characters like \ud83d
-    text = text.encode("utf-8", "ignore").decode("utf-8", "ignore")
-
-    return text
     
 from datetime import date
 
