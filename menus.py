@@ -221,36 +221,109 @@ def build_student_dashboard(phone):
 
     user = get_user(phone)
 
-    package = user.get("package", "Guest").title()
-
     name = (
         user.get("full_name")
         or user.get("name")
         or "Student"
     )
 
-    return (
+    package = (
+        user.get("package")
+        or "Guest"
+    ).title()
+
+    role = get_user_role(phone).title()
+
+    lessons = get_unlocked_lesson_count(phone)
+
+    role = "Guest"
+
+    if package != "Guest":
+        role = "Student"
+
+    if user.get("is_agent"):
+        role = "Agent"
+
+    if user.get("is_admin"):
+        role = "Administrator"
+
+    text = (
         f"👋 *Welcome back, {name}!*\n\n"
 
-        "📚 *MY LEARNING DASHBOARD*\n\n"
+        "🎓 *STUDENT DASHBOARD*\n\n"
 
-        f"📦 Package: *{package}*\n\n"
-
-        "Choose an option:\n\n"
-
-        "1️⃣ Open My Lessons\n"
-        "2️⃣ Ask AI Trainer\n"
-        "3️⃣ Practical Training\n"
-        "4️⃣ Download App\n"
-        "5️⃣ Upgrade My Training\n\n"
-
-        "💬 You can also ask me naturally:\n"
-        "• Explain Dishwash.\n"
-        "• Test my knowledge.\n"
-        "• Continue my lesson.\n\n"
-
-        "↩ Type *MENU* anytime."
+        f"👤 Role: *{role}*\n"
+        f"📦 Package: *{package}*\n"
+        f"📚 Unlocked Lessons: *{lessons}*\n\n"
     )
+    # -------------------------
+    # Guest Dashboard
+    # -------------------------
+
+    if role == "Guest":
+
+        text += (
+            "You're currently exploring Arachis.\n\n"
+
+            "1️⃣ View Training Packages\n"
+            "2️⃣ Download App\n"
+            "3️⃣ Practical Training\n"
+            "4️⃣ Ask AI\n\n"
+
+            "💡 Upgrade to unlock lessons."
+        )
+
+        return text
+
+    # -------------------------
+    # Student Dashboard
+    # -------------------------
+
+    elif role == "Student":
+
+        text += (
+            "1️⃣ Open My Lessons\n"
+            "2️⃣ Continue with AI Trainer\n"
+            "3️⃣ Practical Training\n"
+            "4️⃣ Download App\n"
+            "5️⃣ Upgrade Training\n\n"
+
+            "💬 Ask me anything about your lessons."
+        )
+
+        return text
+
+    # -------------------------
+    # Agent Dashboard
+    # -------------------------
+
+    elif role == "Agent":
+
+        text += (
+            "1️⃣ My Students\n"
+            "2️⃣ My Commission\n"
+            "3️⃣ Marketing Material\n"
+            "4️⃣ Practical Training\n"
+            "5️⃣ Agent AI Assistant"
+        )
+
+        return text
+
+    # -------------------------
+    # Admin Dashboard
+    # -------------------------
+
+    else:
+
+        text += (
+            "1️⃣ Admin Dashboard\n"
+            "2️⃣ Student Management\n"
+            "3️⃣ Training Management\n"
+            "4️⃣ Marketplace\n"
+            "5️⃣ AI Monitoring"
+        )
+
+        return text
 
 
 
