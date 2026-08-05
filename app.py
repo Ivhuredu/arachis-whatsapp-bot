@@ -2421,340 +2421,340 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-# ==========================================
-# LEARN MENU
-# ==========================================
+    # ==========================================
+    # LEARN MENU
+    # ==========================================
 
-if state == STATE_LEARN:
+    if state == STATE_LEARN:
 
-    if incoming == "1":
-
-        send_message(
-            phone,
-            "📱 *OPEN MY LESSONS*\n\n"
-            "All your lessons are now available inside the *Arachis Business App*.\n\n"
-            "Open the app and tap *My Lessons*.\n\n"
-            "If you have not installed the app yet, reply *4* to download it."
-        )
-
-        return jsonify({"status":"ok"})
-
-
-    elif incoming == "2":
-
-        set_state(phone, "ai_trainer")
-
-        send_message(
-            phone,
-            "🤖 *AI TRAINER*\n\n"
-            "Ask me anything about your lessons.\n\n"
-            "Examples:\n"
-            "• Explain SLES.\n"
-            "• Why is my bleach separating?\n"
-            "• Test me on Dishwash.\n"
-            "• How do I calculate a 100L batch?"
-        )
-
-        return jsonify({"status":"ok"})
-
-
-    elif incoming == "3":
-
-        upcoming = get_next_training()
-
-        if upcoming:
-
-            (
-                event_id,
-                title,
-                city,
-                venue,
-                event_date,
-                start_time,
-                fee,
-                deposit,
-                products,
-                status,
-                booked,
-                seats
-            ) = upcoming
+        if incoming == "1":
 
             send_message(
                 phone,
-                f"🎓 *NEXT PRACTICAL TRAINING*\n\n"
-                f"📍 {city}\n"
-                f"🏢 {venue}\n"
-                f"📅 {event_date}\n"
-                f"⏰ {start_time}\n"
-                f"💵 Fee: ${fee}\n"
-                f"💳 Deposit: ${deposit}\n\n"
-                f"Products:\n{products}\n\n"
-                f"Reply *BOOK* to reserve your seat."
+                "📱 *OPEN MY LESSONS*\n\n"
+                "All your lessons are now available inside the *Arachis Business App*.\n\n"
+                "Open the app and tap *My Lessons*.\n\n"
+                "If you have not installed the app yet, reply *4* to download it."
             )
 
-        else:
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "2":
+
+            set_state(phone, "ai_trainer")
 
             send_message(
                 phone,
-                "There are currently no practical training events available."
+                "🤖 *AI TRAINER*\n\n"
+                "Ask me anything about your lessons.\n\n"
+                "Examples:\n"
+                "• Explain SLES.\n"
+                "• Why is my bleach separating?\n"
+                "• Test me on Dishwash.\n"
+                "• How do I calculate a 100L batch?"
             )
 
-        return jsonify({"status":"ok"})
+            return jsonify({"status":"ok"})
 
 
-    elif incoming == "4":
+        elif incoming == "3":
 
-        send_message(
-            phone,
-            "📲 *DOWNLOAD ARACHIS BUSINESS APP*\n\n"
-            "Download and install the latest version of the Arachis Business App.\n\n"
-            "Once installed, all your lessons will be available there."
-        )
+            upcoming = get_next_training()
 
-        # Replace this with your existing APK sending function
-        # send_apk(phone)
+            if upcoming:
 
-        return jsonify({"status":"ok"})
+                (
+                    event_id,
+                    title,
+                    city,
+                    venue,
+                    event_date,
+                    start_time,
+                    fee,
+                    deposit,
+                    products,
+                    status,
+                    booked,
+                    seats
+                ) = upcoming
 
+                send_message(
+                    phone,
+                    f"🎓 *NEXT PRACTICAL TRAINING*\n\n"
+                    f"📍 {city}\n"
+                    f"🏢 {venue}\n"
+                    f"📅 {event_date}\n"
+                    f"⏰ {start_time}\n"
+                    f"💵 Fee: ${fee}\n"
+                    f"💳 Deposit: ${deposit}\n\n"
+                    f"Products:\n{products}\n\n"
+                    f"Reply *BOOK* to reserve your seat."
+                )
 
-    elif incoming == "5":
+            else:
 
-        send_message(
-            phone,
-            "💳 *UPGRADE TRAINING*\n\n"
-            "Available Packages:\n\n"
-            "✅ Basic\n"
-            "✅ Premium\n"
-            "✅ Advanced\n\n"
-            "Reply *UPGRADE* to continue."
-        )
+                send_message(
+                    phone,
+                    "There are currently no practical training events available."
+                )
 
-        return jsonify({"status":"ok"})
+            return jsonify({"status":"ok"})
 
 
-    elif incoming.upper() in ["MENU","HOME","BACK"]:
+        elif incoming == "4":
 
-        set_state(phone, STATE_MAIN)
+            send_message(
+                phone,
+                "📲 *DOWNLOAD ARACHIS BUSINESS APP*\n\n"
+                "Download and install the latest version of the Arachis Business App.\n\n"
+                "Once installed, all your lessons will be available there."
+            )
 
-        send_message(phone, main_menu(get_user(phone)))
+            # Replace this with your existing APK sending function
+            # send_apk(phone)
 
-        return jsonify({"status":"ok"})
+            return jsonify({"status":"ok"})
 
 
+        elif incoming == "5":
 
-# ==========================================
-# MANUFACTURE MENU
-# ==========================================
+            send_message(
+                phone,
+                "💳 *UPGRADE TRAINING*\n\n"
+                "Available Packages:\n\n"
+                "✅ Basic\n"
+                "✅ Premium\n"
+                "✅ Advanced\n\n"
+                "Reply *UPGRADE* to continue."
+            )
 
-elif state == STATE_MANUFACTURE:
+            return jsonify({"status":"ok"})
 
-    if incoming == "1":
 
-        send_message(phone, "🧪 Product formulas coming next.")
-        return jsonify({"status":"ok"})
+        elif incoming.upper() in ["MENU","HOME","BACK"]:
 
-    elif incoming == "2":
+            set_state(phone, STATE_MAIN)
 
-        send_message(phone, "📊 Batch calculator coming next.")
-        return jsonify({"status":"ok"})
+            send_message(phone, main_menu(get_user(phone)))
 
-    elif incoming == "3":
+            return jsonify({"status":"ok"})
 
-        send_message(phone, "🧪 Describe the product problem.")
-        return jsonify({"status":"ok"})
 
-    elif incoming == "4":
 
-        send_message(phone, "✅ Quality Control Assistant.")
-        return jsonify({"status":"ok"})
+    # ==========================================
+    # MANUFACTURE MENU
+    # ==========================================
 
-    elif incoming == "5":
+    elif state == STATE_MANUFACTURE:
 
-        send_message(phone, "📷 Send a product photo.")
-        return jsonify({"status":"ok"})
+        if incoming == "1":
 
-    elif incoming == "6":
+            send_message(phone, "🧪 Product formulas coming next.")
+            return jsonify({"status":"ok"})
 
-        send_message(phone, "🧪 Ingredient Guide.")
-        return jsonify({"status":"ok"})
+        elif incoming == "2":
 
-    elif incoming in ["back","menu","home"]:
+            send_message(phone, "📊 Batch calculator coming next.")
+            return jsonify({"status":"ok"})
 
-        set_state(phone, STATE_MAIN)
-        send_message(phone, main_menu(get_user(phone)))
-        return jsonify({"status":"ok"})
+        elif incoming == "3":
 
+            send_message(phone, "🧪 Describe the product problem.")
+            return jsonify({"status":"ok"})
 
-# ==========================================
-# BUSINESS MENU
-# ==========================================
+        elif incoming == "4":
 
-elif state == STATE_BUSINESS:
+            send_message(phone, "✅ Quality Control Assistant.")
+            return jsonify({"status":"ok"})
 
-    if incoming == "1":
+        elif incoming == "5":
 
-        send_message(phone,"💼 Business Starter Guide.")
-        return jsonify({"status":"ok"})
+            send_message(phone, "📷 Send a product photo.")
+            return jsonify({"status":"ok"})
 
-    elif incoming == "2":
+        elif incoming == "6":
 
-        send_message(phone,"💲Pricing & Profit Calculator.")
-        return jsonify({"status":"ok"})
+            send_message(phone, "🧪 Ingredient Guide.")
+            return jsonify({"status":"ok"})
 
-    elif incoming == "3":
+        elif incoming in ["back","menu","home"]:
 
-        send_message(phone,"📢 Marketing Assistant.")
-        return jsonify({"status":"ok"})
+            set_state(phone, STATE_MAIN)
+            send_message(phone, main_menu(get_user(phone)))
+            return jsonify({"status":"ok"})
 
-    elif incoming == "4":
 
-        send_message(phone,"🎨 Branding Assistant.")
-        return jsonify({"status":"ok"})
+    # ==========================================
+    # BUSINESS MENU
+    # ==========================================
 
-    elif incoming == "5":
+    elif state == STATE_BUSINESS:
 
-        send_message(phone,"🤖 Business Advisor.")
-        return jsonify({"status":"ok"})
+        if incoming == "1":
 
-    elif incoming == "6":
+            send_message(phone,"💼 Business Starter Guide.")
+            return jsonify({"status":"ok"})
 
-        send_message(phone,"📈 Funding & Growth.")
-        return jsonify({"status":"ok"})
+        elif incoming == "2":
 
-    elif incoming in ["back","menu","home"]:
+            send_message(phone,"💲Pricing & Profit Calculator.")
+            return jsonify({"status":"ok"})
 
-        set_state(phone, STATE_MAIN)
-        send_message(phone, main_menu(get_user(phone)))
-        return jsonify({"status":"ok"})
+        elif incoming == "3":
 
+            send_message(phone,"📢 Marketing Assistant.")
+            return jsonify({"status":"ok"})
 
-# ==========================================
-# MARKETPLACE
-# ==========================================
+        elif incoming == "4":
 
-elif state == STATE_MARKETPLACE:
+            send_message(phone,"🎨 Branding Assistant.")
+            return jsonify({"status":"ok"})
 
-    if incoming == "1":
+        elif incoming == "5":
 
-        send_message(phone, build_marketplace_home(phone))
-        return jsonify({"status":"ok"})
+            send_message(phone,"🤖 Business Advisor.")
+            return jsonify({"status":"ok"})
 
-    elif incoming == "2":
+        elif incoming == "6":
 
-        send_message(phone,"🏭 Supplier Directory.")
-        return jsonify({"status":"ok"})
+            send_message(phone,"📈 Funding & Growth.")
+            return jsonify({"status":"ok"})
 
-    elif incoming == "3":
+        elif incoming in ["back","menu","home"]:
 
-        send_message(phone,"📤 Sell Product.")
-        return jsonify({"status":"ok"})
+            set_state(phone, STATE_MAIN)
+            send_message(phone, main_menu(get_user(phone)))
+            return jsonify({"status":"ok"})
 
-    elif incoming == "4":
 
-        send_message(phone,"📦 Packaging Suppliers.")
-        return jsonify({"status":"ok"})
+    # ==========================================
+    # MARKETPLACE
+    # ==========================================
 
-    elif incoming == "5":
+    elif state == STATE_MARKETPLACE:
 
-        send_message(phone,"⚙ Machinery & Equipment.")
-        return jsonify({"status":"ok"})
+        if incoming == "1":
 
-    elif incoming == "6":
+            send_message(phone, build_marketplace_home(phone))
+            return jsonify({"status":"ok"})
 
-        send_message(phone,"🛒 My Marketplace.")
-        return jsonify({"status":"ok"})
+        elif incoming == "2":
 
-    elif incoming in ["back","menu","home"]:
+            send_message(phone,"🏭 Supplier Directory.")
+            return jsonify({"status":"ok"})
 
-        set_state(phone, STATE_MAIN)
-        send_message(phone, main_menu(get_user(phone)))
-        return jsonify({"status":"ok"})
+        elif incoming == "3":
 
+            send_message(phone,"📤 Sell Product.")
+            return jsonify({"status":"ok"})
 
-# ==========================================
-# TOOLS
-# ==========================================
+        elif incoming == "4":
 
-elif state == STATE_TOOLS:
+            send_message(phone,"📦 Packaging Suppliers.")
+            return jsonify({"status":"ok"})
 
-    if incoming == "1":
+        elif incoming == "5":
 
-        send_message(phone,"💰 Profit Calculator.")
-        return jsonify({"status":"ok"})
+            send_message(phone,"⚙ Machinery & Equipment.")
+            return jsonify({"status":"ok"})
 
-    elif incoming == "2":
+        elif incoming == "6":
 
-        send_message(phone,"📊 Batch Calculator.")
-        return jsonify({"status":"ok"})
+            send_message(phone,"🛒 My Marketplace.")
+            return jsonify({"status":"ok"})
 
-    elif incoming == "3":
+        elif incoming in ["back","menu","home"]:
 
-        send_message(phone,"📏 Unit Converter.")
-        return jsonify({"status":"ok"})
+            set_state(phone, STATE_MAIN)
+            send_message(phone, main_menu(get_user(phone)))
+            return jsonify({"status":"ok"})
 
-    elif incoming == "4":
 
-        send_message(phone,"🧮 Product Costing.")
-        return jsonify({"status":"ok"})
+    # ==========================================
+    # TOOLS
+    # ==========================================
 
-    elif incoming == "5":
+    elif state == STATE_TOOLS:
 
-        send_message(phone,"🤖 AI Assistant.")
-        return jsonify({"status":"ok"})
+        if incoming == "1":
 
-    elif incoming == "6":
+            send_message(phone,"💰 Profit Calculator.")
+            return jsonify({"status":"ok"})
 
-        send_message(phone,"📂 Downloads.")
-        return jsonify({"status":"ok"})
+        elif incoming == "2":
 
-    elif incoming in ["back","menu","home"]:
+            send_message(phone,"📊 Batch Calculator.")
+            return jsonify({"status":"ok"})
 
-        set_state(phone, STATE_MAIN)
-        send_message(phone, main_menu(get_user(phone)))
-        return jsonify({"status":"ok"})
+        elif incoming == "3":
 
+            send_message(phone,"📏 Unit Converter.")
+            return jsonify({"status":"ok"})
 
-# ==========================================
-# ACCOUNT
-# ==========================================
+        elif incoming == "4":
 
-elif state == STATE_ACCOUNT:
+            send_message(phone,"🧮 Product Costing.")
+            return jsonify({"status":"ok"})
 
-    if incoming == "1":
+        elif incoming == "5":
 
-        send_message(phone,"👤 My Dashboard.")
-        return jsonify({"status":"ok"})
+            send_message(phone,"🤖 AI Assistant.")
+            return jsonify({"status":"ok"})
 
-    elif incoming == "2":
+        elif incoming == "6":
 
-        send_message(phone,"💳 My Subscription.")
-        return jsonify({"status":"ok"})
+            send_message(phone,"📂 Downloads.")
+            return jsonify({"status":"ok"})
 
-    elif incoming == "3":
+        elif incoming in ["back","menu","home"]:
 
-        send_message(phone,"⬆ Upgrade Plan.")
-        return jsonify({"status":"ok"})
+            set_state(phone, STATE_MAIN)
+            send_message(phone, main_menu(get_user(phone)))
+            return jsonify({"status":"ok"})
 
-    elif incoming == "4":
 
-        send_message(phone,"📜 Payment History.")
-        return jsonify({"status":"ok"})
+    # ==========================================
+    # ACCOUNT
+    # ==========================================
 
-    elif incoming == "5":
+    elif state == STATE_ACCOUNT:
 
-        send_message(phone,"📂 My Downloads.")
-        return jsonify({"status":"ok"})
+        if incoming == "1":
 
-    elif incoming == "6":
+            send_message(phone,"👤 My Dashboard.")
+            return jsonify({"status":"ok"})
 
-        send_message(phone,"⚙ Settings.")
-        return jsonify({"status":"ok"})
+        elif incoming == "2":
 
-    elif incoming in ["back","menu","home"]:
+            send_message(phone,"💳 My Subscription.")
+            return jsonify({"status":"ok"})
 
-        set_state(phone, STATE_MAIN)
-        send_message(phone, main_menu(get_user(phone)))
-        return jsonify({"status":"ok"})
+        elif incoming == "3":
+
+            send_message(phone,"⬆ Upgrade Plan.")
+            return jsonify({"status":"ok"})
+
+        elif incoming == "4":
+
+            send_message(phone,"📜 Payment History.")
+            return jsonify({"status":"ok"})
+
+        elif incoming == "5":
+
+            send_message(phone,"📂 My Downloads.")
+            return jsonify({"status":"ok"})
+
+        elif incoming == "6":
+
+            send_message(phone,"⚙ Settings.")
+            return jsonify({"status":"ok"})
+
+        elif incoming in ["back","menu","home"]:
+
+            set_state(phone, STATE_MAIN)
+            send_message(phone, main_menu(get_user(phone)))
+            return jsonify({"status":"ok"})
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
     if incoming in ["yes", "ok", "sure", "interested", "view"]:
