@@ -3164,40 +3164,40 @@ def webhook():
         return jsonify({"status": "ok"})
 
     # ==========================================
-# MAIN MENU
-# ==========================================
+    # MAIN MENU
+    # ==========================================
 
-if user["state"] == STATE_MAIN:
+    if user["state"] == STATE_MAIN:
 
-    if incoming == "1":
-        set_state(phone, STATE_LEARN)
-        send_message(phone, build_learn_menu())
-        return jsonify({"status":"ok"})
+        if incoming == "1":
+            set_state(phone, STATE_LEARN)
+            send_message(phone, build_learn_menu())
+            return jsonify({"status":"ok"})
 
-    elif incoming == "2":
-        set_state(phone, STATE_MANUFACTURE)
-        send_message(phone, build_manufacture_menu())
-        return jsonify({"status":"ok"})
+        elif incoming == "2":
+            set_state(phone, STATE_MANUFACTURE)
+            send_message(phone, build_manufacture_menu())
+            return jsonify({"status":"ok"})
 
-    elif incoming == "3":
-        set_state(phone, STATE_BUSINESS)
-        send_message(phone, build_business_menu())
-        return jsonify({"status":"ok"})
+        elif incoming == "3":
+            set_state(phone, STATE_BUSINESS)
+            send_message(phone, build_business_menu())
+            return jsonify({"status":"ok"})
 
-    elif incoming == "4":
-        set_state(phone, STATE_MARKETPLACE)
-        send_message(phone, build_marketplace_menu())
-        return jsonify({"status":"ok"})
+        elif incoming == "4":
+            set_state(phone, STATE_MARKETPLACE)
+            send_message(phone, build_marketplace_menu())
+            return jsonify({"status":"ok"})
 
-    elif incoming == "5":
-        set_state(phone, STATE_TOOLS)
-        send_message(phone, build_tools_menu())
-        return jsonify({"status":"ok"})
+        elif incoming == "5":
+            set_state(phone, STATE_TOOLS)
+            send_message(phone, build_tools_menu())
+            return jsonify({"status":"ok"})
 
-    elif incoming == "6":
-        set_state(phone, STATE_ACCOUNT)
-        send_message(phone, build_account_menu())
-        return jsonify({"status":"ok"})
+        elif incoming == "6":
+            set_state(phone, STATE_ACCOUNT)
+            send_message(phone, build_account_menu())
+            return jsonify({"status":"ok"})
     # =========================
     # QUALIFY STAGE
     # =========================
