@@ -506,3 +506,38 @@ def get_marketplace_product(product_id):
         "ai_questions": ai_questions,
         "blocked_attempts": blocked_attempts
     }
+
+def get_user_role(phone):
+
+    user = get_user(phone)
+
+    if user.get("is_admin"):
+        return "admin"
+
+    if user.get("is_agent"):
+        return "agent"
+
+    if user.get("package"):
+        return "student"
+
+    return "guest"
+
+def get_unlocked_lesson_count(phone):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute(
+        """
+        SELECT COUNT(*)
+        FROM module_access
+        WHERE phone=%s
+        """,
+        (phone,)
+    )
+
+    count = c.fetchone()[0]
+
+    release_db(conn)
+
+    return count
