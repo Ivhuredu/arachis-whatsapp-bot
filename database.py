@@ -30,6 +30,10 @@ def get_db():
         )
 
     return DATABASE_POOL.getconn()
+
+def release_db(conn):
+    if conn:
+        DATABASE_POOL.putconn(conn)
     
 def init_db():
     conn = get_db()
