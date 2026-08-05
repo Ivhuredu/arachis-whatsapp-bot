@@ -282,7 +282,7 @@ def get_marketplace_temp(phone):
 
     return row[0] if row else ""
 
-  def clear_marketplace_temp(phone):
+def clear_marketplace_temp(phone):
     conn = get_db()
     c = conn.cursor()
 
