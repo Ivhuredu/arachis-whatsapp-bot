@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from openai import OpenAI
 
-from database import get_db, release_db
+from database import get_db
 from services import *
 from config import *
 from utils import safe_text
@@ -27,7 +27,7 @@ def ai_questions_today(phone):
     """, (phone,))
 
     count = c.fetchone()[0]
-    release_db(conn)
+    DATABASE_POOL.putconn(conn)
     return count
 
 # =========================
@@ -58,7 +58,7 @@ def save_memory(phone, module, role, message):
     """, (phone, module, MAX_MEMORY_MESSAGES, phone, module))
 
     conn.commit()
-    release_db(conn)
+    DATABASE_POOL.putconn(conn)
 
 
 def get_memory(phone, module):
@@ -73,7 +73,7 @@ def get_memory(phone, module):
     """, (phone, module))
 
     rows = c.fetchall()
-    release_db(conn)
+    DATABASE_POOL.putconn(conn)
 
     memory = []
     for r in rows:
@@ -114,7 +114,7 @@ def get_customer_profile(phone):
 
     row = c.fetchone()
 
-    release_db(conn)
+    DATABASE_POOL.putconn(conn)
 
     if not row:
         return {
@@ -262,7 +262,7 @@ def save_customer_profile(phone, profile):
     ))
 
     conn.commit()
-    release_db(conn)
+    DATABASE_POOL.putconn(conn)
 
 def update_customer_profile_ai(phone, question, answer):
 
@@ -391,7 +391,7 @@ def get_next_training(city=None):
 
     row = c.fetchone()
 
-    release_db(conn)
+    DATABASE_POOL.putconn(conn)
 
     return row
 
@@ -419,7 +419,7 @@ def get_all_training_events():
 
     events = c.fetchall()
 
-    release_db(conn)
+    DATABASE_POOL.putconn(conn)
 
     return events
 
@@ -446,7 +446,7 @@ def get_user_modules(phone, message):
 
     row = c.fetchone()
 
-    release_db(conn)
+    DATABASE_POOL.putconn(conn)
 
     if row and row[0]:
         return [row[0]]
@@ -465,7 +465,7 @@ def get_user_modules(phone, message):
         )
 
         conn.commit()
-        release_db(conn)
+        DATABASE_POOL.putconn(conn)
 
         return [detected]
 
