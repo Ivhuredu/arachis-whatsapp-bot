@@ -217,6 +217,41 @@ def build_account_menu():
         "↩ Type *MENU* to return."
     )
 
+def build_student_dashboard(phone):
+
+    user = get_user(phone)
+
+    package = user.get("package", "Guest").title()
+
+    name = (
+        user.get("full_name")
+        or user.get("name")
+        or "Student"
+    )
+
+    return (
+        f"👋 *Welcome back, {name}!*\n\n"
+
+        "📚 *MY LEARNING DASHBOARD*\n\n"
+
+        f"📦 Package: *{package}*\n\n"
+
+        "Choose an option:\n\n"
+
+        "1️⃣ Open My Lessons\n"
+        "2️⃣ Ask AI Trainer\n"
+        "3️⃣ Practical Training\n"
+        "4️⃣ Download App\n"
+        "5️⃣ Upgrade My Training\n\n"
+
+        "💬 You can also ask me naturally:\n"
+        "• Explain Dishwash.\n"
+        "• Test my knowledge.\n"
+        "• Continue my lesson.\n\n"
+
+        "↩ Type *MENU* anytime."
+    )
+
 
 
 
