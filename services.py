@@ -7,7 +7,6 @@ from config import (
     ADVANCED_MODULES,
 )
 from utils import safe_text
-from lessons import load_lessons, get_drink_modules
 
 def create_user(phone):
     conn = get_db()
