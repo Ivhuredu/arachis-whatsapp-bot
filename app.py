@@ -1,7 +1,7 @@
 import PyPDF2
 import requests
 from flask import Flask, request, jsonify, redirect, url_for
-from database import get_db, release_db
+from database import get_db, release_db, init_db
 import os
 import json
 import base64
