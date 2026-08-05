@@ -15,6 +15,7 @@ STATE_STUDENT_DASHBOARD = "student_dashboard"
 STATE_MARKETPLACE = "marketplace_menu"
 STATE_TOOLS = "tools_menu"
 STATE_ACCOUNT = "account_menu"
+STATE_OPEN_LESSONS = "open_lessons"
 
 BASIC_PRICE = 5.0
 PREMIUM_PRICE = 10.0
