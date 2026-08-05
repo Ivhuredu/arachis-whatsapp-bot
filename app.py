@@ -2427,7 +2427,7 @@ def webhook():
 
     if state == STATE_LEARN:
 
-        elif incoming == "1":
+        if incoming == "1":
 
             set_state(phone, STATE_STUDENT_DASHBOARD)
 
