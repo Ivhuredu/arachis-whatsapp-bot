@@ -2080,36 +2080,6 @@ def webhook():
     if not user:
         return "OK", 200
 
-    # =====================================
-    # AI ROUTER (NEW)
-    # =====================================
-
-    route = router.route(incoming)
-
-    if incoming.startswith("ai "):
-
-        question = incoming[3:]
-
-        answer = ai_virtual_employee(
-
-            phone,
-
-            question,
-
-            route.department
-
-        )
-
-        send_message(phone, answer)
-
-        return jsonify({"status":"ok"})
-
-    print("=" * 50)
-    print("AI ROUTER")
-    print("Message:", incoming)
-    print("Department:", route.department)
-    print("Confidence:", route.confidence)
-    print("=" * 50)
 
     # =========================
     # QUICK LESSON SHORTCUTS
@@ -2440,20 +2410,24 @@ def webhook():
 
         elif incoming == "2":
 
-            set_state(phone, "ai_trainer")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
 
             send_message(
                 phone,
-                "🤖 *AI TRAINER*\n\n"
-                "Ask me anything about your lessons.\n\n"
-                "Examples:\n"
-                "• Explain SLES.\n"
-                "• Why is my bleach separating?\n"
-                "• Test me on Dishwash.\n"
-                "• How do I calculate a 100L batch?"
+                "🤖 *ARACHIS VIRTUAL EMPLOYEE*\n\n"
+                "I'm ready to help you.\n\n"
+                "You can ask me about:\n\n"
+                "🧪 Manufacturing\n"
+                "💼 Business\n"
+                "🏭 Suppliers\n"
+                "🎓 Training\n"
+                "🛒 Marketplace\n"
+                "📱 App Support\n\n"
+                "Just type your question naturally."
             )
 
             return jsonify({"status":"ok"})
+
 
 
         elif incoming == "3":
@@ -2769,7 +2743,7 @@ def webhook():
 
         elif incoming == "2":
 
-            set_state(phone, "ai_trainer")
+            set_state(phone, "ai_virtual_employee")
 
             send_message(
                 phone,
@@ -2888,7 +2862,7 @@ def webhook():
 
         elif incoming == "4":
 
-            set_state(phone, "ai_trainer")
+            set_state(phone, "ai_virtual_employee" )
 
             send_message(
                 phone,
@@ -2908,6 +2882,21 @@ def webhook():
             )
 
             return jsonify({"status":"ok"})
+
+    # ==========================================
+    # VIRTUAL EMPLOYEE
+    # ==========================================
+
+    elif state == STATE_VIRTUAL_EMPLOYEE:
+
+        answer = ai_virtual_employee(
+            phone,
+            incoming
+        )
+
+        send_message(phone, answer)
+
+        return jsonify({"status":"ok"})
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
     if incoming in ["yes", "ok", "sure", "interested", "view"]:
@@ -3528,7 +3517,7 @@ def webhook():
             # 👉 allow AI questions inside lessons
             allowed_modules = get_user_modules(phone, incoming)
 
-            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee (phone, incoming, allowed_modules)
 
             send_message(phone, ai_answer)
 
@@ -3644,7 +3633,7 @@ def webhook():
             # 👉 allow AI questions inside lessons
             allowed_modules = get_user_modules(phone, incoming)
 
-            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
 
             send_message(phone, ai_answer)
 
@@ -3726,7 +3715,7 @@ def webhook():
 
         if not incoming.isdigit():
             allowed_modules = get_user_modules(phone, incoming)
-            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
             send_message(phone, ai_answer)
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")
@@ -3800,7 +3789,7 @@ def webhook():
 
         if not incoming.isdigit():
             allowed_modules = get_user_modules(phone, incoming)
-            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
             send_message(phone, ai_answer)
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")
@@ -4761,7 +4750,7 @@ def webhook():
         if not incoming.isdigit():
 
             allowed_modules = get_user_modules(phone, incoming)
-            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
 
             send_message(phone, ai_answer)
 
@@ -4818,7 +4807,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         allowed_modules = get_user_modules(phone, incoming)
-        ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+        ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
 
         send_message(phone, ai_answer)
 
@@ -5282,7 +5271,7 @@ def webhook():
         if len(allowed_modules) >= 2:
             # multi-module question → no memory
             memory_messages = []
-            ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")   # ← ADD THIS LINE
             log_activity(phone, "ai_answer", ai_answer[:500])
@@ -5291,7 +5280,7 @@ def webhook():
             return jsonify({"status": "ok"})
 
         # If user has only 1 module → still allow AI but only that module
-        ai_answer = ai_trainer_reply(phone, incoming, allowed_modules)
+        ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
         log_activity(phone, "ai_question", incoming)
         send_message(phone, ai_answer)
         update_metrics(phone, "ai")
