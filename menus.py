@@ -221,109 +221,62 @@ def build_student_dashboard(phone):
 
     user = get_user(phone)
 
-    name = (
-        user.get("full_name")
-        or user.get("name")
-        or "Student"
+    package = (user.get("package") or "Guest").title()
+
+    if package == "Guest":
+        role = "Guest"
+    else:
+        role = "Student"
+
+    lessons = get_unlocked_lesson_count(phone)
+
+    return (
+        "🎓 *STUDENT DASHBOARD*\n\n"
+
+        f"👤 Role: *{role}*\n"
+        f"📦 Package: *{package}*\n"
+        f"📚 Unlocked Lessons: *{lessons}*\n\n"
+
+        "Choose an option:\n\n"
+
+        "1️⃣ Open My Lessons\n"
+        "2️⃣ Ask AI Trainer\n"
+        "3️⃣ Practical Training\n"
+        "4️⃣ Download App\n"
+        "5️⃣ Upgrade My Training\n\n"
+
+        "💬 Ask me anything about your lessons.\n\n"
+
+        "↩ Type *MENU* to return."
     )
+
+def build_open_lessons_menu(phone):
+
+    user = get_user(phone)
 
     package = (
         user.get("package")
         or "Guest"
     ).title()
 
-    role = get_user_role(phone).title()
+    return (
 
-    lessons = get_unlocked_lesson_count(phone)
+        "📱 *OPEN MY LESSONS*\n\n"
 
-    role = "Guest"
+        "Your training is now delivered through the "
+        "*Arachis Business App.*\n\n"
 
-    if package != "Guest":
-        role = "Student"
+        f"📦 Package: *{package}*\n\n"
 
-    if user.get("is_agent"):
-        role = "Agent"
+        "Choose an option:\n\n"
 
-    if user.get("is_admin"):
-        role = "Administrator"
+        "1️⃣ Open the App\n"
+        "2️⃣ Download Latest App\n"
+        "3️⃣ I Can't Access My Lessons\n"
+        "4️⃣ Ask AI Trainer\n\n"
 
-    text = (
-        f"👋 *Welcome back, {name}!*\n\n"
-
-        "🎓 *STUDENT DASHBOARD*\n\n"
-
-        f"👤 Role: *{role}*\n"
-        f"📦 Package: *{package}*\n"
-        f"📚 Unlocked Lessons: *{lessons}*\n\n"
+        "↩ Type *MENU* to return."
     )
-    # -------------------------
-    # Guest Dashboard
-    # -------------------------
-
-    if role == "Guest":
-
-        text += (
-            "You're currently exploring Arachis.\n\n"
-
-            "1️⃣ View Training Packages\n"
-            "2️⃣ Download App\n"
-            "3️⃣ Practical Training\n"
-            "4️⃣ Ask AI\n\n"
-
-            "💡 Upgrade to unlock lessons."
-        )
-
-        return text
-
-    # -------------------------
-    # Student Dashboard
-    # -------------------------
-
-    elif role == "Student":
-
-        text += (
-            "1️⃣ Open My Lessons\n"
-            "2️⃣ Continue with AI Trainer\n"
-            "3️⃣ Practical Training\n"
-            "4️⃣ Download App\n"
-            "5️⃣ Upgrade Training\n\n"
-
-            "💬 Ask me anything about your lessons."
-        )
-
-        return text
-
-    # -------------------------
-    # Agent Dashboard
-    # -------------------------
-
-    elif role == "Agent":
-
-        text += (
-            "1️⃣ My Students\n"
-            "2️⃣ My Commission\n"
-            "3️⃣ Marketing Material\n"
-            "4️⃣ Practical Training\n"
-            "5️⃣ Agent AI Assistant"
-        )
-
-        return text
-
-    # -------------------------
-    # Admin Dashboard
-    # -------------------------
-
-    else:
-
-        text += (
-            "1️⃣ Admin Dashboard\n"
-            "2️⃣ Student Management\n"
-            "3️⃣ Training Management\n"
-            "4️⃣ Marketplace\n"
-            "5️⃣ AI Monitoring"
-        )
-
-        return text
 
 
 
