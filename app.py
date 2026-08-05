@@ -3124,31 +3124,6 @@ elif state == STATE_ACCOUNT:
 
         return jsonify({"status": "ok"})
 
-       if incoming == "1":
-            set_state(phone, STATE_LEARN)
-            return send_message(phone, build_learn_menu())
-
-        elif incoming == "2":
-            set_state(phone, STATE_MANUFACTURE)
-            return send_message(phone, build_manufacture_menu())
-
-        elif incoming == "3":
-            set_state(phone, STATE_BUSINESS)
-            return send_message(phone, build_business_menu())
-
-        elif incoming == "4":
-            set_state(phone, STATE_MARKETPLACE)
-            return send_message(phone, build_marketplace_menu())
-
-        elif incoming == "5":
-            set_state(phone, STATE_TOOLS)
-            return send_message(phone, build_tools_menu())
-
-        elif incoming == "6":
-            set_state(phone, STATE_ACCOUNT)
-            return send_message(phone, build_account_menu())
-
-
         elif incoming == "8":
 
             set_state(phone, "help_menu")
@@ -3262,8 +3237,41 @@ elif state == STATE_ACCOUNT:
         send_message(phone, "\n↩ Nyora MENU kudzokera")
         return jsonify({"status": "ok"})
 
-        
+    # ==========================================
+# MAIN MENU
+# ==========================================
 
+if user["state"] == STATE_MAIN:
+
+    if incoming == "1":
+        set_state(phone, STATE_LEARN)
+        send_message(phone, build_learn_menu())
+        return jsonify({"status":"ok"})
+
+    elif incoming == "2":
+        set_state(phone, STATE_MANUFACTURE)
+        send_message(phone, build_manufacture_menu())
+        return jsonify({"status":"ok"})
+
+    elif incoming == "3":
+        set_state(phone, STATE_BUSINESS)
+        send_message(phone, build_business_menu())
+        return jsonify({"status":"ok"})
+
+    elif incoming == "4":
+        set_state(phone, STATE_MARKETPLACE)
+        send_message(phone, build_marketplace_menu())
+        return jsonify({"status":"ok"})
+
+    elif incoming == "5":
+        set_state(phone, STATE_TOOLS)
+        send_message(phone, build_tools_menu())
+        return jsonify({"status":"ok"})
+
+    elif incoming == "6":
+        set_state(phone, STATE_ACCOUNT)
+        send_message(phone, build_account_menu())
+        return jsonify({"status":"ok"})
     # =========================
     # QUALIFY STAGE
     # =========================
