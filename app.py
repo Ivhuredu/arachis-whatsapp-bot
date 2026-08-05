@@ -3,6 +3,7 @@ import requests
 from openai import OpenAI
 from flask import Flask, request, jsonify, redirect, url_for
 from database import get_db, init_db
+import os
 import json
 import base64
 from werkzeug.utils import secure_filename
