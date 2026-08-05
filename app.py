@@ -4716,13 +4716,12 @@ def webhook():
 
     if incoming.lower() == "admin events":
 
-        if phone not in ADMIN_NUMBERS:
-            return send_text(phone, "Unauthorized.")
+    if phone not in ADMIN_NUMBERS:
+        send_message(phone, "Unauthorized.")
+        return jsonify({"status": "ok"})
 
-        return send_text(
-            phone,
-            admin_training_events()
-        )
+    send_message(phone, admin_training_events())
+    return jsonify({"status": "ok"})
 
     if incoming.startswith("reset device ") and phone in ADMIN_NUMBERS:
         target = incoming.replace("reset device ", "").strip()
