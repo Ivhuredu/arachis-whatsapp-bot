@@ -1743,33 +1743,4 @@ class AIRouter:
 
 router = AIRouter()
 
-# =====================================
-    # AI ROUTER (NEW)
-    # =====================================
 
-    route = router.route(incoming)
-
-    if incoming.startswith("ai "):
-
-        question = incoming[3:]
-
-        answer = ai_virtual_employee(
-
-            phone,
-
-            question,
-
-            route.department
-
-        )
-
-        send_message(phone, answer)
-
-        return jsonify({"status":"ok"})
-
-    print("=" * 50)
-    print("AI ROUTER")
-    print("Message:", incoming)
-    print("Department:", route.department)
-    print("Confidence:", route.confidence)
-    print("=" * 50)
