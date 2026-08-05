@@ -17,7 +17,7 @@ def create_user(phone):
         ON CONFLICT (phone) DO NOTHING
     """, (phone,))
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
   
 def get_unpaid_active_users():
     conn = get_db()
@@ -36,7 +36,7 @@ def get_unpaid_active_users():
     """)
 
     rows = c.fetchall()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def record_module_access(phone, module):
     conn = get_db()
@@ -47,7 +47,7 @@ def record_module_access(phone, module):
         ON CONFLICT (phone, module) DO NOTHING
     """, (phone, module))
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def add_custom_module(phone, module):
     conn = get_db()
@@ -60,7 +60,7 @@ def add_custom_module(phone, module):
     """, (phone, module))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def get_custom_modules(phone):
     conn = get_db()
@@ -73,7 +73,7 @@ def get_custom_modules(phone):
     """, (phone,))
 
     rows = c.fetchall()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return [r[0] for r in rows]
 
@@ -84,7 +84,7 @@ def clear_custom_modules(phone):
     c.execute("DELETE FROM custom_module_access WHERE phone=%s", (phone,))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def log_activity(phone, action, details=""):
     details = safe_text(details)[:1000]
@@ -95,8 +95,8 @@ def log_activity(phone, action, details=""):
         VALUES (%s, %s, %s)
     """, (phone, action, details))
     conn.commit()
-    DATABASE_POOL.putconn(conn)
-
+    release_db(conn)
+    
 def get_app_install_stats():
     conn = get_db()
     c = conn.cursor()
@@ -127,7 +127,7 @@ def get_app_install_stats():
     """)
     recent_installs = c.fetchall()
 
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return {
         "total_installs": total_installs,
@@ -141,7 +141,7 @@ def get_user(phone):
     c = conn.cursor()
     c.execute("SELECT phone, state, payment_status, is_paid, package FROM users WHERE phone=%s", (phone,))
     row = c.fetchone()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     if not row:
         return None
@@ -174,7 +174,7 @@ def get_allowed_modules_for_user(phone):
     """, (phone,))
 
     row = c.fetchone()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     has_spices = row[0] if row else 0
     has_advanced = row[1] if row else 0
@@ -206,7 +206,7 @@ def set_state(phone, state):
     c = conn.cursor()
     c.execute("UPDATE users SET state=%s WHERE phone=%s", (state, phone))
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     log_activity(phone, "state_change", state)
 
@@ -215,7 +215,7 @@ def set_payment_status(phone, status):
     c = conn.cursor()
     c.execute("UPDATE users SET payment_status=%s WHERE phone=%s", (status, phone))
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def get_dashboard_stats():
     conn = get_db()
@@ -236,9 +236,8 @@ def get_dashboard_stats():
     c.execute("SELECT COUNT(*) FROM activity_log WHERE action='blocked_access'")
     blocked_attempts = c.fetchone()[0]
 
-    DATABASE_POOL.putconn(conn)
-    DATABASE_POOL.putconn(conn)
-
+    release_db(conn)
+    
     return {
         "total_users": total_users,
         "paid_users": paid_users,
@@ -268,7 +267,7 @@ def save_marketplace_temp(phone, data):
     """, (phone, data))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def get_marketplace_temp(phone):
     conn = get_db()
@@ -277,7 +276,7 @@ def get_marketplace_temp(phone):
     c.execute("SELECT data FROM marketplace_temp WHERE phone=%s", (phone,))
     row = c.fetchone()
 
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return row[0] if row else ""
 
@@ -288,7 +287,7 @@ def clear_marketplace_temp(phone):
     c.execute("DELETE FROM marketplace_temp WHERE phone=%s", (phone,))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 
 def seed_marketplace_products():
@@ -304,7 +303,7 @@ def seed_marketplace_products():
     count = c.fetchone()[0]
 
     if count > 0:
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
         return
 
     products = [
@@ -417,7 +416,7 @@ def seed_marketplace_products():
         ))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 
 def get_featured_products(limit=5):
@@ -433,7 +432,7 @@ def get_featured_products(limit=5):
     """, (limit,))
 
     rows = c.fetchall()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return rows
 
@@ -452,7 +451,7 @@ def get_products_by_category(category, limit=20):
     """, (category, limit))
 
     rows = c.fetchall()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return rows
 
@@ -478,7 +477,7 @@ def search_marketplace_products(search_term, limit=20):
     """, (term, term, term, term, limit))
 
     rows = c.fetchall()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return rows
 
@@ -496,7 +495,7 @@ def get_marketplace_product(product_id):
     """, (product_id,))
 
     row = c.fetchone()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return row
 
