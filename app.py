@@ -3517,7 +3517,7 @@ def webhook():
             # 👉 allow AI questions inside lessons
             allowed_modules = get_user_modules(phone, incoming)
 
-            ai_answer = ai_virtual_employee (phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee (phone, incoming)
 
             send_message(phone, ai_answer)
 
@@ -3633,7 +3633,7 @@ def webhook():
             # 👉 allow AI questions inside lessons
             allowed_modules = get_user_modules(phone, incoming)
 
-            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee(phone, incoming)
 
             send_message(phone, ai_answer)
 
@@ -3715,7 +3715,7 @@ def webhook():
 
         if not incoming.isdigit():
             allowed_modules = get_user_modules(phone, incoming)
-            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee(phone, incoming)
             send_message(phone, ai_answer)
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")
@@ -3789,7 +3789,7 @@ def webhook():
 
         if not incoming.isdigit():
             allowed_modules = get_user_modules(phone, incoming)
-            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
+            ai_answer = ai_virtual_employee(phone, incoming)
             send_message(phone, ai_answer)
             log_activity(phone, "ai_question", incoming)
             update_metrics(phone, "ai")
@@ -4743,23 +4743,26 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-    elif user["state"] == "business_lessons":
+        elif user["state"] == "business_lessons":
 
-        modules = list(BUSINESS_MODULES.keys())
+            modules = list(BUSINESS_MODULES.keys())
 
-        if not incoming.isdigit():
+            if not incoming.isdigit():
 
-            allowed_modules = get_user_modules(phone, incoming)
-            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
+                ai_answer = ai_virtual_employee(
+                    phone,
+                    incoming
+                )
 
-            send_message(phone, ai_answer)
+                send_message(phone, ai_answer)
 
-            ai_handled = True
+                ai_handled = True
 
-            log_activity(phone, "ai_question", incoming)
-            update_metrics(phone, "ai")
+                log_activity(phone, "ai_question", incoming)
+                update_metrics(phone, "ai")
+                log_activity(phone, "ai_answer", ai_answer[:500])
 
-            return jsonify({"status": "ok"})
+                return jsonify({"status": "ok"})
 
         if 1 <= int(incoming) <= len(modules):
 
@@ -4799,22 +4802,23 @@ def webhook():
             send_message(phone, "Invalid choice")
             return jsonify({"status": "ok"})
 
-    elif user["state"] == "ai_chat":
+    elif user["state"] == STATE_VIRTUAL_EMPLOYEE:
 
-        if incoming == "menu":
-            set_state(phone, "main")
-            send_message(phone, main_menu())
+        if incoming.lower() == "menu":
+            set_state(phone, STATE_MAIN)
+            send_message(phone, main_menu(get_user(phone)))
             return jsonify({"status": "ok"})
 
-        allowed_modules = get_user_modules(phone, incoming)
-        ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
+        ai_answer = ai_virtual_employee(
+            phone,
+            incoming
+        )
 
         send_message(phone, ai_answer)
 
-        ai_handled = True
-
         log_activity(phone, "ai_question", incoming)
         update_metrics(phone, "ai")
+        log_activity(phone, "ai_answer", ai_answer[:500])
 
         return jsonify({"status": "ok"})
 
@@ -5267,25 +5271,24 @@ def webhook():
 
                 return jsonify({"status":"ok"})
 
-        # If user has 2 or more modules → allow full cross-module AI
-        if len(allowed_modules) >= 2:
-            # multi-module question → no memory
-            memory_messages = []
-            ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
-            log_activity(phone, "ai_question", incoming)
-            update_metrics(phone, "ai")   # ← ADD THIS LINE
-            log_activity(phone, "ai_answer", ai_answer[:500])
-            
-            send_message(phone, ai_answer)
-            return jsonify({"status": "ok"})
+    # =====================================
+    # Arachis Virtual Employee
+    # =====================================
 
-        # If user has only 1 module → still allow AI but only that module
-        ai_answer = ai_virtual_employee(phone, incoming, allowed_modules)
-        log_activity(phone, "ai_question", incoming)
-        send_message(phone, ai_answer)
-        update_metrics(phone, "ai")
-        log_activity(phone, "ai_answer", ai_answer[:500])
-        return jsonify({"status": "ok"})
+    ai_answer = ai_virtual_employee(
+        phone,
+        incoming
+    )
+
+    log_activity(phone, "ai_question", incoming)
+
+    update_metrics(phone, "ai")
+
+    log_activity(phone, "ai_answer", ai_answer[:500])
+
+    send_message(phone, ai_answer)
+
+    return jsonify({"status": "ok"})
 
     # ===== DEFAULT FALLBACK =====
     send_message(phone, "Nyora *MENU*")
