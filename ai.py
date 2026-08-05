@@ -1281,8 +1281,7 @@ def detect_department(question):
 
 def ai_department_router(question):
     
-    print(f"Department selected: {department}")
-
+    
     prompt = f"""
 You are the Arachis Department Router.
 
