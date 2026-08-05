@@ -1,7 +1,7 @@
 import PyPDF2
 import requests
 from flask import Flask, request, jsonify, redirect, url_for
-from database import get_db, init_db
+from database import get_db, release_db
 import os
 import json
 import base64
@@ -13,15 +13,7 @@ from menus import *
 from config import *
 from ai import *
 from utils import safe_text
-from services import (
-    create_user,
-    get_user,
-    set_state,
-    log_activity,
-    get_allowed_modules_for_user,
-    get_dashboard_stats,
-    get_featured_products,
-)
+from services import *
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -143,7 +135,7 @@ def send_message(phone, text):
                 """, (phone, message_id, "text", "accepted"))
 
                 conn.commit()
-                DATABASE_POOL.putconn(conn)
+                release_db(conn)
 
             except Exception as e:
                 print("OUTBOUND SAVE ERROR:", e)
@@ -294,7 +286,7 @@ def seed_prices():
         """, p)
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def get_all_prices():
 
@@ -304,7 +296,7 @@ def get_all_prices():
     c.execute("SELECT name, price_per_unit, unit FROM ingredient_prices")
 
     rows = c.fetchall()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     price_text = ""
 
@@ -534,7 +526,7 @@ def send_template(phone, template_name):
         """, (phone, template_name, message_id, "accepted"))
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
     except Exception as e:
         print("TEMPLATE SAVE ERROR:", e)
@@ -577,7 +569,7 @@ def update_metrics(phone, event):
         """, (phone,))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def mark_paid(phone):
     conn = get_db()
@@ -587,7 +579,7 @@ def mark_paid(phone):
         (phone,)
     )
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def revoke_access(phone):
     conn = get_db()
@@ -613,8 +605,8 @@ def revoke_access(phone):
     c.execute("DELETE FROM ai_memory WHERE phone=%s", (phone,))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
-
+    release_db(conn)
+    
     log_activity(phone, "access_revoked", "admin")
 
 def already_processed_message(message_id, phone, incoming):
@@ -631,14 +623,14 @@ def already_processed_message(message_id, phone, incoming):
 
         inserted = c.fetchone()
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         return inserted is None
 
     except Exception as e:
         print("DEDUP ERROR:", e)
         conn.rollback()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
         return False
         
 import re
@@ -734,7 +726,7 @@ def verify_and_apply_payment(phone, message):
 
     c.execute("SELECT 1 FROM payments WHERE reference=%s", (reference,))
     if c.fetchone():
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
         return False, "Reference yakamboshandiswa kare."
 
     c.execute("SELECT package FROM users WHERE phone=%s", (phone,))
@@ -749,43 +741,43 @@ def verify_and_apply_payment(phone, message):
 
     if pending_purchase == "advanced_full":
         if amount < ADVANCED_PRICE:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, "Mari ishoma. Advanced Full Package iri $20."
         package = "advanced"
 
     elif pending_purchase == "spices_full":
         if amount < SPICES_PRICE:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, "Mari ishoma. Spices & Seasonings package iri $10."
         package = "spices"
 
     elif pending_purchase == "upgrade_basic_to_premium":
         if amount < UPGRADE_BASIC_TO_PREMIUM:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, "Mari ishoma. Upgrade yeBasic to Premium iri $5."
         package = "premium"
 
     elif pending_purchase == "upgrade_basic_to_spices":
         if amount < UPGRADE_BASIC_TO_SPICES:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, "Mari ishoma. Add Spices iri $5."
         package = current_package
 
     elif pending_purchase == "upgrade_basic_to_advanced":
         if amount < UPGRADE_BASIC_TO_ADVANCED:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, "Mari ishoma. Basic to Advanced upgrade iri $10."
         package = "advanced"
 
     elif pending_purchase == "upgrade_premium_to_spices":
         if amount < UPGRADE_PREMIUM_TO_SPICES:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, "Mari ishoma. Premium add Spices iri $5."
         package = current_package
 
     elif pending_purchase == "upgrade_premium_to_advanced":
         if amount < UPGRADE_PREMIUM_TO_ADVANCED:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, "Mari ishoma. Premium to Advanced upgrade iri $7."
         package = "advanced"
 
@@ -794,24 +786,24 @@ def verify_and_apply_payment(phone, message):
         expected_amount = len(selected_modules) * CUSTOM_PRICE_PER_MODULE
 
         if expected_amount <= 0:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, "Hausati wasarudza ma formula eCustom Package."
 
         if amount < expected_amount:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, f"Mari ishoma. Custom package yako iri ${expected_amount:.2f}."
 
         package = "custom"
 
     elif current_package == "basic":
         if amount < BASIC_PRICE:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, f"Mari ishoma. Basic package iri ${BASIC_PRICE:.2f}."
         package = "basic"
 
     elif current_package == "premium":
         if amount < PREMIUM_PRICE:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return False, f"Mari ishoma. Premium package iri ${PREMIUM_PRICE:.2f}."
         package = "premium"
         
@@ -821,7 +813,7 @@ def verify_and_apply_payment(phone, message):
     """, (phone, reference, amount, message))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     mark_paid(phone)
 
@@ -840,7 +832,7 @@ def verify_and_apply_payment(phone, message):
             """, (phone, module))
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
     conn = get_db()
     c = conn.cursor()
@@ -867,7 +859,7 @@ def verify_and_apply_payment(phone, message):
         WHERE phone=%s
     """, (package, has_spices, has_advanced, phone))
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     send_admin_alert(
         "AUTO PAYMENT APPROVED",
@@ -964,7 +956,7 @@ def add_training_event(
     ))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def extract_pdf_text(pdf_filename):
 
@@ -1024,7 +1016,7 @@ def save_pdf_to_db(module_name, pdf_filename):
     """, (module_name, text))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     print(f"Saved {module_name} to database")
 
@@ -1052,7 +1044,7 @@ def auto_sync_lessons():
             print("Auto learning lesson:", module)
             save_pdf_to_db(module, file)
 
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 def get_lesson_from_db(module_name):
 
@@ -1065,7 +1057,7 @@ def get_lesson_from_db(module_name):
     )
 
     row = c.fetchone()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     if row:
         return row[0]
@@ -1251,7 +1243,7 @@ def add_marketplace_product(
     product_id = c.fetchone()[0]
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return product_id
 
@@ -1354,7 +1346,7 @@ def approve_marketplace_product(product_id):
     row = c.fetchone()
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return row
 
@@ -1373,7 +1365,7 @@ def reject_marketplace_product(product_id):
     row = c.fetchone()
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return row
 
@@ -1568,7 +1560,7 @@ def save_marketplace_cart(phone, cart):
     """, (phone, cart_text))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 
 def get_marketplace_cart(phone):
@@ -1584,7 +1576,7 @@ def get_marketplace_cart(phone):
     c.execute("SELECT cart FROM marketplace_carts WHERE phone=%s", (phone,))
     row = c.fetchone()
 
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return parse_marketplace_cart(row[0]) if row and row[0] else {}
 
@@ -1620,7 +1612,7 @@ def clear_marketplace_cart(phone):
     c.execute("DELETE FROM marketplace_carts WHERE phone=%s", (phone,))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
 
 def get_products_from_cart(cart):
@@ -1898,8 +1890,8 @@ def open_lesson_direct(phone, module):
         (module, phone)
     )
     conn.commit()
-    DATABASE_POOL.putconn(conn)
-
+    release_db(conn)
+    
 def find_direct_lesson_match(incoming):
     lesson_aliases = {
         # Detergents
@@ -2040,7 +2032,7 @@ def webhook():
                 print("📩 TEMPLATE DELIVERY STATUS:", message_id, status, error_details)
 
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             return "OK", 200
 
@@ -2285,7 +2277,7 @@ def webhook():
             """, (phone,))
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         if selected_plan == "custom":
             try:
@@ -2489,7 +2481,7 @@ def webhook():
             DO UPDATE SET item = EXCLUDED.item
         """, (phone, image_path))
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "photo_details")
 
@@ -2687,7 +2679,7 @@ def webhook():
             """, (target, module))
 
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             log_activity(target, "manual_custom_approved", module)
 
@@ -2732,7 +2724,7 @@ def webhook():
         """, (package, has_spices, has_advanced, target))
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         send_message(target, f"🎉 Payment Approved!\nPackage: {package.upper()}")
         send_message(phone, f"✅ Approved: {target} ({package})")
@@ -2751,7 +2743,7 @@ def webhook():
         """, (phone,))
 
         row = c.fetchone()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         # If user is new or has few messages → show sales message
         if not row or row[0] < 1:
@@ -2957,7 +2949,7 @@ def webhook():
             """, (phone,))
             lessons_done = c.fetchone()[0]
 
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             # get AI usage today
             ai_used = ai_questions_today(phone)
@@ -3397,8 +3389,8 @@ def webhook():
         )
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
-
+        release_db(conn)
+        
         return jsonify({"status": "ok"})
 
     elif user["state"] == "advanced_menu":
@@ -3471,7 +3463,7 @@ def webhook():
             (module, phone)
         )
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         return jsonify({"status": "ok"})
 
@@ -3594,7 +3586,7 @@ def webhook():
         """, (pending, phone))
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "awaiting_payment")
 
@@ -3622,7 +3614,7 @@ def webhook():
                 (selected_package, phone)
             )
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             set_state(phone, "awaiting_payment")
 
@@ -3693,7 +3685,7 @@ def webhook():
             """, (phone,))
 
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             set_state(phone, "awaiting_payment")
 
@@ -3719,7 +3711,7 @@ def webhook():
             """, (phone,))
 
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             set_state(phone, "awaiting_payment")
 
@@ -3758,7 +3750,7 @@ def webhook():
                 (phone,)
             )
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             set_state(phone, "awaiting_payment")
 
@@ -4492,7 +4484,7 @@ def webhook():
                 (module, phone)
             )
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             return jsonify({"status": "ok"})
 
@@ -4527,7 +4519,7 @@ def webhook():
         c.execute("SELECT item FROM temp_orders WHERE phone=%s", (phone,))
         row = c.fetchone()
 
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         if not row:
             send_message(phone, "❌ Image not found. Send photo again.")
@@ -4568,7 +4560,7 @@ def webhook():
             DO UPDATE SET full_name = EXCLUDED.full_name
         """, (phone, incoming.title()))
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "offline_location")
         send_message(phone, "📍 Enter your *Town / Area*")
@@ -4585,7 +4577,7 @@ def webhook():
             WHERE phone = %s
         """, (incoming.title(), phone))
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "offline_choice")
         send_message(
@@ -4606,7 +4598,7 @@ def webhook():
             WHERE phone = %s
         """, (incoming.title(), phone))
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "main")
         send_message(
@@ -4673,7 +4665,7 @@ def webhook():
             UPDATE temp_orders SET quantity=%s WHERE phone=%s
         """, (units, phone))
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "calc_detailed_raw")
 
@@ -4690,7 +4682,7 @@ def webhook():
             UPDATE temp_orders SET item=%s WHERE phone=%s
         """, (str(raw_cost), phone))
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "calc_detailed_packaging")
 
@@ -4720,7 +4712,7 @@ def webhook():
         """, (f"{raw_cost}|{packaging}|{units}", phone))
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "calc_detailed_price")
 
@@ -4746,7 +4738,7 @@ def webhook():
         profit = revenue - total_cost
         profit_per_unit = selling_price - cost_per_unit
 
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         send_message(
             phone,
@@ -4778,7 +4770,7 @@ def webhook():
             DO UPDATE SET item = %s
         """, (phone, str(raw_cost), str(raw_cost)))
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "calc_quick_units")
 
@@ -4795,7 +4787,7 @@ def webhook():
             UPDATE temp_orders SET quantity=%s WHERE phone=%s
         """, (units, phone))
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "calc_quick_packaging")
 
@@ -4820,7 +4812,7 @@ def webhook():
         """, (f"{raw_cost}|{packaging}|{units}", phone))
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         set_state(phone, "calc_quick_price")
 
@@ -4846,8 +4838,8 @@ def webhook():
         profit = revenue - total_cost
         profit_per_unit = selling_price - cost_per_unit
 
-        DATABASE_POOL.putconn(conn)
-
+        release_db(conn)
+        
         send_message(
             phone,
             f"📊 *QUICK RESULTS*\n\n"
@@ -4890,7 +4882,7 @@ def webhook():
                 (phone,)
             )
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             send_message(phone, "🎉 Upgrade successful! Wava pa Premium.")
             set_state(phone, "main")
@@ -5074,7 +5066,7 @@ def admin_dashboard():
             ))
 
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             return redirect(url_for("admin_dashboard"))
 
@@ -5194,8 +5186,8 @@ def admin_dashboard():
     marketplace_products = c.fetchall()
 
 
-    DATABASE_POOL.putconn(conn)
-
+    release_db(conn)
+    
     html = "<h2>Arachis Admin Dashboard</h2>"
 
     # ===== STATS =====
@@ -5509,7 +5501,7 @@ def admin_approve_package(phone, package):
     """, (package, has_spices, has_advanced, phone))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     send_message(
         phone,
@@ -5549,7 +5541,7 @@ def admin_reset_device(phone):
     """, (phone,))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     log_activity(phone, "device_lock_reset", "admin")
 
@@ -5597,7 +5589,7 @@ def admin_marketplace_status(product_id, status):
     row = c.fetchone()
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     if row:
         product_name, seller_phone = row
@@ -5622,7 +5614,7 @@ def admin_marketplace_delete(product_id):
     c.execute("DELETE FROM marketplace_products WHERE id=%s", (product_id,))
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return redirect(url_for("admin_dashboard"))
 
@@ -5660,7 +5652,7 @@ def followup_unpaid():
             count += 1
 
     conn.commit()
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return f"Sent {count} followups"
 
@@ -5700,7 +5692,7 @@ def admin_send_followup(phone):
 
         conn.commit()
 
-    DATABASE_POOL.putconn(conn)
+    release_db(conn)
 
     return redirect(url_for("admin_dashboard"))
 
@@ -5758,7 +5750,7 @@ def mobile_install():
         ))
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         return jsonify({
             "success": True,
@@ -5815,7 +5807,7 @@ def mobile_login():
         user = c.fetchone()
 
         if not user:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return jsonify({
                 "success": False,
                 "message": "Number not found. Please contact admin."
@@ -5824,7 +5816,7 @@ def mobile_login():
         db_phone, is_paid, package, saved_device_id, saved_device_model, device_locked_at = user
 
         if not is_paid:
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
             return jsonify({
                 "success": False,
                 "message": "Payment not approved yet."
@@ -5919,7 +5911,7 @@ def mobile_login():
                     )
 
                 else:
-                    DATABASE_POOL.putconn(conn)
+                    release_db(conn)
 
                     log_activity(
                         phone,
@@ -5963,7 +5955,7 @@ def mobile_login():
 
             conn.commit()
 
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         allowed_modules = get_allowed_modules_for_user(phone)
 
@@ -6035,7 +6027,7 @@ def mobile_marketplace_products():
             """)
 
         rows = c.fetchall()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         products = []
 
