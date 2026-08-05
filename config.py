@@ -2,6 +2,19 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# =========================
+# CONVERSATION STATES
+# =========================
+
+STATE_MAIN = "main"
+
+STATE_LEARN = "learn_menu"
+STATE_MANUFACTURE = "manufacture_menu"
+STATE_BUSINESS = "business_menu"
+STATE_MARKETPLACE = "marketplace_menu"
+STATE_TOOLS = "tools_menu"
+STATE_ACCOUNT = "account_menu"
+
 BASIC_PRICE = 5.0
 PREMIUM_PRICE = 10.0
 SPICES_PRICE = 10.0
