@@ -93,20 +93,22 @@ def main_menu(user=None):
 
 def build_learn_menu():
     return (
-        "📚 *LEARN MANUFACTURING*\n\n"
+        "📚 *MY LEARNING*\n\n"
 
-        "What would you like to learn?\n\n"
+        "Welcome to your Arachis learning centre.\n\n"
 
-        "1️⃣ Continue My Lessons\n"
-        "2️⃣ Browse All Courses\n"
+        "Choose an option:\n\n"
+
+        "1️⃣ Open My Lessons\n"
+        "2️⃣ Ask AI Trainer\n"
         "3️⃣ Practical Training\n"
-        "4️⃣ Online Training\n"
-        "5️⃣ Business Courses\n"
-        "6️⃣ My Certificates\n\n"
+        "4️⃣ Download Arachis App\n"
+        "5️⃣ Upgrade My Training\n\n"
 
-        "💬 Or ask:\n"
+        "💬 You can also ask naturally:\n"
         "• Continue my Pine Gel lesson.\n"
-        "• Show detergent courses.\n"
+        "• Explain CMC.\n"
+        "• Test my knowledge.\n"
         "• When is the next practical training?\n\n"
 
         "↩ Type *MENU* to return."
