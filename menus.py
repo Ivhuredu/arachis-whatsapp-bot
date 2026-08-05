@@ -215,21 +215,6 @@ def build_account_menu():
         "↩ Type *MENU* to return."
     )
 
-def handle_learn_menu(phone, incoming):
 
-    if incoming == "1":
-        return build_my_lessons()
 
-    elif incoming == "2":
-        return build_courses_menu()
 
-    elif incoming == "3":
-        return build_practical_training()
-
-    elif incoming.upper() in ["MENU", "HOME", "BACK"]:
-
-        set_state(phone, STATE_MAIN)
-
-        return main_menu()
-
-    return "Please choose an option."
