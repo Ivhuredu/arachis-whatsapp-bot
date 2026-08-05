@@ -2765,8 +2765,7 @@ def webhook():
                 build_open_lessons_menu(phone)
             )
 
-    return jsonify({"status":"ok"})
-
+            return jsonify({"status":"ok"})
 
         elif incoming == "2":
 
