@@ -1,14 +1,11 @@
-from app import (
+from config import *
+
+from services import (
     get_user,
     get_custom_modules,
     get_allowed_modules_for_user,
     save_marketplace_temp,
     get_featured_products,
-    PACKAGES,
-    DETERGENT_MODULES,
-    BEVERAGE_MODULES,
-    ADVANCED_MODULES,
-    SPICE_MODULES
 )
 
 def build_marketplace_home(phone):
