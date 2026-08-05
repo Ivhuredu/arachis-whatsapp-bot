@@ -2429,33 +2429,117 @@ if state == STATE_LEARN:
 
     if incoming == "1":
 
-        set_state(phone, "detergents_menu")
-        send_message(phone, build_detergent_menu(phone))
+        send_message(
+            phone,
+            "📱 *OPEN MY LESSONS*\n\n"
+            "All your lessons are now available inside the *Arachis Business App*.\n\n"
+            "Open the app and tap *My Lessons*.\n\n"
+            "If you have not installed the app yet, reply *4* to download it."
+        )
+
         return jsonify({"status":"ok"})
+
 
     elif incoming == "2":
 
-        set_state(phone, "beverages_menu")
-        send_message(phone, build_beverage_menu(phone))
+        set_state(phone, "ai_trainer")
+
+        send_message(
+            phone,
+            "🤖 *AI TRAINER*\n\n"
+            "Ask me anything about your lessons.\n\n"
+            "Examples:\n"
+            "• Explain SLES.\n"
+            "• Why is my bleach separating?\n"
+            "• Test me on Dishwash.\n"
+            "• How do I calculate a 100L batch?"
+        )
+
         return jsonify({"status":"ok"})
+
 
     elif incoming == "3":
 
-        set_state(phone, "advanced_menu")
-        send_message(phone, build_advanced_menu(phone))
+        upcoming = get_next_training()
+
+        if upcoming:
+
+            (
+                event_id,
+                title,
+                city,
+                venue,
+                event_date,
+                start_time,
+                fee,
+                deposit,
+                products,
+                status,
+                booked,
+                seats
+            ) = upcoming
+
+            send_message(
+                phone,
+                f"🎓 *NEXT PRACTICAL TRAINING*\n\n"
+                f"📍 {city}\n"
+                f"🏢 {venue}\n"
+                f"📅 {event_date}\n"
+                f"⏰ {start_time}\n"
+                f"💵 Fee: ${fee}\n"
+                f"💳 Deposit: ${deposit}\n\n"
+                f"Products:\n{products}\n\n"
+                f"Reply *BOOK* to reserve your seat."
+            )
+
+        else:
+
+            send_message(
+                phone,
+                "There are currently no practical training events available."
+            )
+
         return jsonify({"status":"ok"})
+
 
     elif incoming == "4":
 
-        set_state(phone, "spices_menu")
-        send_message(phone, build_spices_menu(phone))
+        send_message(
+            phone,
+            "📲 *DOWNLOAD ARACHIS BUSINESS APP*\n\n"
+            "Download and install the latest version of the Arachis Business App.\n\n"
+            "Once installed, all your lessons will be available there."
+        )
+
+        # Replace this with your existing APK sending function
+        # send_apk(phone)
+
         return jsonify({"status":"ok"})
 
-    elif incoming in ["back","menu","home"]:
+
+    elif incoming == "5":
+
+        send_message(
+            phone,
+            "💳 *UPGRADE TRAINING*\n\n"
+            "Available Packages:\n\n"
+            "✅ Basic\n"
+            "✅ Premium\n"
+            "✅ Advanced\n\n"
+            "Reply *UPGRADE* to continue."
+        )
+
+        return jsonify({"status":"ok"})
+
+
+    elif incoming.upper() in ["MENU","HOME","BACK"]:
 
         set_state(phone, STATE_MAIN)
+
         send_message(phone, main_menu(get_user(phone)))
+
         return jsonify({"status":"ok"})
+
 
 
 # ==========================================
