@@ -1,3 +1,7 @@
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+
 BASIC_PRICE = 5.0
 PREMIUM_PRICE = 10.0
 SPICES_PRICE = 10.0
@@ -29,10 +33,6 @@ APKPURE_URL = "https://apkpure.com/p/com.arachis.training"
 
 ALLOWED_EXTENSIONS = {"pdf", "apk"}
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
-
-app.config["MARKETPLACE_FOLDER"] = MARKETPLACE_FOLDER
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["APK_FOLDER"] = APK_FOLDER
 
 PACKAGES = {
     "basic": {
@@ -305,131 +305,4 @@ SPICE_MODULES = [
     "sauce_spice_base"
 ]
 
-def detect_module_from_question(question, allowed_modules):
-    if not question:
-        return None
 
-    q = question.lower()
-
-    keyword_map = {
-        "dishwash": "dishwash",
-        "dish wash": "dishwash",
-
-        "bleach": "thick_bleach",
-        "jik": "thick_bleach",
-
-        "foam": "foam_bath",
-        "pine": "pine_gel",
-        "toilet": "toilet_cleaner",
-
-        "engine": "engine_cleaner",
-        "engine 2": "engine_cleaner2",
-
-        "laundry": "laundry_bar",
-        "bar soap": "laundry_bar",
-
-        "fabric": "fabric_softener",
-        "softener": "fabric_softener",
-
-        "petroleum": "petroleum_jelly",
-        "vaseline": "petroleum_jelly",
-
-        "floor polish": "floor_polish",
-
-        "car shampoo": "car_shampoo",
-        "car wash": "car_shampoo",
-
-        "degreaser": "acidic_metal_degreaser",
-        "acid": "acidic_metal_degreaser",
-
-        "tyre": "tyre_polish",
-
-        "shoe polish": "paste_shoe_polish",
-        "liquid polish": "liquid_shoe_polish",
-
-        "tile": "tile_cleaner",
-
-        "conditioner": "hair_conditioner",
-        "hair shampoo": "hair_shampoo",
-
-        "washing paste": "washing_paste",
-        "bath soap": "bath_soap",
-
-        "freezits": "freezits",
-        "ice cream": "ice_cream",
-
-        "baobab": "baobab_drink",
-        "cascade": "juice_cascade",
-        "orange drink": "orange_drink",
-        "raspberry": "raspberry_drink",
-        "cream soda": "cream_soda",
-
-        "low cost orange": "low_cost_orange_drink",
-        "orange drink": "orange_drink",
-
-        "low cost raspberry": "low_cost_raspberry_drink",
-
-        "universal cordial": "universal_cordial",
-        "cordial": "universal_cordial" 
-    }
-
-    # 1️⃣ strict keyword match but only if user owns module
-    for key, module in keyword_map.items():
-        if key in q and module in allowed_modules:
-            return module
-
-    # if no keyword match → stay in last module
-    if allowed_modules:
-        return allowed_modules[-1]
-
-
-    # 2️⃣ direct module name mention
-    for module in allowed_modules:
-        if module.replace("_", " ") in q:
-            return module
-
-    # 3️⃣ fallback = last opened module
-    return allowed_modules[-1] if allowed_modules else None
-
- # =========================
-    # QUICK LESSON SHORTCUTS
-    # =========================
-    lesson_shortcuts = {
-        "detergents": "detergents_menu",
-        "detergent": "detergents_menu",
-        "ma detergents": "detergents_menu",
-        "beverages": "beverages_menu",
-        "drinks": "beverages_menu",
-        "madrinks": "beverages_menu",
-        "advanced": "advanced_menu",
-        "advanced manufacturing": "advanced_menu",
-        "manufacturing": "advanced_menu",
-        "spices": "spices_menu",
-        "spice": "spices_menu",
-        "seasonings": "spices_menu",
-        "spices and seasonings": "spices_menu",
-    }
-
-    if incoming in lesson_shortcuts:
-        fresh_user = get_user(phone)
-
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
-            return jsonify({"status": "ok"})
-
-        target_state = lesson_shortcuts[incoming]
-        set_state(phone, target_state)
-
-        if target_state == "detergents_menu":
-            send_message(phone, build_detergent_menu(phone))
-
-        elif target_state == "beverages_menu":
-            send_message(phone, build_beverage_menu(phone))
-
-        elif target_state == "advanced_menu":
-            send_message(phone, build_advanced_menu(phone))
-
-        elif target_state == "spices_menu":
-            send_message(phone, build_spices_menu(phone))
-
-        return jsonify({"status": "ok"})
