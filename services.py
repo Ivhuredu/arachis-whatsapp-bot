@@ -1,3 +1,14 @@
+from database import get_db, DATABASE_POOL
+from config import (
+    PACKAGES,
+    DETERGENT_MODULES,
+    BEVERAGE_MODULES,
+    SPICE_MODULES,
+    ADVANCED_MODULES,
+)
+from utils import safe_text
+from lessons import load_lessons, get_drink_modules
+
 def create_user(phone):
     conn = get_db()
     c = conn.cursor()
@@ -126,7 +137,7 @@ def get_app_install_stats():
         "recent_installs": recent_installs
     }
 
-  def get_user(phone):
+def get_user(phone):
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT phone, state, payment_status, is_paid, package FROM users WHERE phone=%s", (phone,))
@@ -227,6 +238,15 @@ def get_dashboard_stats():
     blocked_attempts = c.fetchone()[0]
 
     DATABASE_POOL.putconn(conn)
+    DATABASE_POOL.putconn(conn)
+
+    return {
+        "total_users": total_users,
+        "paid_users": paid_users,
+        "module_opens": module_opens,
+        "ai_questions": ai_questions,
+        "blocked_attempts": blocked_attempts
+    }
 
 def get_detergent_modules():
 
