@@ -1,12 +1,6 @@
 from config import *
 
-from services import (
-    get_user,
-    get_custom_modules,
-    get_allowed_modules_for_user,
-    save_marketplace_temp,
-    get_featured_products,
-)
+from services import *
 
 def build_marketplace_home(phone):
     featured = get_featured_products(5)
