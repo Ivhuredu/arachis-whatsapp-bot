@@ -41,127 +41,195 @@ def build_marketplace_home(phone):
 # =========================
 # MENUS
 # =========================
-def main_menu():
-    return (
-        "🏠 *ARACHIS DASHBOARD*\n\n"
+def main_menu(user=None):
+    """
+    Main conversational dashboard.
+    AI-first, task-oriented navigation.
+    """
 
-        "📚 *LEARN*\n"
-        "1️⃣ Course Lessons\n"
-        "2️⃣ 💼 Business Training\n\n"
+    name = ""
 
-        "🧠 *TOOLS*\n"
-        "3️⃣ 📊 Profit Calculator\n"
-        "4️⃣ 🤖 Ask AI Trainer\n\n"
-
-        "🛒 *RESOURCES*\n"
-        "5️⃣ 🛒 Marketplace - Buy & Sell Products\n"
-        "6️⃣ 🏭 Supplier Directory\n\n"
-
-        "💳 *ACCOUNT*\n"
-        "7️⃣ Upgrade Plan\n"
-        "8️⃣ Help\n"
-        "9️⃣ Account Dashboard\n"
-        "🔟 Download App\n"
-    )
-
-def welcome_message():
-    return (
-        "👋 Makadini!\n\n"
-        "Mazvita mauya! Vanhu vakawanda vari kutotanga kugadzira ma detergents nemadrinks vachibatsirwa nekosi ino. Nemiwo munogona kudzidza kugadzira:\n\n"
-        "✔ Dishwash\n"
-        "✔ Thick Bleach\n"
-        "✔ Ice Cream\n"
-        "✔ Concentrate Drinks nezvimwe\n\n"
-        "🏠 Unogona kutanga kutodzidza izvozvi pafoni pako uye kutanga bhizinesi rako uri kumba.\n\n"
-        "📚 Full training:Basic $5 | Premium $10\n\n"
-        "🏠 Kana une zvimwe zvaungada kuziva kana kubatsirwa taura naAdmin wedu pa +263773208904.\n\n"
-        "Reply *PAY* kuti ubhadhare uye utange kudzidza."
-    )
-
-def build_detergent_menu(phone):
-    fresh_user = get_user(phone)
-    detergent_list = DETERGENT_MODULES
-
-    if fresh_user.get("package") == "basic":
-        allowed = PACKAGES["basic"]["modules"]
-        detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
-
-    elif fresh_user.get("package") == "custom":
-        allowed = get_custom_modules(phone)
-        detergent_list = [m for m in DETERGENT_MODULES if m in allowed]
-
-    if not detergent_list:
-        return "Hauna detergent lessons pa package yako."
-
-    menu = "🧪 *DETERGENT LESSONS*\n\n"
-    for i, module in enumerate(detergent_list, start=1):
-        menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
-
-    menu += "\nReply with number\nType *NEXT* to come back here."
-    return menu
-
-
-def build_beverage_menu(phone):
-    fresh_user = get_user(phone)
-    beverages = BEVERAGE_MODULES
-
-    if fresh_user.get("package") == "basic":
-        allowed = PACKAGES["basic"]["modules"]
-        beverages = [m for m in beverages if m in allowed]
-
-    elif fresh_user.get("package") == "custom":
-        allowed = get_custom_modules(phone)
-        beverages = [m for m in beverages if m in allowed]
-
-    if not beverages:
-        return "Hauna beverage lessons pa package yako."
-
-    menu = "🥤 *BEVERAGE LESSONS*\n\n"
-    for i, module in enumerate(beverages, start=1):
-        menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
-
-    menu += "\nReply with number\nType *NEXT* to come back here."
-    return menu
-
-def build_advanced_menu(phone):
-    allowed = get_allowed_modules_for_user(phone)
-    advanced = [m for m in ADVANCED_MODULES if m in allowed]
-
-    if not advanced:
-        return (
-            "🔒 Advanced Manufacturing is locked.\n\n"
-            "💵 Full Advanced Package: $20\n"
-            "Upgrade prices:\n"
-            "✔ Basic to Advanced: $10\n"
-            "✔ Premium to Advanced: $7\n\n"
-            "Nyora *UPGRADE* kuti uvhure."
+    if user:
+        name = (
+            user.get("full_name")
+            or user.get("name")
+            or ""
         )
 
-    menu = "🏭 *ADVANCED MANUFACTURING*\n\n"
+    greeting = (
+        f"👋 Hello *{name}*!\n\n"
+        if name
+        else
+        "👋 Hello!\n\n"
+    )
 
-    for i, module in enumerate(advanced, start=1):
-        menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
+    return (
+        "🏠 *ARACHIS MANUFACTURING AI*\n\n"
 
-    menu += "\nReply with number\nType *NEXT* to come back here."
-    return menu
+        + greeting +
 
-def build_spices_menu(phone):
-    allowed = get_allowed_modules_for_user(phone)
-    spices = [m for m in SPICE_MODULES if m in allowed]
+        "I'm your virtual manufacturing and business assistant.\n\n"
 
-    if not spices:
-        return (
-            "🔒 Spices & Seasonings is locked.\n\n"
-            "💵 Full Spices Package: $10\n"
-            "Upgrade price:\n"
-            "✔ Basic/Premium add Spices: $5\n\n"
-            "Nyora *UPGRADE* kuti uvhure."
-        )
+        "*How can I help you today?*\n\n"
 
-    menu = "🌶️ *SPICES & SEASONINGS MANUFACTURING*\n\n"
+        "1️⃣ I want to *learn manufacturing*\n"
+        "2️⃣ I want to *make a product*\n"
+        "3️⃣ I want to *grow my business*\n"
+        "4️⃣ I want to *buy or sell*\n"
+        "5️⃣ I need *business tools*\n"
+        "6️⃣ *My account*\n\n"
 
-    for i, module in enumerate(spices, start=1):
-        menu += f"{i}️⃣ {module.replace('_', ' ').title()}\n"
+        "🤖 *Or simply ask me your question naturally.*\n\n"
 
-    menu += "\nReply with number\nType *NEXT* to come back here."
-    return menu
+        "*For example:*\n"
+        "• How do I make dishwash?\n"
+        "• Calculate a 200L batch.\n"
+        "• Find SLES suppliers in Harare.\n"
+        "• When is the next practical training?\n"
+        "• Help me start a business with $100.\n\n"
+
+        "💡 You can type *MENU* anytime to return here."
+    )
+
+def build_learn_menu():
+    return (
+        "📚 *LEARN MANUFACTURING*\n\n"
+
+        "What would you like to learn?\n\n"
+
+        "1️⃣ Continue My Lessons\n"
+        "2️⃣ Browse All Courses\n"
+        "3️⃣ Practical Training\n"
+        "4️⃣ Online Training\n"
+        "5️⃣ Business Courses\n"
+        "6️⃣ My Certificates\n\n"
+
+        "💬 Or ask:\n"
+        "• Continue my Pine Gel lesson.\n"
+        "• Show detergent courses.\n"
+        "• When is the next practical training?\n\n"
+
+        "↩ Type *MENU* to return."
+    )
+
+def build_manufacture_menu():
+    return (
+        "🏭 *MAKE A PRODUCT*\n\n"
+
+        "What would you like to do?\n\n"
+
+        "1️⃣ Product Formulas\n"
+        "2️⃣ Batch Calculator\n"
+        "3️⃣ Troubleshoot a Product\n"
+        "4️⃣ Quality Control\n"
+        "5️⃣ Analyse a Product Photo\n"
+        "6️⃣ Ingredients Guide\n\n"
+
+        "💬 Or ask:\n"
+        "• My bleach is separating.\n"
+        "• Calculate a 250L batch.\n"
+        "• Analyse this product.\n\n"
+
+        "↩ Type *MENU* to return."
+    )
+
+def build_business_menu():
+    return (
+        "💼 *GROW MY BUSINESS*\n\n"
+
+        "How can I help your business?\n\n"
+
+        "1️⃣ Start a Manufacturing Business\n"
+        "2️⃣ Pricing & Profit\n"
+        "3️⃣ Marketing & Advertising\n"
+        "4️⃣ Branding\n"
+        "5️⃣ Business Advisor\n"
+        "6️⃣ Funding & Growth\n\n"
+
+        "💬 Or ask:\n"
+        "• Help me start with $100.\n"
+        "• Price my dishwash.\n"
+        "• Create a Facebook advert.\n\n"
+
+        "↩ Type *MENU* to return."
+    )
+
+def build_marketplace_menu():
+    return (
+        "🛒 *BUY OR SELL*\n\n"
+
+        "Choose an option:\n\n"
+
+        "1️⃣ Buy Ingredients\n"
+        "2️⃣ Find Suppliers\n"
+        "3️⃣ Sell My Products\n"
+        "4️⃣ Packaging\n"
+        "5️⃣ Machinery & Equipment\n"
+        "6️⃣ My Marketplace\n\n"
+
+        "💬 Or ask:\n"
+        "• Find SLES in Harare.\n"
+        "• I want to sell Pine Gel.\n"
+        "• Where can I buy bottles?\n\n"
+
+        "↩ Type *MENU* to return."
+    )
+
+def build_tools_menu():
+    return (
+        "🧰 *BUSINESS TOOLS*\n\n"
+
+        "Choose a tool:\n\n"
+
+        "1️⃣ Profit Calculator\n"
+        "2️⃣ Batch Calculator\n"
+        "3️⃣ Unit Converter\n"
+        "4️⃣ Product Costing\n"
+        "5️⃣ AI Assistant\n"
+        "6️⃣ Downloads\n\n"
+
+        "💬 Or ask:\n"
+        "• Calculate my profit.\n"
+        "• Convert litres to kilograms.\n\n"
+
+        "↩ Type *MENU* to return."
+    )
+
+def build_account_menu():
+    return (
+        "👤 *MY ACCOUNT*\n\n"
+
+        "Manage your account:\n\n"
+
+        "1️⃣ My Dashboard\n"
+        "2️⃣ My Subscription\n"
+        "3️⃣ Upgrade My Plan\n"
+        "4️⃣ Payment History\n"
+        "5️⃣ Downloads\n"
+        "6️⃣ Settings\n\n"
+
+        "💬 Or ask:\n"
+        "• What package do I have?\n"
+        "• Upgrade my account.\n\n"
+
+        "↩ Type *MENU* to return."
+    )
+
+def handle_learn_menu(phone, incoming):
+
+    if incoming == "1":
+        return build_my_lessons()
+
+    elif incoming == "2":
+        return build_courses_menu()
+
+    elif incoming == "3":
+        return build_practical_training()
+
+    elif incoming.upper() in ["MENU", "HOME", "BACK"]:
+
+        set_state(phone, STATE_MAIN)
+
+        return main_menu()
+
+    return "Please choose an option."
