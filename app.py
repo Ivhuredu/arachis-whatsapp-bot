@@ -22,7 +22,6 @@ from services import (
     get_allowed_modules_for_user,
     get_dashboard_stats,
     get_featured_products,
-    ...
 )
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
