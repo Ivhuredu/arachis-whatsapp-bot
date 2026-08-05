@@ -2758,14 +2758,14 @@ def webhook():
 
         if incoming == "1":
 
+            set_state(phone, STATE_OPEN_LESSONS)
+
             send_message(
                 phone,
-                "📱 *OPEN MY LESSONS*\n\n"
-                "Your lessons are available in the Arachis Business App.\n\n"
-                "Open the app and tap *My Lessons*."
+                build_open_lessons_menu(phone)
             )
 
-            return jsonify({"status":"ok"})
+    return jsonify({"status":"ok"})
 
 
         elif incoming == "2":
@@ -2831,6 +2831,69 @@ def webhook():
             send_message(
                 phone,
                 "💳 Reply *UPGRADE* to view available packages."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming.upper() in ["MENU","BACK","HOME"]:
+
+            set_state(phone, STATE_MAIN)
+
+            send_message(
+                phone,
+                main_menu(get_user(phone))
+            )
+
+            return jsonify({"status":"ok"})
+    # ==========================================
+    # OPEN LESSONS
+    # ==========================================
+
+    elif state == STATE_OPEN_LESSONS:
+
+        if incoming == "1":
+
+            send_message(
+                phone,
+                "📱 Please open the *Arachis Business App*.\n\n"
+                "Tap *My Lessons* to continue learning."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "2":
+
+            send_app_download(phone)
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "3":
+
+            send_message(
+                phone,
+                "🛠 Let's solve your problem.\n\n"
+                "Tell me what is happening.\n\n"
+                "Examples:\n"
+                "• My lessons are locked.\n"
+                "• I cannot login.\n"
+                "• The app is not opening."
+            )
+
+            set_state(phone, "app_support")
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "4":
+
+            set_state(phone, "ai_trainer")
+
+            send_message(
+                phone,
+                "🤖 Ask me anything about your lessons."
             )
 
             return jsonify({"status":"ok"})
