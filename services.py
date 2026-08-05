@@ -20,7 +20,7 @@ def create_user(phone):
     conn.commit()
     DATABASE_POOL.putconn(conn)
   
-  def get_unpaid_active_users():
+def get_unpaid_active_users():
     conn = get_db()
     c = conn.cursor()
 
