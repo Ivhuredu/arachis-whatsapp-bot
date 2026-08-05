@@ -2354,70 +2354,90 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-    # =========================
-    # DIRECT LESSON OPENING
-    # =========================
-    direct_module = find_direct_lesson_match(incoming)
+    user = get_user(phone)
+    state = user.get("state", STATE_MAIN)
 
-    if direct_module:
-        fresh_user = get_user(phone)
+    # ==========================================
+    # GLOBAL COMMANDS
+    # ==========================================
 
-        if not fresh_user["is_paid"]:
-            send_message(phone, "🔒 Lessons are for paid students only.\nNyora *PAY* kuti utange.")
-            return jsonify({"status": "ok"})
+    incoming_upper = incoming.strip().upper()
 
-        allowed_modules = get_allowed_modules_for_user(phone)
+    # Main dashboard
+    if incoming_upper in ["MENU", "HOME", "START"]:
 
-        if direct_module not in allowed_modules:
-            send_message(phone, "🔒 This lesson is not unlocked on your current package.")
-            return jsonify({"status": "ok"})
+        set_state(phone, STATE_MAIN)
 
-        if direct_module in DETERGENT_MODULES:
-            set_state(phone, "detergents_menu")
-        elif direct_module in BEVERAGE_MODULES:
-            set_state(phone, "beverages_menu")
-        elif direct_module in ADVANCED_MODULES:
-            set_state(phone, "advanced_menu")
-        elif direct_module in SPICE_MODULES:
-            set_state(phone, "spices_menu")
+        send_message(
+            phone,
+            main_menu(user)
+        )
 
-        open_lesson_direct(phone, direct_module)
         return jsonify({"status": "ok"})
 
-    # =========================
-    # NEXT / BACK TO CURRENT LESSON MENU
-    # =========================
-    if incoming in ["next", "next lesson", "next lessons", "back", "lessons"]:
 
-        if user["state"] == "detergents_menu":
-            send_message(phone, build_detergent_menu(phone))
-            return jsonify({"status": "ok"})
+    # Help
+    if incoming_upper == "HELP":
 
-        elif user["state"] == "beverages_menu":
-            send_message(phone, build_beverage_menu(phone))
-            return jsonify({"status": "ok"})
+        send_message(
+            phone,
+            "🤖 *ARACHIS HELP*\n\n"
+            "You can:\n\n"
+            "• Type *MENU* to return to the dashboard.\n"
+            "• Ask any manufacturing question.\n"
+            "• Ask about training.\n"
+            "• Ask about suppliers.\n"
+            "• Ask about your business.\n\n"
+            "Example:\n"
+            "\"How do I make Dishwash?\""
+        )
 
-        elif user["state"] == "advanced_menu":
-            send_message(phone, build_advanced_menu(phone))
-            return jsonify({"status": "ok"})
+        return jsonify({"status": "ok"})
 
-        else:
-            set_state(phone, "course_lessons")
-            send_message(
-                phone,
-                "📚 *COURSE LESSONS*\n\n"
-                "Type one of these:\n\n"
-                "🧪 *Detergents*\n"
-                "🥤 *Beverages*\n"
-                "🏭 *Advanced Manufacturing*\n"
-                "*Spices & Seasonings*\n\n"
-                "Or reply with number:\n"
-                "1️⃣ Detergents\n"
-                "2️⃣ Beverages\n"
-                "3️⃣ 🏭 Advanced Manufacturing\n"
-                "4️⃣ 🌶️ Spices & Seasonings\n\n"
-            )
-            return jsonify({"status": "ok"})
+
+    # Cancel current operation
+    if incoming_upper == "CANCEL":
+
+        set_state(phone, STATE_MAIN)
+
+        send_message(
+            phone,
+            "✅ Current operation cancelled.\n\n"
+            + main_menu(user)
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    # Back
+    if incoming_upper == "BACK":
+
+        set_state(phone, STATE_MAIN)
+
+        send_message(
+            phone,
+            main_menu(user)
+        )
+
+        return jsonify({"status": "ok"})
+
+    if state == STATE_LEARN:
+        return handle_learn_menu(phone, incoming)
+
+    elif state == STATE_MANUFACTURE:
+        return handle_manufacture_menu(phone, incoming)
+
+    elif state == STATE_BUSINESS:
+        return handle_business_menu(phone, incoming)
+
+    elif state == STATE_MARKETPLACE:
+        return handle_marketplace_menu(phone, incoming)
+
+    elif state == STATE_TOOLS:
+        return handle_tools_menu(phone, incoming)
+
+    elif state == STATE_ACCOUNT:
+        return handle_account_menu(phone, incoming)
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
     if incoming in ["yes", "ok", "sure", "interested", "view"]:
@@ -2787,135 +2807,29 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-    if user["state"] == "main":
+       if incoming == "1":
+            set_state(phone, STATE_LEARN)
+            return send_message(phone, build_learn_menu())
 
-        if incoming == "1":
-
-            fresh_user = get_user(phone)
-
-            if not fresh_user["is_paid"]:
-                send_message(phone, "🔒 Paid Members Only\nNyora PAY")
-                return jsonify({"status": "ok"})
-
-            set_state(phone, "course_lessons")
-
-            send_message(
-                phone,
-                "📚 *COURSE LESSONS*\n\n"
-                "1️⃣ Detergents\n"
-                "2️⃣ Beverages\n"
-                "3️⃣ 🏭 Advanced Manufacturing\n"
-                "4️⃣ 🌶️ Spices & Seasonings\n\n"
-                "Reply with number"
-            )
-            return jsonify({"status": "ok"})
-        
         elif incoming == "2":
+            set_state(phone, STATE_MANUFACTURE)
+            return send_message(phone, build_manufacture_menu())
 
-            fresh_user = get_user(phone)
-
-            if not fresh_user["is_paid"]:
-                send_message(phone, "🔒 Business lessons are for paid users.\nNyora *PAY*")
-                return jsonify({"status": "ok"})
-
-            set_state(phone, "business_lessons")
-
-            menu = "💼 *BUSINESS LESSONS*\n\n"
-
-            for i, key in enumerate(BUSINESS_MODULES, start=1):
-                label = BUSINESS_MODULES[key][1]
-                menu += f"{i}️⃣ {label}\n"
-
-            menu += "\nNyora *MENU* kudzokera."
-
-            send_message(phone, menu)
-            return jsonify({"status": "ok"})
-            
         elif incoming == "3":
-            set_state(phone, "calc_menu")
-
-            send_message(
-                phone,
-                "📊 *PRODUCTION COST CALCULATOR*\n\n"
-                "Choose option:\n\n"
-                "1️⃣ Detailed (Ingredients Step-By-Step)\n"
-                "2️⃣ Quick (Fast Calculation)\n\n"
-                "Reply with 1 or 2"
-            )
-            return jsonify({"status": "ok"})
-
-        elif incoming == "5":
-            set_state(phone, "marketplace_home")
-            send_message(phone, build_marketplace_home(phone))
-            return jsonify({"status": "ok"})
+            set_state(phone, STATE_BUSINESS)
+            return send_message(phone, build_business_menu())
 
         elif incoming == "4":
+            set_state(phone, STATE_MARKETPLACE)
+            return send_message(phone, build_marketplace_menu())
 
-            fresh_user = get_user(phone)
+        elif incoming == "5":
+            set_state(phone, STATE_TOOLS)
+            return send_message(phone, build_tools_menu())
 
-            if fresh_user.get("package") == "basic":
-                set_state(phone, "upgrade_offer")
-
-                send_message(
-                    phone,
-                    "🤖 *AI Trainer iri mu Premium chete*\n\n"
-                    "Upgrade uone:\n"
-                    "✔ Full AI help\n"
-                    "✔ Product fixing\n"
-                    "✔ Business advice\n\n"
-                    "Pay only $5 more\n\n"
-                    "1️⃣ Upgrade now\n"
-                    "2️⃣ Later"
-                )
-                return jsonify({"status": "ok"})
-
-            set_state(phone, "ai_chat")
-
-            send_message(
-                phone,
-                "🤖 *AI TRAINER (PRODUCTION + BUSINESS)*\n\n"
-                "Bvunza chero chinhu:\n\n"
-                "✔ Kugadzira ma products\n"
-                "✔ Kugadzirisa problem\n"
-                "✔ Pricing & profit\n"
-                "✔ Kuti utengese kupi\n"
-                "✔ Kutanga bhizinesi\n\n"
-                "Example:\n"
-                "👉 Dishwash inotengeswa marii?\n"
-                "👉 Ndotangira papi kutengesa?\n\n"
-                "↩ Nyora MENU kudzokera."
-            )
-
-            return jsonify({"status": "ok"})
-
-        elif incoming == "7":
-
-            fresh_user = get_user(phone)
-
-            if fresh_user.get("package") == "premium":
-                send_message(
-                    phone,
-                    "✅ Uri pa *PREMIUM PLAN*\n\n"
-                    "✔ All lessons unlocked\n"
-                    "✔ AI Trainer\n"
-                    "✔ Full business training"
-                )
-                return jsonify({"status": "ok"})
-
-            set_state(phone, "upgrade_offer")
-
-            send_message(
-                phone,
-                "🚀 *UPGRADE TO PREMIUM*\n\n"
-                "Unlock everything:\n"
-                "✔ All lessons\n"
-                "✔ AI Trainer\n"
-                "✔ Advanced business training\n\n"
-                "💵 Pay only $5 more\n\n"
-                "1️⃣ Upgrade now\n"
-                "2️⃣ Back"
-            )
-            return jsonify({"status": "ok"})
+        elif incoming == "6":
+            set_state(phone, STATE_ACCOUNT)
+            return send_message(phone, build_account_menu())
 
 
         elif incoming == "8":
