@@ -1,4 +1,4 @@
-from database import get_db, DATABASE_POOL
+from database import get_db, init_db
 from config import (
     PACKAGES,
     DETERGENT_MODULES,
