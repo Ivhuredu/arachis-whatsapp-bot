@@ -2427,18 +2427,16 @@ def webhook():
 
     if state == STATE_LEARN:
 
-        if incoming == "1":
+        elif incoming == "1":
+
+            set_state(phone, STATE_STUDENT_DASHBOARD)
 
             send_message(
                 phone,
-                "📱 *OPEN MY LESSONS*\n\n"
-                "All your lessons are now available inside the *Arachis Business App*.\n\n"
-                "Open the app and tap *My Lessons*.\n\n"
-                "If you have not installed the app yet, reply *4* to download it."
+                build_student_dashboard(phone)
             )
 
             return jsonify({"status":"ok"})
-
 
         elif incoming == "2":
 
@@ -2754,6 +2752,99 @@ def webhook():
 
             set_state(phone, STATE_MAIN)
             send_message(phone, main_menu(get_user(phone)))
+            return jsonify({"status":"ok"})
+
+    elif state == STATE_STUDENT_DASHBOARD:
+
+        if incoming == "1":
+
+            send_message(
+                phone,
+                "📱 *OPEN MY LESSONS*\n\n"
+                "Your lessons are available in the Arachis Business App.\n\n"
+                "Open the app and tap *My Lessons*."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "2":
+
+            set_state(phone, "ai_trainer")
+
+            send_message(
+                phone,
+                "🤖 Ask me anything about your lessons."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "3":
+
+            upcoming = get_next_training()
+
+            if upcoming:
+
+                (
+                    event_id,
+                    title,
+                    city,
+                    venue,
+                    event_date,
+                    start_time,
+                    fee,
+                    deposit,
+                    products,
+                    status,
+                    booked,
+                    seats
+                ) = upcoming
+
+                send_message(
+                    phone,
+                    f"🎓 {title}\n\n"
+                    f"📍 {city}\n"
+                    f"📅 {event_date}\n"
+                    f"💵 ${fee}"
+                )
+
+            else:
+
+                send_message(
+                    phone,
+                    "There are currently no practical training events."
+                )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "4":
+
+            send_app_download(phone)
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "5":
+
+            send_message(
+                phone,
+                "💳 Reply *UPGRADE* to view available packages."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming.upper() in ["MENU","BACK","HOME"]:
+
+            set_state(phone, STATE_MAIN)
+
+            send_message(
+                phone,
+                main_menu(get_user(phone))
+            )
+
             return jsonify({"status":"ok"})
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
