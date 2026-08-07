@@ -2831,32 +2831,81 @@ def webhook():
 
         if incoming == "1":
 
-            send_message(phone,"💰 Profit Calculator.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "💰 *PROFIT CALCULATOR*\n\n"
+                "Tell me:\n\n"
+                "• Product name\n"
+                "• Batch size\n"
+                "• Total production cost\n"
+                "• Selling price\n\n"
+                "Example:\n"
+                "Calculate profit for 20L Dishwash."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "2":
 
-            send_message(phone,"📊 Batch Calculator.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "📊 *BATCH CALCULATOR*\n\n"
+                "Example:\n"
+                "Calculate a 500L Pine Gel batch."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "3":
 
-            send_message(phone,"📏 Unit Converter.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "📏 *UNIT CONVERTER*\n\n"
+                "Examples:\n"
+                "• Convert 5kg to grams.\n"
+                "• Convert 250ml to litres.\n"
+                "• Convert pounds to kilograms."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "4":
 
-            send_message(phone,"🧮 Product Costing.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "🧮 *PRODUCT COSTING*\n\n"
+                "Tell me:\n\n"
+                "• Product name\n"
+                "• Ingredient costs\n\n"
+                "I'll calculate the production cost."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "5":
 
-            send_message(phone,"🤖 AI Assistant.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "🤖 *ARACHIS VIRTUAL EMPLOYEE*\n\n"
+                "Ask me anything about manufacturing, business, suppliers, training or your account."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "6":
 
-            send_message(phone,"📂 Downloads.")
+            send_app_download(phone)
+
             return jsonify({"status":"ok"})
 
         elif incoming in ["back","menu","home"]:
