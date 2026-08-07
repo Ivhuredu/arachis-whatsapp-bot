@@ -362,14 +362,33 @@ def build_course_list(choice):
             "Engine Cleaner",
             "Tyre Polish",
             "Tile Cleaner"
+            "Perfume"
+            "Metal Degreaser"
+            "Floor Polish"
+            "Paste Shoe Polish"
+            "Liquid Shoe Polish"
+            "Hair Shampoo"
+            "Hair Conditioner"
+            "Bath Soap"
+            "Laundry Bar"
+            "Floor Glaze"
+            "Washing Powder"
+            "Scouring Powder"
+            "Roll On"
         ],
 
         "2": [
-            "Drink Concentrates",
+            "Orange Drink",
             "Freezits",
             "Baobab Drink",
             "Universal Cordial",
             "Ice Cream"
+            "Cream Soda"
+            "Juice Cascade"
+            "Low Cost Orange Drink"
+            "Low Cost Raspberry Drink"
+            "Raspberry Drink"
+            
         ],
 
         "3": [
@@ -416,6 +435,27 @@ def build_course_list(choice):
     )
 
     return text
+
+def build_business_courses():
+
+    return (
+        "💼 *BUSINESS COURSES*\n\n"
+
+        "Available lessons:\n\n"
+
+        "1️⃣ Starting a Manufacturing Business\n"
+        "2️⃣ Product Pricing\n"
+        "3️⃣ Marketing & Advertising\n"
+        "4️⃣ Branding\n"
+        "5️⃣ Customer Service\n"
+        "6️⃣ Record Keeping\n\n"
+
+        "📱 These lessons are available in the "
+        "*Arachis Business App*.\n\n"
+
+        "Type *APP* to continue learning.\n"
+        "↩ Type *BACK* to return."
+    )
 
 
 
