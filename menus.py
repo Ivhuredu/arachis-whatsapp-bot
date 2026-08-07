@@ -456,7 +456,54 @@ def build_business_courses():
         "Type *APP* to continue learning.\n"
         "↩ Type *BACK* to return."
     )
+# ==========================================
+# ACCOUNT DASHBOARD
+# ==========================================
 
+def build_account_dashboard(phone):
+
+    user = get_user(phone)
+
+    package = "Guest"
+
+    if user:
+        package = (user.get("package") or "Guest").title()
+
+    lessons = len(get_unlocked_modules(phone))
+
+    ai_today = ai_questions_today(phone)
+
+    event = get_next_training()
+
+    training = "No upcoming training"
+
+    if event:
+        training = f"{event[2]} - {event[4]}"
+
+    text = (
+        "👤 *MY ARACHIS ACCOUNT*\n\n"
+
+        f"🎓 Package: *{package}*\n\n"
+
+        f"📚 Lessons Unlocked: *{lessons}*\n\n"
+
+        f"🤖 AI Questions Today: *{ai_today}*\n\n"
+
+        f"🎓 Next Training:\n{training}\n\n"
+
+        "━━━━━━━━━━━━━━━━━━\n\n"
+
+        "1️⃣ My Subscription\n"
+        "2️⃣ Upgrade My Plan\n"
+        "3️⃣ Payment History\n"
+        "4️⃣ My Certificates\n"
+        "5️⃣ Open Arachis App\n"
+        "6️⃣ Settings\n\n"
+
+        "↩ Type *MENU* to return."
+    )
+
+    return text
 
 
 
