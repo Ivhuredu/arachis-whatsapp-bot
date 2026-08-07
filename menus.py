@@ -278,6 +278,48 @@ def build_open_lessons_menu(phone):
         "↩ Type *MENU* to return."
     )
 
+# ==========================================
+# CONTINUE MY LEARNING
+# ==========================================
+
+def build_student_dashboard(phone):
+
+    user = get_user(phone)
+
+    package = "Guest"
+
+    if user:
+        package = (user.get("package") or "Guest").title()
+
+    lessons = get_unlocked_modules(phone)
+
+    lesson_count = len(lessons)
+
+    text = (
+        "📚 *YOUR LEARNING*\n\n"
+
+        f"🎓 Package: *{package}*\n"
+
+        f"📖 Unlocked Lessons: *{lesson_count}*\n\n"
+
+        "📱 Continue your learning inside the *Arachis Business App*.\n\n"
+
+        "Need help understanding a lesson?\n\n"
+
+        "You can ask me questions like:\n"
+
+        "• Explain SLES.\n"
+        "• Why is my Pine Gel separating?\n"
+        "• Test me on Dishwash.\n"
+        "• Calculate a 100L batch.\n\n"
+
+        "📲 Type *APP* to open the app.\n"
+
+        "↩ Type *MENU* to return."
+    )
+
+    return text
+
 
 
 
