@@ -5251,7 +5251,7 @@ def webhook():
                 DO UPDATE SET item = '', quantity = 0
             """, (phone, "", 0))
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             send_message(phone, "Enter total units produced/ Wagadzira zvingani (e.g. 40):")
             return jsonify({"status": "ok"})
