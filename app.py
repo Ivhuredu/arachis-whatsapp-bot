@@ -2410,25 +2410,14 @@ def webhook():
 
         elif incoming == "2":
 
-            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+            set_state(phone, "browse_courses")
 
             send_message(
                 phone,
-                "🤖 *ARACHIS VIRTUAL EMPLOYEE*\n\n"
-                "I'm ready to help you.\n\n"
-                "You can ask me about:\n\n"
-                "🧪 Manufacturing\n"
-                "💼 Business\n"
-                "🏭 Suppliers\n"
-                "🎓 Training\n"
-                "🛒 Marketplace\n"
-                "📱 App Support\n\n"
-                "Just type your question naturally."
+                build_courses_menu()
             )
 
             return jsonify({"status":"ok"})
-
-
 
         elif incoming == "3":
 
@@ -2476,29 +2465,27 @@ def webhook():
 
         elif incoming == "4":
 
-            send_message(
-                phone,
-                "📲 *DOWNLOAD ARACHIS BUSINESS APP*\n\n"
-                "Download and install the latest version of the Arachis Business App.\n\n"
-                "Once installed, all your lessons will be available there."
-            )
-
-            # Replace this with your existing APK sending function
-            # send_apk(phone)
+            send_app_download(phone)
 
             return jsonify({"status":"ok"})
 
 
         elif incoming == "5":
 
+           send_message(
+               phone,
+               build_business_courses()
+            )
+
+            return jsonify({"status":"ok"})
+
+        elif incoming == "6":
+
             send_message(
                 phone,
-                "💳 *UPGRADE TRAINING*\n\n"
-                "Available Packages:\n\n"
-                "✅ Basic\n"
-                "✅ Premium\n"
-                "✅ Advanced\n\n"
-                "Reply *UPGRADE* to continue."
+                "🏆 *MY CERTIFICATES*\n\n"
+                "Certificates will be available after completing eligible courses.\n\n"
+                "In a future update, you'll be able to download them directly from the Arachis Business App."
             )
 
             return jsonify({"status":"ok"})
@@ -2897,6 +2884,34 @@ def webhook():
         send_message(phone, answer)
 
         return jsonify({"status":"ok"})
+
+    # ==========================================
+    # BROWSE COURSES
+    # ==========================================
+
+    elif state == "browse_courses":
+
+        if incoming in ["1","2","3","4","5"]:
+
+            send_message(
+                phone,
+                build_course_list(incoming)
+            )
+
+            return jsonify({"status":"ok"})
+
+        elif incoming.upper() in ["BACK", "MENU", "HOME"]:
+
+            set_state(phone, STATE_LEARN)
+
+            send_message(
+                phone,
+                build_learn_menu()
+            )
+
+            return jsonify({"status":"ok"})
+
+    
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
     if incoming in ["yes", "ok", "sure", "interested", "view"]:
