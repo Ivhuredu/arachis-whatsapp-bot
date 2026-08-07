@@ -2509,34 +2509,97 @@ def webhook():
 
         if incoming == "1":
 
-            send_message(phone, "🧪 Product formulas coming next.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "🧪 *PRODUCT FORMULAS*\n\n"
+                "Tell me which product you want to make.\n\n"
+                "Examples:\n"
+                "• Dishwash\n"
+                "• Pine Gel\n"
+                "• Foam Bath\n"
+                "• Fabric Softener\n"
+                "• Car Shampoo\n\n"
+                "I'll guide you using your Arachis lessons."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "2":
 
-            send_message(phone, "📊 Batch calculator coming next.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "📊 *BATCH CALCULATOR*\n\n"
+                "Tell me:\n\n"
+                "• Product name\n"
+                "• Required batch size\n\n"
+                "Example:\n"
+                "Calculate 250L Dishwash."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "3":
 
-            send_message(phone, "🧪 Describe the product problem.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "🛠 *PRODUCT TROUBLESHOOTING*\n\n"
+                "Describe your problem.\n\n"
+                "Examples:\n"
+                "• My bleach separated.\n"
+                "• My pine gel is too thin.\n"
+                "• My dishwash has no foam."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "4":
 
-            send_message(phone, "✅ Quality Control Assistant.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "✅ *QUALITY CONTROL*\n\n"
+                "Tell me which product you want to check.\n\n"
+                "Example:\n"
+                "Check my fabric softener quality."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "5":
 
-            send_message(phone, "📷 Send a product photo.")
+            set_state(phone, "awaiting_product_photo")
+
+            send_message(
+                phone,
+                "📷 *PRODUCT ANALYSIS*\n\n"
+                "Please send a clear photo of your product.\n\n"
+                "You can also describe the problem."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "6":
 
-            send_message(phone, "🧪 Ingredient Guide.")
-            return jsonify({"status":"ok"})
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
 
+            send_message(
+                phone,
+                "🧪 *INGREDIENT GUIDE*\n\n"
+                "Ask about any ingredient.\n\n"
+                "Examples:\n"
+                "• What is SLES?\n"
+                "• What does CMC do?\n"
+                "• Can I replace NP9?"
+            )
+
+            return jsonify({"status":"ok"})
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
