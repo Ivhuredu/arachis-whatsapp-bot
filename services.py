@@ -541,3 +541,31 @@ def get_unlocked_lesson_count(phone):
     release_db(conn)
 
     return count
+
+# ==========================================
+# UNLOCKED LESSONS
+# ==========================================
+
+def get_unlocked_modules(phone):
+
+    conn = get_db()
+
+    c = conn.cursor()
+
+    c.execute("""
+
+        SELECT module
+
+        FROM module_access
+
+        WHERE phone=%s
+
+        ORDER BY module
+
+    """, (phone,))
+
+    rows = c.fetchall()
+
+    release_db(conn)
+
+    return [r[0] for r in rows]
