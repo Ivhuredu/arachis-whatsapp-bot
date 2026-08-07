@@ -473,12 +473,7 @@ def build_account_dashboard(phone):
 
     ai_today = 0
 
-    event = get_next_training()
-
-    training = "No upcoming training"
-
-    if event:
-        training = f"{event[2]} - {event[4]}"
+    training = "Check Learn → Practical Training"
 
     text = (
         "👤 *MY ARACHIS ACCOUNT*\n\n"
