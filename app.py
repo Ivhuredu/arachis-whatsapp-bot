@@ -2423,42 +2423,43 @@ def webhook():
 
             upcoming = get_next_training()
 
-            if upcoming:
-
-                (
-                    event_id,
-                    title,
-                    city,
-                    venue,
-                    event_date,
-                    start_time,
-                    fee,
-                    deposit,
-                    products,
-                    status,
-                    booked,
-                    seats
-                ) = upcoming
+            if not upcoming:
 
                 send_message(
                     phone,
-                    f"🎓 *NEXT PRACTICAL TRAINING*\n\n"
-                    f"📍 {city}\n"
-                    f"🏢 {venue}\n"
-                    f"📅 {event_date}\n"
-                    f"⏰ {start_time}\n"
-                    f"💵 Fee: ${fee}\n"
-                    f"💳 Deposit: ${deposit}\n\n"
-                    f"Products:\n{products}\n\n"
-                    f"Reply *BOOK* to reserve your seat."
+                    "There are currently no practical training events."
                 )
 
-            else:
+                return jsonify({"status":"ok"})
 
-                send_message(
-                    phone,
-                    "There are currently no practical training events available."
-                )
+            (
+                event_id,
+                title,
+                city,
+                venue,
+                event_date,
+                start_time,
+                fee,
+                deposit,
+                products,
+                status,
+                booked,
+                seats
+            ) = upcoming
+
+            set_state(phone, "offline_intro")
+
+            send_message(
+                phone,
+                f"🎓 *NEXT PRACTICAL TRAINING*\n\n"
+                f"📍 {city}\n"
+                f"🏢 {venue}\n"
+                f"📅 {event_date}\n"
+                f"🕘 {start_time}\n"
+                f"💵 Fee: ${fee}\n"
+                f"💰 Deposit: ${deposit}\n\n"
+                "Let's register you."
+            )
 
             return jsonify({"status":"ok"})
 
@@ -2472,9 +2473,11 @@ def webhook():
 
         elif incoming == "5":
 
+            set_state(phone, "upgrade")
+
             send_message(
-               phone,
-               build_business_courses()
+                phone,
+                build_upgrade_menu(phone)
             )
 
             return jsonify({"status":"ok"})
@@ -2728,7 +2731,7 @@ def webhook():
 
         if incoming == "1":
 
-            set_state(phone, STATE_MARKETPLACE)
+            set_state(phone, "marketplace_home")
 
             send_message(
                 phone,
@@ -2739,31 +2742,38 @@ def webhook():
 
         elif incoming == "2":
 
-            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+            set_state(phone, "marketplace_search")
 
             send_message(
                 phone,
-                "🏭 *SUPPLIER DIRECTORY*\n\n"
-                "Tell me what you are looking for.\n\n"
+                "🔎 *SUPPLIER SEARCH*\n\n"
+                "Type the ingredient or product you are looking for.\n\n"
                 "Examples:\n"
-                "• SLES\n"
-                "• Bottles\n"
-                "• Citric Acid\n"
-                "• CMC\n"
-                "• Harare suppliers"
+                "SLES\n"
+                "Bottles\n"
+                "CMC\n"
+                "Citric Acid\n"
+                "Labels"
             )
 
             return jsonify({"status":"ok"})
 
         elif incoming == "3":
 
-            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+            set_state(phone, "marketplace_sell_category")
 
             send_message(
                 phone,
-                "📤 *SELL MY PRODUCTS*\n\n"
-                "I can help you list your products in the Arachis Marketplace.\n\n"
-                "Tell me what you want to sell."
+                "📤 *SELL YOUR PRODUCT ON ARACHIS MARKETPLACE*\n\n"
+                "Choose product category:\n\n"
+                "1️⃣ Beverages\n"
+                "2️⃣ Detergents\n"
+                "3️⃣ Spices\n"
+                "4️⃣ Advanced Products\n"
+                "5️⃣ Packaging\n"
+                "6️⃣ Machinery & Tools\n"
+                "7️⃣ Branding & Labels\n\n"
+                "Reply with category number."
             )
 
             return jsonify({"status":"ok"})
@@ -2804,14 +2814,11 @@ def webhook():
 
         elif incoming == "6":
 
+            set_state(phone, "marketplace_cart")
+
             send_message(
                 phone,
-                "🛒 *MY MARKETPLACE*\n\n"
-                "Soon you'll be able to:\n\n"
-                "• View your listings\n"
-                "• Track your sales\n"
-                "• Manage your products\n"
-                "• View customer enquiries"
+                build_cart_message(phone)
             )
 
             return jsonify({"status":"ok"})
@@ -2831,18 +2838,15 @@ def webhook():
 
         if incoming == "1":
 
-            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+            set_state(phone, "calc_menu")
 
             send_message(
                 phone,
                 "💰 *PROFIT CALCULATOR*\n\n"
-                "Tell me:\n\n"
-                "• Product name\n"
-                "• Batch size\n"
-                "• Total production cost\n"
-                "• Selling price\n\n"
-                "Example:\n"
-                "Calculate profit for 20L Dishwash."
+                "Choose calculator:\n\n"
+                "1️⃣ Detailed Calculator\n"
+                "2️⃣ Quick Calculator\n\n"
+                "Reply with 1 or 2."
             )
 
             return jsonify({"status":"ok"})
@@ -2930,15 +2934,11 @@ def webhook():
 
         elif incoming == "2":
 
+            set_state(phone, "upgrade")
+
             send_message(
                 phone,
-                "⬆ *UPGRADE YOUR ACCOUNT*\n\n"
-                "Available packages:\n\n"
-                "• Basic\n"
-                "• Premium\n"
-                "• Advanced\n"
-                "• Custom\n\n"
-                "Reply *UPGRADE* to continue."
+                build_upgrade_menu(phone)
             )
 
             return jsonify({"status":"ok"})
