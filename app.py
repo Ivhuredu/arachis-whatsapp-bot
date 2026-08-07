@@ -2615,32 +2615,102 @@ def webhook():
 
         if incoming == "1":
 
-            send_message(phone,"💼 Business Starter Guide.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "🚀 *START A MANUFACTURING BUSINESS*\n\n"
+                "Tell me about your situation.\n\n"
+                "Examples:\n"
+                "• I have $100.\n"
+                "• I want to start from home.\n"
+                "• Which product is most profitable?\n\n"
+                "I'll help you build a business plan."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "2":
 
-            send_message(phone,"💲Pricing & Profit Calculator.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "💰 *PRICING & PROFIT*\n\n"
+                "Tell me:\n\n"
+                "• Product name\n"
+                "• Batch size\n"
+                "• Production cost (if known)\n\n"
+                "Example:\n"
+                "Price my 20L Dishwash."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "3":
 
-            send_message(phone,"📢 Marketing Assistant.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "📢 *MARKETING ASSISTANT*\n\n"
+                "I can help you create:\n\n"
+                "• WhatsApp adverts\n"
+                "• Facebook posts\n"
+                "• Posters\n"
+                "• Promotional messages\n\n"
+                "Tell me what you want to advertise."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "4":
 
-            send_message(phone,"🎨 Branding Assistant.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "🎨 *BRANDING ASSISTANT*\n\n"
+                "I can help with:\n\n"
+                "• Product names\n"
+                "• Labels\n"
+                "• Logos\n"
+                "• Packaging ideas\n\n"
+                "Tell me about your product."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "5":
 
-            send_message(phone,"🤖 Business Advisor.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "💼 *BUSINESS ADVISOR*\n\n"
+                "Ask me anything about growing your business.\n\n"
+                "Examples:\n"
+                "• How do I increase sales?\n"
+                "• Which product should I add?\n"
+                "• Help me grow my business."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "6":
 
-            send_message(phone,"📈 Funding & Growth.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "📈 *FUNDING & GROWTH*\n\n"
+                "I can help you:\n\n"
+                "• Raise capital\n"
+                "• Reinvest profits\n"
+                "• Expand your manufacturing business\n\n"
+                "Tell me your current situation."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming in ["back","menu","home"]:
@@ -2658,32 +2728,92 @@ def webhook():
 
         if incoming == "1":
 
-            send_message(phone, build_marketplace_home(phone))
+            set_state(phone, STATE_MARKETPLACE)
+
+            send_message(
+                phone,
+                build_marketplace_home(phone)
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "2":
 
-            send_message(phone,"🏭 Supplier Directory.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "🏭 *SUPPLIER DIRECTORY*\n\n"
+                "Tell me what you are looking for.\n\n"
+                "Examples:\n"
+                "• SLES\n"
+                "• Bottles\n"
+                "• Citric Acid\n"
+                "• CMC\n"
+                "• Harare suppliers"
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "3":
 
-            send_message(phone,"📤 Sell Product.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "📤 *SELL MY PRODUCTS*\n\n"
+                "I can help you list your products in the Arachis Marketplace.\n\n"
+                "Tell me what you want to sell."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "4":
 
-            send_message(phone,"📦 Packaging Suppliers.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "📦 *PACKAGING SUPPLIERS*\n\n"
+                "Tell me what packaging you need.\n\n"
+                "Examples:\n"
+                "• 500ml bottles\n"
+                "• Trigger sprayers\n"
+                "• Labels\n"
+                "• Buckets"
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "5":
 
-            send_message(phone,"⚙ Machinery & Equipment.")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "⚙ *MACHINERY & EQUIPMENT*\n\n"
+                "Tell me what equipment you need.\n\n"
+                "Examples:\n"
+                "• Mixing tank\n"
+                "• Heat sealer\n"
+                "• Filling machine\n"
+                "• Earth auger"
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "6":
 
-            send_message(phone,"🛒 My Marketplace.")
+            send_message(
+                phone,
+                "🛒 *MY MARKETPLACE*\n\n"
+                "Soon you'll be able to:\n\n"
+                "• View your listings\n"
+                "• Track your sales\n"
+                "• Manage your products\n"
+                "• View customer enquiries"
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming in ["back","menu","home"]:
