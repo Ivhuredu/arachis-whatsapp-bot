@@ -1467,9 +1467,21 @@ def ai_virtual_employee(phone, question, department=None):
     instructions = f"""
 {department_prompt}
 
-Department Knowledge
+Department
 
-{department_knowledge["description"]}
+{department_knowledge["title"]}
+
+Database Tables
+
+{", ".join(department_knowledge["database_tables"])}
+
+Capabilities
+
+Vector Search: {department_knowledge["can_search_vector"]}
+
+Database Access: {department_knowledge["can_query_database"]}
+
+Live Data: {department_knowledge["live_data"]}
 
 Customer Information
 
