@@ -2922,7 +2922,7 @@ def webhook():
     # ==========================================
     # ACCOUNT
     # ==========================================
-
+    elif state == STATE_ACCOUNT
         if incoming == "1":
 
             send_message(
