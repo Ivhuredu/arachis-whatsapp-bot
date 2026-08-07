@@ -17,6 +17,7 @@ STATE_MARKETPLACE = "marketplace_menu"
 STATE_TOOLS = "tools_menu"
 STATE_ACCOUNT = "account_menu"
 STATE_OPEN_LESSONS = "open_lessons"
+STATE_PRODUCT_PHOTO = "awaiting_product_photo"
 
 BASIC_PRICE = 5.0
 PREMIUM_PRICE = 10.0
