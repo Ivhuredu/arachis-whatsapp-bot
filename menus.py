@@ -471,7 +471,7 @@ def build_account_dashboard(phone):
 
     lessons = len(get_unlocked_modules(phone))
 
-    ai_today = ai_questions_today(phone)
+    ai_today = 0
 
     event = get_next_training()
 
