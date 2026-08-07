@@ -2919,36 +2919,62 @@ def webhook():
     # ACCOUNT
     # ==========================================
 
-    elif state == STATE_ACCOUNT:
-
         if incoming == "1":
 
-            send_message(phone,"👤 My Dashboard.")
+            send_message(
+                phone,
+                f"🎓 Your current package is *{get_user(phone)['package'].title()}*."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "2":
 
-            send_message(phone,"💳 My Subscription.")
+            send_message(
+                phone,
+                "⬆ *UPGRADE YOUR ACCOUNT*\n\n"
+                "Available packages:\n\n"
+                "• Basic\n"
+                "• Premium\n"
+                "• Advanced\n"
+                "• Custom\n\n"
+                "Reply *UPGRADE* to continue."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "3":
 
-            send_message(phone,"⬆ Upgrade Plan.")
+            send_message(
+                phone,
+                "📜 Payment history will appear here in a future update."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "4":
 
-            send_message(phone,"📜 Payment History.")
+            send_message(
+                phone,
+                "🏆 Certificates will be downloadable from the Arachis Business App."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming == "5":
 
-            send_message(phone,"📂 My Downloads.")
+            send_app_download(phone)
+
             return jsonify({"status":"ok"})
 
         elif incoming == "6":
 
-            send_message(phone,"⚙ Settings.")
+            send_message(
+                phone,
+                "⚙ Settings are coming soon.\n\n"
+                "You'll be able to manage notifications, language and preferences."
+            )
+
             return jsonify({"status":"ok"})
 
         elif incoming in ["back","menu","home"]:
@@ -3594,8 +3620,14 @@ def webhook():
             return jsonify({"status":"ok"})
 
         elif incoming == "6":
+
             set_state(phone, STATE_ACCOUNT)
-            send_message(phone, build_account_menu())
+
+            send_message(
+                phone,
+                build_account_dashboard(phone)
+            )
+
             return jsonify({"status":"ok"})
     # =========================
     # QUALIFY STAGE
