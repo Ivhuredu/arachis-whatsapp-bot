@@ -320,6 +320,103 @@ def build_student_dashboard(phone):
 
     return text
 
+# ==========================================
+# ALL COURSES
+# ==========================================
+
+def build_courses_menu():
+
+    return (
+        "📚 *ALL COURSES*\n\n"
+
+        "Choose a department:\n\n"
+
+        "1️⃣ Detergent Manufacturing\n"
+        "2️⃣ Drinks Manufacturing\n"
+        "3️⃣ Spices & Seasonings\n"
+        "4️⃣ Advanced Manufacturing\n"
+        "5️⃣ Business Training\n\n"
+
+        "Reply with a number.\n\n"
+
+        "↩ Type *BACK* to return."
+    )
+
+# ==========================================
+# COURSE LISTS
+# ==========================================
+
+def build_course_list(choice):
+
+    courses = {
+
+        "1": [
+            "Dishwash",
+            "Foam Bath",
+            "Liquid Laundry Soap",
+            "Fabric Softener",
+            "Thick Bleach",
+            "Pine Gel",
+            "Petroleum Jelly",
+            "Car Shampoo",
+            "Engine Cleaner",
+            "Tyre Polish",
+            "Tile Cleaner"
+        ],
+
+        "2": [
+            "Drink Concentrates",
+            "Freezits",
+            "Baobab Drink",
+            "Universal Cordial",
+            "Ice Cream"
+        ],
+
+        "3": [
+            "Chicken Spice",
+            "Beef Spice",
+            "Mixed Spice",
+            "Tea Masala",
+            "Rice Spice"
+        ],
+
+        "4": [
+            "Body Cream",
+            "Lotion",
+            "Paint",
+            "Glue",
+            "Peanut Butter",
+            "Yoghurt",
+            "Biscuits"
+        ],
+
+        "5": [
+            "Business Startup",
+            "Pricing",
+            "Marketing",
+            "Branding",
+            "Record Keeping"
+        ]
+
+    }
+
+    if choice not in courses:
+        return "Invalid choice."
+
+    text = "📚 *AVAILABLE LESSONS*\n\n"
+
+    for lesson in courses[choice]:
+        text += f"• {lesson}\n"
+
+    text += (
+        "\n📱 These lessons are available inside the "
+        "*Arachis Business App*.\n\n"
+        "Type *APP* to continue learning.\n"
+        "↩ Type *BACK* to return."
+    )
+
+    return text
+
 
 
 
