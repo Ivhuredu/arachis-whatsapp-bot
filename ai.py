@@ -1044,160 +1044,218 @@ GENERAL COMPANY RULES
 
     return prompt
 
-# =====================================================
-# DEPARTMENT KNOWLEDGE MANAGER
-# =====================================================
-
 def get_department_knowledge(department):
 
-    knowledge = {
+    departments = {
 
+        # ==========================================
+        # MANUFACTURING
+        # ==========================================
         "manufacturing": {
+
+            "title": "Manufacturing Department",
 
             "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
 
-            "tables":[
+            "database_tables": [
 
                 "lesson_content",
-
                 "manufacturing_guides",
-
                 "quality_control"
 
             ],
 
-            "description":
-                "Manufacturing formulas, troubleshooting and production knowledge."
+            "can_search_vector": True,
+            "can_query_database": True,
+            "can_update_profile": True,
+            "live_data": False
 
         },
 
-        "supplier":{
+        # ==========================================
+        # TRAINING
+        # ==========================================
+        "training_events": {
+
+            "title": "Training Department",
+
+            "vector_store": None,
+
+            "database_tables": [
+
+                "training_events",
+                "training_registrations"
+
+            ],
+
+            "can_search_vector": False,
+            "can_query_database": True,
+            "can_update_profile": False,
+            "live_data": True
+
+        },
+
+        # ==========================================
+        # SUPPLIERS
+        # ==========================================
+        "supplier": {
+
+            "title": "Supplier Department",
 
             "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
 
-            "tables":[
+            "database_tables": [
 
                 "suppliers",
-
                 "ingredients",
-
                 "packaging"
 
             ],
 
-            "description":
-                "Supplier directory and sourcing information."
+            "can_search_vector": True,
+            "can_query_database": True,
+            "can_update_profile": False,
+            "live_data": True
 
         },
 
-        "sales":{
+        # ==========================================
+        # SALES
+        # ==========================================
+        "sales": {
+
+            "title": "Sales Department",
 
             "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
 
-            "tables":[
+            "database_tables": [
 
                 "packages",
-
                 "promotions"
 
             ],
 
-            "description":
-                "Training packages and promotions."
-
-        },
-        "training_events": {
-
-            "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
-
-            "tables": [
-
-                "training_events"
-
-            ],
-
-            "description":
-                "Training schedules, events, registrations and bookings."
+            "can_search_vector": True,
+            "can_query_database": True,
+            "can_update_profile": False,
+            "live_data": True
 
         },
 
-        "advisor":{
+        # ==========================================
+        # BUSINESS
+        # ==========================================
+        "advisor": {
+
+            "title": "Business Advisor",
 
             "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
 
-            "tables":[
+            "database_tables": [
 
                 "business_guides",
-
                 "profit_calculators"
 
             ],
 
-            "description":
-                "Business growth and startup advice."
+            "can_search_vector": True,
+            "can_query_database": False,
+            "can_update_profile": True,
+            "live_data": False
 
         },
 
-        "marketing":{
+        # ==========================================
+        # SUPPORT
+        # ==========================================
+        "support": {
 
-            "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
+            "title": "Customer Support",
 
-            "tables":[
+            "vector_store": None,
 
-                "marketing_templates",
+            "database_tables": [
 
-                "branding"
+                "users",
+                "payments"
 
             ],
 
-            "description":
-                "Marketing and branding."
+            "can_search_vector": False,
+            "can_query_database": True,
+            "can_update_profile": True,
+            "live_data": True
 
         },
 
-        "support":{
+        # ==========================================
+        # MARKETPLACE
+        # ==========================================
+        "marketplace": {
 
-            "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
+            "title": "Marketplace",
 
-            "tables":[
+            "vector_store": None,
 
-                "payments",
-
-                "lessons",
-
-                "users"
-
-            ],
-
-            "description":
-                "Customer support."
-
-        },
-
-        "marketplace":{
-
-            "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
-
-            "tables":[
+            "database_tables": [
 
                 "marketplace"
 
             ],
 
-            "description":
-                "Marketplace."
+            "can_search_vector": False,
+            "can_query_database": True,
+            "can_update_profile": False,
+            "live_data": True
+
+        },
+
+        # ==========================================
+        # MARKETING
+        # ==========================================
+        "marketing": {
+
+            "title": "Marketing Department",
+
+            "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
+
+            "database_tables": [
+
+                "marketing_templates",
+                "branding"
+
+            ],
+
+            "can_search_vector": True,
+            "can_query_database": False,
+            "can_update_profile": False,
+            "live_data": False
+
+        },
+
+        # ==========================================
+        # GENERAL
+        # ==========================================
+        "general": {
+
+            "title": "General Assistant",
+
+            "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
+
+            "database_tables": [],
+
+            "can_search_vector": True,
+            "can_query_database": False,
+            "can_update_profile": True,
+            "live_data": False
 
         }
 
     }
 
-    return knowledge.get(
+    return departments.get(
         department,
-        {
-            "vector_store": os.getenv("ARACHIS_VECTOR_STORE_ID"),
-            "tables":[],
-            "description":"General company knowledge."
-        }
+        departments["general"]
     )
 
 def detect_department(question):
@@ -1280,94 +1338,58 @@ def detect_department(question):
     return "general"
 
 def ai_department_router(question):
-    
-    
+
+    # First try the fast keyword router
+    route = router.route(question)
+
+    print("=" * 50)
+    print("FAST ROUTER")
+    print("Department:", route.department)
+    print("Confidence:", route.confidence)
+    print("=" * 50)
+
+    # If keyword router is confident, use it
+    if route.confidence >= 2:
+        return route.department
+
+    # Otherwise ask GPT
     prompt = f"""
 You are the Arachis Department Router.
 
-Your ONLY job is to choose which department should answer the customer's question.
+Choose ONLY one department.
 
-Available departments:
+Departments:
 
 manufacturing
-- Product formulas
-- Manufacturing
-- Quality control
-- Troubleshooting
-- Ingredients
-- Batch calculations
-
 supplier
-- Suppliers
-- Ingredients
-- Packaging
-- Equipment
-
 sales
-- Training packages
-- Promotions
-- Pricing
-- Upgrades
-
 advisor
-- Business advice
-- Profit
-- Marketing
-- Pricing
-- Business growth
-
 support
-- Payments
-- Lesson access
-- Login
-- Mobile App
-- Downloads
-- Account problems
-
 training_events
-- Training dates
-- Practical training
-- Online training
-- Venues
-- Registration
-- Bookings
-- Deposits
-- Seat availability
-
 marketing
-- Advertising
-- Branding
-- WhatsApp marketing
-- Facebook marketing
-
 marketplace
-- Buying
-- Selling
-- Marketplace
-
 general
-- Anything else
-
-Return ONLY one department name.
 
 Customer Question:
 
-""" + question
+{question}
+
+Return ONLY the department name.
+"""
 
     try:
 
         response = openai_client.responses.create(
-
-            model=os.getenv("OPENAI_MODEL","gpt-4.1-mini"),
-
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
             input=prompt
-
         )
 
         dept = response.output_text.strip().lower()
 
         if dept not in DEPARTMENTS:
             dept = "general"
+
+        print("GPT ROUTER:", dept)
 
         return dept
 
@@ -1385,6 +1407,12 @@ def ai_virtual_employee(phone, question, department=None):
 
     if department is None:
         department = ai_department_router(question)
+        print("=" * 60)
+        print("ARACHIS VIRTUAL EMPLOYEE")
+        print("Phone:", phone)
+        print("Department:", department)
+        print("Question:", question)
+        print("=" * 60)
         
     user = get_user(phone)
 
@@ -1507,6 +1535,34 @@ General Company Rules
 - Use English or Shona naturally.
 - Promote Arachis where appropriate.
 """
+    # ==========================================
+    # BUILD AI TOOLS
+    # ==========================================
+
+    tools = []
+
+    if department_knowledge.get("can_search_vector"):
+
+        vector_store = department_knowledge.get("vector_store")
+
+        if vector_store:
+
+            tools.append({
+
+                "type": "file_search",
+
+                "vector_store_ids": [
+
+                    vector_store
+
+                ]
+
+            })
+
+    print("=" * 60)
+    print("AI TOOLS")
+    print(tools)
+    print("=" * 60)
 
     try:
 
@@ -1518,14 +1574,7 @@ General Company Rules
 
             input=question,
 
-            tools=[
-                {
-                    "type":"file_search",
-                    "vector_store_ids":[
-                        department_knowledge["vector_store"]
-                    ]
-                }
-            ]
+            tools=tools
         )
         answer = response.output_text.strip()
 
