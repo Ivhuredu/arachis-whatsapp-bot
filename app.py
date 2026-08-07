@@ -3189,20 +3189,19 @@ def webhook():
     
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
-    if incoming in ["yes", "ok", "sure", "interested", "view"]:
+    if user["state"] == "promo_offer" and incoming in ["yes", "ok", "interested", "view"]:
 
         set_state(phone, "pay_menu")
 
         send_message(
             phone,
-            "🔥 Great!\n\n"
-            "Choose your package:\n\n"
+            "💳 *SELECT YOUR TRAINING PACKAGE*\n\n"
             "1️⃣ Basic – $5\n"
             "2️⃣ Premium – $10\n"
             "3️⃣ Custom – $2 per formula\n"
             "4️⃣ Advanced Manufacturing – $20\n"
             "5️⃣ Spices & Seasonings – $10\n\n"
-            "Reply 1, 2 , 3 , 4 or 5"
+            "Reply with 1, 2, 3, 4 or 5."
         )
 
         return jsonify({"status": "ok"})
@@ -3278,7 +3277,7 @@ def webhook():
         total = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM users WHERE is_paid=1")
         paid = c.fetchone()[0]
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
         send_message(phone, f"📊 *ADMIN DASHBOARD*\n\n👥 Users: {total}\n💰 Paid: {paid}")
         return jsonify({"status": "ok"})
 
@@ -3500,58 +3499,45 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-    if incoming in ["menu", "start", "makadini", "hie"]:
+    if incoming.lower() in ["menu", "start", "makadini", "hie"]:
 
-        conn = get_db()
-        c = conn.cursor()
+        user = get_user(phone)
 
-        c.execute("""
-            SELECT total_messages 
-            FROM student_metrics 
-            WHERE phone=%s
-        """, (phone,))
+        # Brand new user
+        if not user:
 
-        row = c.fetchone()
-        release_db(conn)
-
-        # If user is new or has few messages → show sales message
-        if not row or row[0] < 1:
+            create_user(phone)   # if your project already has this
 
             set_state(phone, "qualify")
 
             send_message(
                 phone,
-                "👋 Welcome to ARACHIS Training\n\n"
-                "Nei uchida kudzidza kosi iyi:\n\n"
-                "1️⃣ Ndinoda kutanga bhizinesi\n"
-                "2️⃣ Ndinoda kugadzira zvekushandisa ini pachangu\n\n"
-                "Reply with 1 or 2"
+                "👋 *Welcome to Arachis Training!*\n\n"
+                "Why do you want to learn?\n\n"
+                "1️⃣ Start a business\n"
+                "2️⃣ Make products for personal use\n\n"
+                "Reply with 1 or 2."
             )
 
-            log_activity(phone, "open_menu", "welcome")
+            return jsonify({"status": "ok"})
 
-        else:
+        # Existing user
+        set_state(phone, STATE_MAIN)
 
-            set_state(phone, "main")
-            send_message(phone, main_menu())
-
-            log_activity(phone, "open_menu", "main")
+        send_message(
+            phone,
+            main_menu(user)
+        )
 
         return jsonify({"status": "ok"})
 
-    if incoming == "pay":
+    if incoming.lower() == "pay":
 
         set_state(phone, "pay_menu")
 
         send_message(
             phone,
-            "💳 *SELECT PACKAGE*\n\n"
-            "1️⃣ Basic – $5\n"
-            "2️⃣ Premium – $10\n"
-            "3️⃣ Custom – $2 per formula\n"
-            "4️⃣ Advanced Manufacturing – $20\n"
-            "5️⃣ Spices & Seasonings – $10\n\n"
-            "Reply with 1, 2, 3 , 4 or 5"
+            build_payment_menu()
         )
 
         return jsonify({"status": "ok"})
@@ -3637,57 +3623,100 @@ def webhook():
 
             return jsonify({"status":"ok"})
     # =========================
-    # QUALIFY STAGE
+    # QUALIFICATION STAGE
     # =========================
+
     if user["state"] == "qualify":
 
         if incoming == "1":
+
             set_state(phone, "pitch")
 
-            send_message(phone,
-                "🔥 Zvakanaka!\n\n"
-                "Vanhu vakawanda vari kutotengesa:\n"
-                "✔ Dishwash\n✔ Bleach\n✔ Drinks\n\n"
-                "💵 Course: Basic $5 | Premium $10\n\n"
-                "Reply YES to continue"
+            send_message(
+                phone,
+                "🚀 *Excellent Choice!*\n\n"
+                "Arachis has helped many Zimbabweans start businesses making:\n\n"
+                "🧴 Detergents\n"
+                "🥤 Beverages\n"
+                "🌶️ Spices & Seasonings\n"
+                "🧴 Cosmetics\n"
+                "🏭 Advanced Manufacturing Products\n\n"
+                "Many of our students are already earning income from these skills.\n\n"
+                "Reply *YES* to see the available training packages."
             )
+
             return jsonify({"status": "ok"})
+
 
         elif incoming == "2":
+
             set_state(phone, "pitch")
 
-            send_message(phone,
-                "👌 Uchadzidza kugadzira ma products.\n\n"
-                "💵 Course: Basic $5 | Premium $10\n\n"
-                "Reply YES to continue"
+            send_message(
+                phone,
+                "👏 *Great!*\n\n"
+                "You'll learn how to make high-quality products for your home while gaining practical manufacturing skills.\n\n"
+                "Many students also discover they can turn these skills into a business later.\n\n"
+                "Reply *YES* to see the available training packages."
             )
+
             return jsonify({"status": "ok"})
 
+
         else:
-            send_message(phone, "Sarudza 1 or 2")
+
+            send_message(
+                phone,
+                "Please choose:\n\n"
+                "1️⃣ Start a business\n"
+                "2️⃣ Make products for personal use"
+            )
+
             return jsonify({"status": "ok"})
 
 
     # =========================
     # PITCH STAGE
     # =========================
+
     if user["state"] == "pitch":
 
-        if incoming in ["yes", "ok", "start"]:
+        if incoming.lower() in ["yes", "ok", "start", "continue"]:
+
             set_state(phone, "pay_menu")
 
-            send_message(phone,
-                "💳 SELECT PACKAGE\n\n"
-                "1️⃣ Basic – $5\n"
-                "2️⃣ Premium – $10\n"
-                "3️⃣ Custom – $2 per formula\n"
+            send_message(
+                phone,
+                "🎓 *CHOOSE YOUR TRAINING PACKAGE*\n\n"
+                "Select the package that best suits your goals:\n\n"
+                "1️⃣ Basic Training – $5\n"
+                "2️⃣ Premium Training – $10\n"
+                "3️⃣ Custom Package – $2 per formula\n"
                 "4️⃣ Advanced Manufacturing – $20\n"
                 "5️⃣ Spices & Seasonings – $10\n\n"
+                "Reply with *1, 2, 3, 4 or 5*."
             )
+
+            return jsonify({"status": "ok"})
+
+        elif incoming.upper() in ["BACK", "MENU", "HOME"]:
+
+            set_state(phone, STATE_MAIN)
+
+            send_message(
+                phone,
+                main_menu(get_user(phone))
+            )
+
             return jsonify({"status": "ok"})
 
         else:
-            send_message(phone, "Reply YES")
+
+            send_message(
+                phone,
+                "Reply *YES* to continue or type *MENU* to return to the main menu."
+            )
+
             return jsonify({"status": "ok"})
             
     elif user["state"] == "course_lessons":
@@ -3893,7 +3922,7 @@ def webhook():
         )
 
         conn.commit()
-        DATABASE_POOL.putconn(conn)
+        release_db(conn)
 
         return jsonify({"status": "ok"})
 
@@ -4102,182 +4131,354 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-    if incoming == "upgrade":
+    # =====================================================
+    # PAYMENT HELPER
+    # =====================================================
 
-        user = get_user(phone)
-        package = user.get("package")
-
-        if package == "basic":
-            set_state(phone, "upgrade_select")
-            send_message(
-                phone,
-                "🚀 *UPGRADE OPTIONS*\n\n"
-                "1️⃣ Upgrade to Premium – $5\n"
-                "2️⃣ Add Spices – $5\n"
-                "3️⃣ Upgrade to Advanced – $10\n\n"
-                "Reply 1, 2 or 3"
-            )
-            return jsonify({"status": "ok"})
-
-        elif package == "premium":
-            set_state(phone, "upgrade_select")
-            send_message(
-                phone,
-                "🚀 *UPGRADE OPTIONS*\n\n"
-                "1️⃣ Add Spices – $5\n"
-                "2️⃣ Upgrade to Advanced – $7\n\n"
-                "Reply 1 or 2"
-            )
-            return jsonify({"status": "ok"})
-
-        else:
-            send_message(phone, "No upgrade option available for your current package.")
-            return jsonify({"status": "ok"})
-
-    elif user["state"] == "upgrade_select":
-
-        package = user.get("package")
-
-        if package == "basic":
-
-            if incoming == "1":
-                pending = "upgrade_basic_to_premium"
-                amount = 5
-                title = "BASIC TO PREMIUM UPGRADE"
-
-            elif incoming == "2":
-                pending = "upgrade_basic_to_spices"
-                amount = 5
-                title = "ADD SPICES"
-
-            elif incoming == "3":
-                pending = "upgrade_basic_to_advanced"
-                amount = 10
-                title = "BASIC TO ADVANCED UPGRADE"
-
-            else:
-                send_message(phone, "Sarudza 1, 2 or 3")
-                return jsonify({"status": "ok"})
-
-        elif package == "premium":
-
-            if incoming == "1":
-                pending = "upgrade_premium_to_spices"
-                amount = 5
-                title = "ADD SPICES"
-
-            elif incoming == "2":
-                pending = "upgrade_premium_to_advanced"
-                amount = 7
-                title = "PREMIUM TO ADVANCED UPGRADE"
-
-            else:
-                send_message(phone, "Sarudza 1 or 2")
-                return jsonify({"status": "ok"})
-
-        else:
-            send_message(phone, "Upgrade not available.")
-            return jsonify({"status": "ok"})
-
-        conn = get_db()
-        c = conn.cursor()
-
-        c.execute("""
-            UPDATE users
-            SET pending_purchase=%s
-            WHERE phone=%s
-        """, (pending, phone))
-
-        conn.commit()
-        release_db(conn)
-
-        set_state(phone, "awaiting_payment")
+    def send_payment_instructions(phone, title, amount):
 
         send_message(
             phone,
             f"📲 *{title}*\n\n"
+
+            "Pay using EcoCash:\n\n"
+
             f"*153*1*1*0773208904*{amount}#\n\n"
+
             "👤 Recipient: Beloved Nkomo\n"
-            f"💵 Amount: ${amount} + charges\n\n"
-            "Send confirmation SMS here."
+            f"💵 Amount: ${amount} + EcoCash charges\n\n"
+
+            "📩 After payment, simply forward the EcoCash confirmation SMS here.\n\n"
+
+            "Type MENU anytime to cancel."
         )
 
-        return jsonify({"status": "ok"})
+
+    # =====================================================
+    # UPGRADE COMMAND
+    # =====================================================
+
+    if incoming.lower() == "upgrade":
+
+        user = get_user(phone)
+
+        package = (user.get("package") or "").lower()
+
+        if package == "basic":
+
+            set_state(phone, "upgrade_select")
+
+            send_message(
+                phone,
+                "🚀 *UPGRADE YOUR TRAINING*\n\n"
+
+                "Current Package:\n"
+                "🎓 Basic\n\n"
+
+                "Available Upgrades:\n\n"
+
+                "1️⃣ Premium Package (+$5)\n"
+                "   ✔ More lessons\n"
+                "   ✔ AI Support\n\n"
+
+                "2️⃣ Add Spices Course (+$5)\n"
+                "   ✔ Complete Spices Training\n\n"
+
+                "3️⃣ Upgrade to Advanced (+$10)\n"
+                "   ✔ Industrial Manufacturing\n\n"
+
+                "Reply with 1, 2 or 3."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif package == "premium":
+
+            set_state(phone, "upgrade_select")
+
+            send_message(
+                phone,
+                "🚀 *UPGRADE YOUR TRAINING*\n\n"
+
+                "Current Package:\n"
+                "🏆 Premium\n\n"
+
+                "Available Upgrades:\n\n"
+
+                "1️⃣ Add Spices Course (+$5)\n\n"
+
+                "2️⃣ Upgrade to Advanced (+$7)\n\n"
+
+                "Reply with 1 or 2."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+       else:
+
+            send_message(
+                phone,
+                "✅ Your current package does not have any available upgrades."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+    # =====================================================
+    # UPGRADE SELECTION
+    # =====================================================
+
+    elif user["state"] == "upgrade_select":
+
+        if incoming.upper() in ["MENU", "BACK", "HOME"]:
+
+            set_state(phone, STATE_MAIN)
+
+            send_message(
+                phone,
+                main_menu(get_user(phone))
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        package = (user.get("package") or "").lower()
+
+        pending = None
+        amount = 0
+        title = ""
+
+
+        # ------------------------------------------
+        # BASIC
+        # ------------------------------------------
+
+        if package == "basic":
+
+            if incoming == "1":
+
+                pending = "upgrade_basic_to_premium"
+                amount = 5
+                title = "BASIC ➜ PREMIUM"
+
+            elif incoming == "2":
+
+                pending = "upgrade_basic_to_spices"
+                amount = 5
+                title = "ADD SPICES COURSE"
+
+            elif incoming == "3":
+
+                pending = "upgrade_basic_to_advanced"
+                amount = 10
+                title = "BASIC ➜ ADVANCED"
+
+            else:
+
+                send_message(
+                    phone,
+                    "Please choose 1, 2 or 3."
+                )
+
+                return jsonify({"status":"ok"})
+
+
+        # ------------------------------------------
+        # PREMIUM
+        # ------------------------------------------
+
+        elif package == "premium":
+
+            if incoming == "1":
+
+                pending = "upgrade_premium_to_spices"
+                amount = 5
+                title = "ADD SPICES COURSE"
+
+            elif incoming == "2":
+
+                pending = "upgrade_premium_to_advanced"
+                amount = 7
+                title = "PREMIUM ➜ ADVANCED"
+
+            else:
+
+                send_message(
+                    phone,
+                    "Please choose 1 or 2."
+                )
+
+                return jsonify({"status":"ok"})
+
+
+        else:
+
+            send_message(
+                phone,
+                "Upgrade not available."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        # ------------------------------------------
+        # Save Pending Purchase
+        # ------------------------------------------
+
+        conn = get_db()
+
+        c = conn.cursor()
+
+        c.execute(
+            """
+            UPDATE users
+            SET pending_purchase=%s
+            WHERE phone=%s
+            """,
+            (pending, phone)
+        )
+
+        conn.commit()
+
+        release_db(conn)
+
+
+        set_state(phone, "awaiting_payment")
+
+
+        send_payment_instructions(
+
+            phone,
+
+            title,
+
+            amount
+
+        )
+
+        return jsonify({"status":"ok"})
+    # =====================================================
+    # PAYMENT MENU
+    # =====================================================
 
     elif user["state"] == "pay_menu":
 
+        if incoming.upper() in ["MENU", "BACK", "HOME"]:
+
+            set_state(phone, STATE_MAIN)
+
+            send_message(
+                phone,
+                main_menu(get_user(phone))
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        # ==========================================
+        # BASIC PACKAGE
+        # ==========================================
+
         if incoming == "1":
-            selected_package = "basic"
-            price = BASIC_PRICE
 
             conn = get_db()
             c = conn.cursor()
-            c.execute(
-                "UPDATE users SET package=%s WHERE phone=%s",
-                (selected_package, phone)
-            )
+
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='basic'
+                WHERE phone=%s
+            """, (phone,))
+
             conn.commit()
             release_db(conn)
 
             set_state(phone, "awaiting_payment")
 
-            send_message(
+            send_payment_instructions(
                 phone,
-                "📲 *Bhadhara neEcoCash*\n\n"
-                "*153*1*1*0773208904*5#\n\n"
-                "👤 Recipient: Beloved Nkomo\n"
-                f"💵 Amount: ${price} + charges\n\n"
-                "Send confirmation SMS here"
+                "BASIC TRAINING PACKAGE",
+                BASIC_PRICE
             )
-            return jsonify({"status": "ok"})
+
+            return jsonify({"status":"ok"})
+
+
+        # ==========================================
+        # PREMIUM PACKAGE
+        # ==========================================
 
         elif incoming == "2":
-            selected_package = "premium"
-            price = PREMIUM_PRICE
 
             conn = get_db()
             c = conn.cursor()
-            c.execute(
-                "UPDATE users SET package=%s WHERE phone=%s",
-                (selected_package, phone)
-            )
+
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='premium'
+                WHERE phone=%s
+            """, (phone,))
+
             conn.commit()
-            DATABASE_POOL.putconn(conn)
+            release_db(conn)
 
             set_state(phone, "awaiting_payment")
 
-            send_message(
+            send_payment_instructions(
                 phone,
-                "📲 *Bhadhara neEcoCash*\n\n"
-                "*153*1*1*0773208904*10#\n\n"
-                "👤 Recipient: Beloved Nkomo\n"
-                f"💵 Amount: ${price} + charges\n\n"
-                "Send confirmation SMS here"
+                "PREMIUM TRAINING PACKAGE",
+                PREMIUM_PRICE
             )
-            return jsonify({"status": "ok"})
+
+            return jsonify({"status":"ok"})
+
+
+        # ==========================================
+        # CUSTOM PACKAGE
+        # ==========================================
 
         elif incoming == "3":
+
             clear_custom_modules(phone)
+
             set_state(phone, "custom_selecting")
 
-            all_modules = DETERGENT_MODULES + BEVERAGE_MODULES
+            all_modules = (
+                DETERGENT_MODULES +
+                BEVERAGE_MODULES +
+                SPICES_MODULES
+            )
 
-            menu = "🧩 *CUSTOM PACKAGE*\n\n"
-            menu += "Sarudza ma Formula Aunoda kudzidza.\n"
-            menu += f"Price: ${CUSTOM_PRICE_PER_MODULE} per formula\n\n"
+            menu = (
+                "🧩 *CUSTOM TRAINING PACKAGE*\n\n"
+                f"Price: ${CUSTOM_PRICE_PER_MODULE} per formula.\n\n"
+                "Choose the formulas you want.\n\n"
+            )
 
             for i, module in enumerate(all_modules, start=1):
-                name = module.replace("_", " ").title()
-                menu += f"{i}️⃣ {name}\n"
 
-            menu += "\nReply with numbers separated by comma.\n"
-            menu += "Example: 1,3,7\n\n"
-            menu += "Type *DONE* when finished."
+                menu += f"{i}. {module.replace('_',' ').title()}\n"
+
+            menu += (
+                "\nReply with numbers separated by commas.\n"
+                "Example:\n"
+                "1,4,9\n\n"
+                "Type *DONE* when finished."
+            )
 
             send_message(phone, menu)
-            return jsonify({"status": "ok"})
+
+            return jsonify({"status":"ok"})
+
+
+        # ==========================================
+        # ADVANCED PACKAGE
+        # ==========================================
 
         elif incoming == "4":
+
             conn = get_db()
             c = conn.cursor()
 
@@ -4292,18 +4493,21 @@ def webhook():
 
             set_state(phone, "awaiting_payment")
 
-            send_message(
+            send_payment_instructions(
                 phone,
-                "📲 *ADVANCED FULL PACKAGE PAYMENT*\n\n"
-                "*153*1*1*0773208904*20#\n\n"
-                "👤 Recipient: Beloved Nkomo\n"
-                "💵 Amount: $20 + charges\n\n"
-                "Send confirmation SMS here"
+                "ADVANCED MANUFACTURING PACKAGE",
+                ADVANCED_PRICE
             )
 
-            return jsonify({"status": "ok"})
+            return jsonify({"status":"ok"})
+
+
+        # ==========================================
+        # SPICES PACKAGE
+        # ==========================================
 
         elif incoming == "5":
+
             conn = get_db()
             c = conn.cursor()
 
@@ -4318,99 +4522,316 @@ def webhook():
 
             set_state(phone, "awaiting_payment")
 
-            send_message(
+            send_payment_instructions(
                 phone,
-                "📲 *SPICES & SEASONINGS PAYMENT*\n\n"
-                "*153*1*1*0773208904*10#\n\n"
-                "👤 Recipient: Beloved Nkomo\n"
-                "💵 Amount: $10 + charges\n\n"
-                "Send confirmation SMS here"
+                "SPICES & SEASONINGS PACKAGE",
+                SPICES_PRICE
             )
 
-            return jsonify({"status": "ok"})
+            return jsonify({"status":"ok"})
+
+
+        # ==========================================
+        # INVALID OPTION
+        # ==========================================
 
         else:
-            send_message(phone, "Sarudza 1, 2, 3 , 4 or 5")
-            return jsonify({"status": "ok"})
+
+            send_message(
+                phone,
+                "Please choose:\n\n"
+                "1️⃣ Basic\n"
+                "2️⃣ Premium\n"
+                "3️⃣ Custom\n"
+                "4️⃣ Advanced\n"
+                "5️⃣ Spices"
+            )
+
+            return jsonify({"status":"ok"})
+
+    # =====================================================
+    # CUSTOM PACKAGE SELECTION
+    # =====================================================
 
     elif user["state"] == "custom_selecting":
 
-        all_modules = DETERGENT_MODULES + BEVERAGE_MODULES
+        if incoming.upper() in ["MENU", "BACK", "HOME"]:
 
-        if incoming == "done":
-            selected = get_custom_modules(phone)
-
-            if not selected:
-                send_message(phone, "Hausati wasarudza formula. Reply numbers like 1,3,7")
-                return jsonify({"status": "ok"})
-
-            total = len(selected) * CUSTOM_PRICE_PER_MODULE
-
-            conn = get_db()
-            c = conn.cursor()
-            c.execute(
-                "UPDATE users SET package='custom' WHERE phone=%s",
-                (phone,)
-            )
-            conn.commit()
-            release_db(conn)
-
-            set_state(phone, "awaiting_payment")
-
-            selected_names = "\n".join(
-                [f"✔ {m.replace('_',' ').title()}" for m in selected]
-            )
+            set_state(phone, STATE_MAIN)
 
             send_message(
                 phone,
-                "🧩 *CUSTOM PACKAGE SUMMARY*\n\n"
-                f"{selected_names}\n\n"
-                f"Total formulas: {len(selected)}\n"
-                f"Amount to pay: ${total:.2f}\n\n"
-                "📲 *Bhadhara neEcoCash*\n\n"
-                f"*153*1*1*0773208904*{total:.2f}#\n\n"
-                "👤 Recipient: Beloved Nkomo\n"
-                "Send confirmation SMS here after payment."
+                main_menu(get_user(phone))
             )
-            return jsonify({"status": "ok"})
+
+            return jsonify({"status":"ok"})
+
+
+        all_modules = (
+            DETERGENT_MODULES +
+            BEVERAGE_MODULES +
+            SPICES_MODULES
+        )
+
+
+        # ==========================================
+        # FINISH SELECTION
+        # ==========================================
+
+        if incoming.lower() == "done":
+
+            selected = get_custom_modules(phone)
+
+            if not selected:
+
+                send_message(
+                    phone,
+                    "❌ You haven't selected any formulas yet.\n\n"
+                    "Reply with numbers like:\n"
+                    "1,3,7"
+                )
+
+                return jsonify({"status":"ok"})
+
+
+            total = len(selected) * CUSTOM_PRICE_PER_MODULE
+
+
+            conn = get_db()
+
+            c = conn.cursor()
+
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='custom'
+                WHERE phone=%s
+            """, (phone,))
+
+            conn.commit()
+
+            release_db(conn)
+
+
+            set_state(phone, "awaiting_payment")
+
+
+            selected_names = "\n".join(
+
+                f"✔ {m.replace('_',' ').title()}"
+
+                for m in selected
+
+            )
+
+
+        send_message(
+
+            phone,
+
+            f"""🧩 *CUSTOM PACKAGE SUMMARY*
+
+    {selected_names}
+
+    ━━━━━━━━━━━━━━━━━━
+
+    📚 Total Formulae: {len(selected)}
+
+    💵 Total: ${total:.2f}
+
+    ━━━━━━━━━━━━━━━━━━
+
+    Now complete payment.
+
+    After paying,
+    forward the EcoCash confirmation SMS here."""
+            )
+
+
+            send_payment_instructions(
+
+                phone,
+
+                "CUSTOM TRAINING PACKAGE",
+
+                total
+
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        # ==========================================
+        # ADD MORE MODULES
+        # ==========================================
 
         try:
+
             numbers = incoming.replace(" ", "").split(",")
 
             added = []
 
+            already = []
+
             for n in numbers:
+
                 if not n.isdigit():
                     continue
 
                 index = int(n) - 1
 
-                if 0 <= index < len(all_modules):
-                    module = all_modules[index]
-                    add_custom_module(phone, module)
-                    added.append(module.replace("_", " ").title())
+                if index < 0 or index >= len(all_modules):
+                    continue
 
-            if not added:
-                send_message(phone, "Invalid selection. Example: 1,3,7")
-                return jsonify({"status": "ok"})
+                module = all_modules[index]
+
+                 current = get_custom_modules(phone)
+
+                if module in current:
+
+                    already.append(module)
+
+                    continue
+
+                add_custom_module(phone, module)
+
+                added.append(module)
+
+
+            if not added and not already:
+
+                send_message(
+                    phone,
+                    "❌ Invalid selection.\n\n"
+                    "Example:\n"
+                    "1,3,7"
+                )
+
+                return jsonify({"status":"ok"})
+
 
             selected = get_custom_modules(phone)
 
-            send_message(
-                phone,
-                "✅ Added:\n"
-                + "\n".join([f"✔ {a}" for a in added])
-                + f"\n\nTotal selected: {len(selected)}"
-                + f"\nCurrent amount: ${len(selected) * CUSTOM_PRICE_PER_MODULE:.2f}"
-                + "\n\nAdd more numbers or type *DONE*."
+            total = len(selected) * CUSTOM_PRICE_PER_MODULE
+
+
+            reply = "✅ *CUSTOM PACKAGE UPDATED*\n\n"
+
+
+            if added:
+
+                reply += "Added:\n"
+
+                for module in added:
+
+                    reply += f"✔ {module.replace('_',' ').title()}\n"
+
+
+            if already:
+
+                reply += "\nAlready Selected:\n"
+
+                for module in already:
+
+                    reply += f"• {module.replace('_',' ').title()}\n"
+
+
+            reply += (
+
+                f"\n━━━━━━━━━━━━━━━━━━"
+
+                f"\n📚 Total Formulae: {len(selected)}"
+
+                f"\n💵 Current Total: ${total:.2f}"
+
+                "\n\nReply with more numbers"
+
+                "\nor type *DONE*."
+
             )
 
-            return jsonify({"status": "ok"})
+
+            send_message(phone, reply)
+
+            return jsonify({"status":"ok"})
+
 
         except Exception as e:
-            print("CUSTOM SELECT ERROR:", e)
-            send_message(phone, "Invalid format. Example: 1,3,7")
-            return jsonify({"status": "ok"})
+
+            print("CUSTOM PACKAGE ERROR:", e)
+
+            send_message(
+                phone,
+                "❌ Invalid format.\n\n"
+                "Example:\n"
+                "1,3,7"
+            )
+
+            return jsonify({"status":"ok"})
+
+    # =====================================================
+    # AWAITING PAYMENT
+    # =====================================================
+
+    elif user["state"] == "awaiting_payment":
+
+        if incoming.upper() in ["MENU", "BACK", "HOME"]:
+
+            set_state(phone, STATE_MAIN)
+
+            send_message(
+                phone,
+                main_menu(get_user(phone))
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        # ------------------------------------------
+        # Wait for EcoCash confirmation
+        # ------------------------------------------
+
+        if "ecocash" not in incoming.lower() and "confirmed" not in incoming.lower():
+
+            send_message(
+                phone,
+                "📩 Please forward your EcoCash confirmation SMS here.\n\n"
+                "Our system (or an administrator) will verify your payment and activate your package."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            UPDATE users
+            SET payment_status='pending'
+            WHERE phone=%s
+        """, (phone,))
+
+        conn.commit()
+
+        release_db(conn)
+
+
+        set_state(phone, "payment_pending")
+
+
+        send_message(
+            phone,
+            "✅ *PAYMENT RECEIVED*\n\n"
+            "Thank you.\n\n"
+            "Your payment has been submitted for verification.\n\n"
+            "Once approved:\n"
+            "✔ Your package will be activated.\n"
+            "✔ Your lessons will unlock automatically.\n"
+            "✔ You'll receive a confirmation message."
+        )
+
+        notify_admin_payment(phone, incoming)
+
+        return jsonify({"status":"ok"})
 
     elif user["state"] == "marketplace_home":
 
