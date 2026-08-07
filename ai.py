@@ -1422,15 +1422,19 @@ def ai_virtual_employee(phone, question, department=None):
 
     department_knowledge = get_department_knowledge(department)
 
-    live_training_info = ""
+    # ==========================================
+    # LIVE DEPARTMENT DATA
+    # ==========================================
+
+    live_context = ""
+
+    # ------------------------------------------
+    # TRAINING
+    # ------------------------------------------
 
     if department == "training_events":
 
-        city = None
-
-        # Find city...
-
-        event = get_next_training(city)
+        event = get_next_training()
 
         if event:
 
@@ -1449,20 +1453,59 @@ def ai_virtual_employee(phone, question, department=None):
                 seats
             ) = event
 
-            live_training_info = f"""
-    Title: {title}
-    City: {city}
-    Venue: {venue}
-    Date: {event_date}
-    Time: {start_time}
-    Fee: ${fee}
-    Deposit: ${deposit}
-    Products: {products}
+            available = seats - booked
+
+            live_context = f"""
+
+    CURRENT TRAINING EVENT
+
+    Title:
+    {title}
+
+    City:
+    {city}
+
+    Venue:
+    {venue}
+
+    Date:
+    {event_date}
+
+    Time:
+    {start_time}
+
+    Course Fee:
+    ${fee}
+
+    Booking Deposit:
+    ${deposit}
+
+    Products:
+    {products}
+
+    Booked Seats:
+    {booked}
+
+    Remaining Seats:
+    {available}
+
+    Registration Status:
+    {status}
+
+    Always use this information instead of guessing.
+
     """
 
         else:
 
-            live_training_info = "There are currently no upcoming training events."
+            live_context = """
+
+    There are currently no upcoming training events.
+
+    Never invent training dates.
+
+    """
+
 
     instructions = f"""
 {department_prompt}
@@ -1532,9 +1575,9 @@ Equipment:
 AI Summary:
 {profile.get("ai_summary","")}
 
-Live Training Information
+Live Department Data
 
-{live_training_info}
+{live_context}
 
 General Company Rules
 
