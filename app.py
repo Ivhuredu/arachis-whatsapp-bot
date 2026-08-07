@@ -2922,7 +2922,7 @@ def webhook():
     # ==========================================
     # ACCOUNT
     # ==========================================
-    elif state == STATE_ACCOUNT
+    elif state == STATE_ACCOUNT:
     
         if incoming == "1":
 
@@ -2935,14 +2935,20 @@ def webhook():
 
         elif incoming == "2":
 
-            set_state(phone, "upgrade")
+            set_state(phone, "upgrade_offer")
 
             send_message(
                 phone,
-                build_upgrade_menu(phone)
+                "⬆ *UPGRADE YOUR ACCOUNT*\n\n"
+                "Upgrade from your current package to unlock more lessons.\n\n"
+                "1️⃣ Upgrade Now\n"
+                "2️⃣ Cancel\n\n"
+                "Reply with 1 or 2."
             )
 
             return jsonify({"status":"ok"})
+
+        
 
         elif incoming == "3":
 
@@ -2999,7 +3005,7 @@ def webhook():
 
         elif incoming == "2":
 
-            set_state(phone, "ai_virtual_employee")
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
 
             send_message(
                 phone,
