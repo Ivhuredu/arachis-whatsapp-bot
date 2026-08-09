@@ -5570,26 +5570,26 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-        elif user["state"] == "business_lessons":
+    elif user["state"] == "business_lessons":
 
-            modules = list(BUSINESS_MODULES.keys())
+        modules = list(BUSINESS_MODULES.keys())
 
-            if not incoming.isdigit():
+        if not incoming.isdigit():
 
-                ai_answer = ai_virtual_employee(
-                    phone,
-                    incoming
-                )
+            ai_answer = ai_virtual_employee(
+                phone,
+                incoming
+            )
 
-                send_message(phone, ai_answer)
+            send_message(phone, ai_answer)
 
-                ai_handled = True
+            ai_handled = True
 
-                log_activity(phone, "ai_question", incoming)
-                update_metrics(phone, "ai")
-                log_activity(phone, "ai_answer", ai_answer[:500])
+            log_activity(phone, "ai_question", incoming)
+            update_metrics(phone, "ai")
+            log_activity(phone, "ai_answer", ai_answer[:500])
 
-                return jsonify({"status": "ok"})
+            return jsonify({"status": "ok"})
 
         if 1 <= int(incoming) <= len(modules):
 
