@@ -5679,7 +5679,7 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-   elif user["state"] == "offline_intro":
+    elif user["state"] == "offline_intro":
 
         if incoming.lower() == "yes":
 
@@ -5833,8 +5833,7 @@ def webhook():
 
         c.execute("""
             UPDATE offline_registrations
-            SET
-                event_id=%s
+            SET event_id=%s
             WHERE phone=%s
         """, (event[0], phone))
 
@@ -5845,25 +5844,39 @@ def webhook():
 
         send_message(
             phone,
-            choices = {
-                "1": "Dishwash",
-                "2": "Thick Bleach",
-                "3": "Foam Bath",
-                "4": "Pine Gel"
-            }
+            "🧪 Choose your FREE 10L ingredient package:\n\n"
+            "1️⃣ Dishwash\n"
+            "2️⃣ Thick Bleach\n"
+            "3️⃣ Foam Bath\n"
+            "4️⃣ Pine Gel\n\n"
+            "Reply with 1, 2, 3 or 4."
+        )
 
-            product = choices.get(incoming)
-
-            if not product:
-
-                send_message(
-                    phone,
-                    "Reply with 1, 2, 3 or 4."
-                )
-
-                return jsonify({"status":"ok"})
+        return jsonify({"status":"ok"})
 
     elif user["state"] == "offline_choice":
+
+        choices = {
+            "1": "Dishwash",
+            "2": "Thick Bleach",
+            "3": "Foam Bath",
+            "4": "Pine Gel"
+        }
+
+        product = choices.get(incoming)
+
+        if not product:
+
+            send_message(
+                phone,
+                "Please reply with:\n\n"
+                "1️⃣ Dishwash\n"
+                "2️⃣ Thick Bleach\n"
+                "3️⃣ Foam Bath\n"
+                "4️⃣ Pine Gel"
+            )
+
+            return jsonify({"status":"ok"})
 
         conn = get_db()
         c = conn.cursor()
@@ -5874,7 +5887,7 @@ def webhook():
                 detergent_choice=%s,
                 registration_status='Awaiting Deposit'
             WHERE phone=%s
-        """, (incoming.title(), phone))
+        """, (product, phone))
 
         conn.commit()
         release_db(conn)
@@ -5885,7 +5898,7 @@ def webhook():
             phone,
             "✅ *PRACTICAL TRAINING REGISTRATION COMPLETE!*\n\n"
 
-            "Your registration details have been received successfully.\n\n"
+            "Your registration has been received successfully.\n\n"
 
             "━━━━━━━━━━━━━━━━━━\n"
             "💵 Training Fee: $20\n"
