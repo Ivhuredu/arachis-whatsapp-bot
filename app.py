@@ -4684,7 +4684,7 @@ def webhook():
 
                 module = all_modules[index]
 
-                 current = get_custom_modules(phone)
+                current = get_custom_modules(phone)
 
                 if module in current:
 
