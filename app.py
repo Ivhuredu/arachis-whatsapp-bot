@@ -2473,14 +2473,7 @@ def webhook():
 
         elif incoming == "5":
 
-            set_state(phone, "upgrade")
-
-            send_message(
-                phone,
-                build_upgrade_menu(phone)
-            )
-
-            return jsonify({"status":"ok"})
+            incoming = "upgrade"
 
         elif incoming == "6":
 
@@ -3150,6 +3143,74 @@ def webhook():
     # ==========================================
 
     elif state == STATE_VIRTUAL_EMPLOYEE:
+
+        text = incoming.lower()
+
+        registration_words = [
+            "register",
+            "registration",
+            "book",
+            "booking",
+            "reserve",
+            "seat",
+            "join training",
+            "attend training",
+            "sign me up",
+            "register me",
+            "ndinoda kunyoresa",
+            "ndoda kunyoresa",
+            "kunyoresa",
+            "practical training"
+        ]
+
+        if any(word in text for word in registration_words):
+
+            upcoming = get_next_training()
+
+            if not upcoming:
+
+                send_message(
+                    phone,
+                    "There are currently no upcoming practical training events."
+                )
+
+                return jsonify({"status":"ok"})
+
+            (
+                event_id,
+                title,
+                city,
+                venue,
+                event_date,
+                start_time,
+                fee,
+                deposit,
+                products,
+                status,
+                booked,
+                seats
+            ) = upcoming
+
+            set_state(phone, "offline_intro")
+
+            send_message(
+                phone,
+                f"🎓 *{title}*\n\n"
+                f"📍 {venue}\n"
+                f"🏙 {city}\n"
+                f"📅 {event_date}\n"
+                f"🕘 {start_time}\n\n"
+                f"💵 Training Fee: ${fee}\n"
+                f"💳 Deposit Required: ${deposit}\n\n"
+
+                "Your seat is reserved after paying the deposit.\n"
+                "The remaining balance is paid on or before training day.\n\n"
+
+                "Reply *YES* to begin registration."
+            )
+
+            return jsonify({"status":"ok"})
+
 
         answer = ai_virtual_employee(
             phone,
@@ -5569,74 +5630,292 @@ def webhook():
 
         return jsonify({"status": "ok"})
 
-    elif user["state"] == "offline_intro":
+   elif user["state"] == "offline_intro":
 
-        if incoming == "yes":
-            set_state(phone, "offline_name")
-            send_message(phone, "✍🏽 Please enter your *FULL NAME*")
-            return jsonify({"status": "ok"})
+    if incoming.lower() == "yes":
 
+        set_state(phone, "offline_name")
+
+        send_message(
+            phone,
+            "📝 *PRACTICAL TRAINING REGISTRATION*\n\n"
+
+            "Thank you for choosing Arachis Practical Training.\n\n"
+
+            "💵 Training Fee: *$20*\n"
+            "💳 Deposit Required: *$5*\n"
+            "💰 Balance: *$15* (pay on or before training day)\n\n"
+
+            "✅ Your seat is only reserved after the $5 deposit has been confirmed.\n\n"
+
+            "Let's begin.\n\n"
+
+            "✍🏽 Please enter your *FULL NAME*."
+        )
+
+        return jsonify({"status":"ok"})
 
     elif user["state"] == "offline_name":
 
         conn = get_db()
         c = conn.cursor()
+
         c.execute("""
             INSERT INTO offline_registrations (phone, full_name)
             VALUES (%s, %s)
             ON CONFLICT (phone)
             DO UPDATE SET full_name = EXCLUDED.full_name
         """, (phone, incoming.title()))
+
         conn.commit()
         release_db(conn)
 
         set_state(phone, "offline_location")
-        send_message(phone, "📍 Enter your *Town / Area*")
-        return jsonify({"status": "ok"})
 
+        send_message(
+            phone,
+            "📍 Please enter your Town or Area."
+        )
+
+        return jsonify({"status":"ok"})
 
     elif user["state"] == "offline_location":
 
         conn = get_db()
         c = conn.cursor()
+
         c.execute("""
             UPDATE offline_registrations
-            SET location = %s
-            WHERE phone = %s
+            SET location=%s
+            WHERE phone=%s
         """, (incoming.title(), phone))
+
+        conn.commit()
+
+        c.execute("""
+            SELECT
+                id,
+                title,
+                city,
+                venue,
+                event_date,
+                fee,
+                deposit
+            FROM training_events
+            WHERE status='Open'
+            ORDER BY event_date
+        """)
+
+        events = c.fetchall()
+
+        release_db(conn)
+
+        if not events:
+
+            set_state(phone, STATE_MAIN)
+
+            send_message(
+                phone,
+                "There are currently no open practical training events."
+            )
+
+            return jsonify({"status":"ok"})
+
+        menu = "🎓 *SELECT YOUR TRAINING*\n\n"
+
+        for i, event in enumerate(events, start=1):
+
+            menu += (
+                f"{i}. {event[1]}\n"
+                f"📍 {event[2]}\n"
+                f"📅 {event[4]}\n"
+                f"💵 ${event[5]} | Deposit ${event[6]}\n\n"
+            )
+
+        menu += "Reply with the training number."
+
+        set_state(phone, "offline_event")
+
+        send_message(phone, menu)
+
+        return jsonify({"status":"ok"})
+
+    elif user["state"] == "offline_event":
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            SELECT
+                id,
+                title
+            FROM training_events
+            WHERE status='Open'
+            ORDER BY event_date
+        """)
+
+        events = c.fetchall()
+
+        if not incoming.isdigit():
+
+            release_db(conn)
+
+            send_message(
+                phone,
+                "Reply with the training number."
+            )
+
+            return jsonify({"status":"ok"})
+
+        choice = int(incoming)
+
+        if choice < 1 or choice > len(events):
+
+            release_db(conn)
+
+            send_message(
+                phone,
+                "Invalid selection."
+            )
+
+            return jsonify({"status":"ok"})
+
+        event = events[choice-1]
+
+        c.execute("""
+            UPDATE offline_registrations
+            SET
+                event_id=%s
+            WHERE phone=%s
+        """, (event[0], phone))
+
         conn.commit()
         release_db(conn)
 
         set_state(phone, "offline_choice")
+
         send_message(
             phone,
-            "🧪 Choose detergent for your *FREE 10L ingredients*:\n"
-            "Dishwash / Thick Bleach / Foam Bath / Pine Gel"
-        )
-        return jsonify({"status": "ok"})
+            choices = {
+                "1": "Dishwash",
+                "2": "Thick Bleach",
+                "3": "Foam Bath",
+                "4": "Pine Gel"
+            }
 
+            product = choices.get(incoming)
+
+            if not product:
+
+                send_message(
+                    phone,
+                    "Reply with 1, 2, 3 or 4."
+                )
+
+                return jsonify({"status":"ok"})
 
     elif user["state"] == "offline_choice":
 
         conn = get_db()
         c = conn.cursor()
+
         c.execute("""
             UPDATE offline_registrations
-            SET detergent_choice = %s
-            WHERE phone = %s
+            SET
+                detergent_choice=%s,
+                registration_status='Awaiting Deposit'
+            WHERE phone=%s
         """, (incoming.title(), phone))
+
         conn.commit()
         release_db(conn)
 
-        set_state(phone, "main")
+        set_state(phone, "awaiting_offline_deposit")
+
         send_message(
             phone,
-            "✅ Registration received!\n\n"
-            "💳 Pay *$50* to Ecocash 0773 208904\n"
-            "Send proof here.\n\n"
-            "We will confirm your seat after approval."
+            "✅ *PRACTICAL TRAINING REGISTRATION COMPLETE!*\n\n"
+
+            "Your registration details have been received successfully.\n\n"
+
+            "━━━━━━━━━━━━━━━━━━\n"
+            "💵 Training Fee: $20\n"
+            "💳 Deposit Required: $5\n"
+            "💰 Balance: $15\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+
+            "✅ Your *$5 deposit* reserves your seat.\n"
+            "The remaining *$15* can be paid on or before the training day.\n\n"
+
+            "📲 *PAY YOUR DEPOSIT*\n\n"
+
+            "*153*1*1*0773208904*5#\n\n"
+
+            "👤 Recipient: Beloved Nkomo\n\n"
+
+            "After payment, please forward your EcoCash confirmation SMS here."
         )
-        return jsonify({"status": "ok"})
+
+        return jsonify({"status":"ok"})
+
+    # ==========================================
+    # AWAITING OFFLINE TRAINING DEPOSIT
+    # ==========================================
+
+    elif user["state"] == "awaiting_offline_deposit":
+
+        if incoming.upper() in ["MENU", "BACK", "HOME"]:
+
+            set_state(phone, STATE_MAIN)
+
+            send_message(
+                phone,
+                main_menu(get_user(phone))
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            UPDATE offline_registrations
+            SET payment_proof=%s
+            WHERE phone=%s
+        """, (incoming, phone))
+
+        conn.commit()
+        release_db(conn)
+
+
+        # Notify admin
+        send_message(
+            ADMIN_NUMBERS[0],
+            f"📥 *NEW OFFLINE TRAINING DEPOSIT*\n\n"
+            f"Phone: {phone}\n\n"
+            f"Payment Proof:\n\n{incoming}"
+        )
+
+
+        set_state(phone, STATE_MAIN)
+
+
+        send_message(
+            phone,
+            "🎉 Thank you!\n\n"
+
+            "Your deposit has been received and is awaiting verification.\n\n"
+
+            "Once approved:\n"
+            "✅ Your seat will be reserved.\n"
+            "✅ You'll receive a confirmation message.\n\n"
+
+            "Remember:\n"
+            "The remaining *$15* can be paid on or before the training day."
+        )
+
+        return jsonify({"status":"ok"})
 
     elif user["state"] == "upgrade_offer":
 
