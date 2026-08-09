@@ -521,6 +521,21 @@ def build_payment_menu():
 
         "Reply with 1, 2, 3, 4 or 5."
     )
+# ==========================================
+# PRACTICAL TRAINING MENU
+# ==========================================
 
+def build_training_menu():
+
+    return (
+        "🎓 *PRACTICAL TRAINING*\n\n"
+
+        "1️⃣ View Upcoming Training\n"
+        "2️⃣ Register for Training\n"
+        "3️⃣ My Registration Status\n"
+        "4️⃣ Training FAQs\n\n"
+
+        "↩ Reply *MENU* to return."
+    )
 
 
