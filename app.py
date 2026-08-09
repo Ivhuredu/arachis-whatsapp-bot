@@ -2735,18 +2735,19 @@ def webhook():
 
         elif incoming == "2":
 
-            set_state(phone, "marketplace_search")
+            set_state(phone, "supplier_directory")
 
             send_message(
                 phone,
-                "🔎 *SUPPLIER SEARCH*\n\n"
-                "Type the ingredient or product you are looking for.\n\n"
-                "Examples:\n"
-                "SLES\n"
-                "Bottles\n"
-                "CMC\n"
-                "Citric Acid\n"
-                "Labels"
+                "🏭 *SUPPLIER DIRECTORY*\n\n"
+
+                "1️⃣ Detergent Ingredients\n"
+                "2️⃣ Beverage Ingredients\n"
+                "3️⃣ Containers & Bottles\n"
+                "4️⃣ Laboratory Equipment\n"
+                "5️⃣ Search Any Ingredient\n\n"
+
+                "Reply with a number."
             )
 
             return jsonify({"status":"ok"})
@@ -3247,6 +3248,127 @@ def webhook():
 
             return jsonify({"status":"ok"})
 
+    # ==========================================
+    # SUPPLIER DIRECTORY
+    # ==========================================
+
+    elif state == "supplier_directory":
+
+        if incoming == "1":
+
+            send_message(
+                phone,
+                "🧪 *DETERGENT INGREDIENT SUPPLIERS*\n\n"
+
+                "1. Grace Rita Plastics\n"
+                "📍 Harare\n"
+                "📞 +263775641533\n\n"
+
+                "2. Tamayi Chemicals\n"
+                "📍 South Africa\n"
+                "📞 +27655521810\n\n"
+
+                "3. Nastovert Chemicals\n"
+                "📍 Harare\n"
+                "📞 +263774692352\n\n"
+
+                "4. MazChem\n"
+                "📍 Harare\n"
+                "📞 +263772597141\n\n"
+
+                "5. ArrowChem\n"
+                "📍 Bulawayo / Gweru\n"
+                "📞 +263780381618"
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "2":
+
+            send_message(
+                phone,
+                "🥤 *DRINK INGREDIENT SUPPLIERS*\n\n"
+
+                "1. Codchem Chemicals\n"
+                "📍 Harare\n"
+                "📞 +263772866766\n\n"
+
+                "2. Acol Chemicals\n"
+                "📍 Bulawayo / Harare\n"
+                "📞 +263778730915"
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "3":
+
+            send_message(
+                phone,
+                "🧴 *CONTAINER & BOTTLE SUPPLIERS*\n\n"
+
+                "1. Grace Rita Plastics\n"
+                "📞 +263775641533\n\n"
+
+                "2. BriPak Packaging\n"
+                "📞 +263783213322\n\n"
+
+                "3. TekPak Plastics\n"
+                "📞 +263775142283"
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "4":
+
+            send_message(
+                phone,
+                "🧪 *LABORATORY EQUIPMENT*\n\n"
+
+                "1. Reditek Chemicals\n"
+                "📞 +263773903806\n\n"
+
+                "2. Graniteside Chemicals\n"
+                "📞 +263774547609\n\n"
+
+                "3. Mega Mark Scientific\n"
+                "📞 +263771263978"
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming == "5":
+
+            set_state(phone, STATE_VIRTUAL_EMPLOYEE)
+
+            send_message(
+                phone,
+                "🔎 Tell me which ingredient or equipment you are looking for.\n\n"
+
+                "Examples:\n"
+                "• SLES\n"
+                "• NP9\n"
+                "• Citric Acid\n"
+                "• Bottles\n"
+                "• Labels"
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        elif incoming.upper() in ["BACK","MENU","HOME"]:
+
+            set_state(phone, STATE_MARKETPLACE)
+
+            send_message(
+                phone,
+                build_marketplace_menu()
+            )
+
+            return jsonify({"status":"ok"})
     
 
     # 🔥 HANDLE TEMPLATE REPLIES (FIXED)
@@ -5448,79 +5570,6 @@ def webhook():
             )
             return jsonify({"status": "ok"})
 
-    elif user["state"] == "supplier_directory":
-
-        if incoming == "1":
-            send_message(
-                phone,
-                "🧪 *DETERGENT INGREDIENT SUPPLIERS*\n\n"
-                "1. Grace Rita Plastics\n"
-                "📞 +263775641533\n"
-                "📍 Harare\n\n"
-                "2. Tamayi Chemicals\n"
-                "📞 +27655521810\n"
-                "📍 South Africa\n\n"
-                "3. Nastovert Chemicals\n"
-                "📞 +263774692352\n"
-                "📍 Harare\n\n"
-                "4. MazChem\n"
-                "📞 +263772597141\n"
-                "📍 Harare\n\n"
-                "5. ArrowChem\n"
-                "📞 +263780381618\n"
-                "📍 Bulawayo / Gweru\n\n"
-                "↩ Nyora *MENU* kudzokera."
-            )
-            return jsonify({"status": "ok"})
-
-        elif incoming == "2":
-            send_message(
-                phone,
-                "🥤 *DRINK INGREDIENT SUPPLIERS*\n\n"
-                "1. Codchem Chemicals\n"
-                "📞 +263772866766\n"
-                "📍 Harare\n\n"
-                "2. Acol Chemicals\n"
-                "📞 +263778730915\n"
-                "📍 Bulawayo / Harare\n\n"
-                "↩ Nyora *MENU* kudzokera."
-            )
-            return jsonify({"status": "ok"})
-
-        elif incoming == "3":
-            send_message(
-                phone,
-                "🧴 *CONTAINER & BOTTLE SUPPLIERS*\n\n"
-                "1. Grace Rita Plastics\n"
-                "📞 +263775641533\n"
-                "📍 Harare\n\n"
-                "2. BriPak Packaging\n"
-                "📞 +263783213322\n"
-                "📍 Harare\n\n"
-                "3. TekPak Plastics\n"
-                "📞 +263775142283\n"
-                "📍 Harare\n\n"
-                "↩ Nyora *MENU* kudzokera."
-            )
-            return jsonify({"status": "ok"})
-
-        elif incoming == "4":
-            send_message(
-                phone,
-                "🧴 *PH PAPER*\n\n"
-                "1. Reditek Chemicals\n"
-                "📞 +263773903806\n"
-                "📍 Bulawayo\n\n"
-                "2. Graniteside Chemicals\n"
-                "📞 +263774547609\n"
-                "📍 Harare\n\n"
-                "3. Mega Mark Scientific\n"
-                "📞 +263771263978\n"
-                "📍 Bulawayo\n\n"
-                "↩ Nyora *MENU* kudzokera."
-            )
-            return jsonify({"status": "ok"})
-
         elif user["state"] == "business_lessons":
 
             modules = list(BUSINESS_MODULES.keys())
@@ -5916,25 +5965,6 @@ def webhook():
         )
 
         return jsonify({"status":"ok"})
-
-    elif user["state"] == "upgrade_offer":
-
-        if incoming == "1":
-            set_state(phone, "awaiting_upgrade_payment")
-
-            send_message(
-                phone,
-                "📲 *UPGRADE PAYMENT*\n\n"
-                "Pay ONLY difference: *$5*\n\n"
-                "*153*1*1*0773208904*6#\n\n"
-                "Send EcoCash confirmation SMS here."
-            )
-            return jsonify({"status": "ok"})
-
-        elif incoming == "2":
-            set_state(phone, "course_lessons")
-            send_message(phone, "📚 Dzokera kuma lessons.")
-            return jsonify({"status": "ok"}) 
 
     elif user["state"] == "calc_menu":
 
