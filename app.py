@@ -5681,28 +5681,28 @@ def webhook():
 
    elif user["state"] == "offline_intro":
 
-    if incoming.lower() == "yes":
+        if incoming.lower() == "yes":
 
-        set_state(phone, "offline_name")
+            set_state(phone, "offline_name")
 
-        send_message(
-            phone,
-            "📝 *PRACTICAL TRAINING REGISTRATION*\n\n"
+            send_message(
+                phone,
+                "📝 *PRACTICAL TRAINING REGISTRATION*\n\n"
 
-            "Thank you for choosing Arachis Practical Training.\n\n"
+                "Thank you for choosing Arachis Practical Training.\n\n"
 
-            "💵 Training Fee: *$20*\n"
-            "💳 Deposit Required: *$5*\n"
-            "💰 Balance: *$15* (pay on or before training day)\n\n"
+                "💵 Training Fee: *$20*\n"
+                "💳 Deposit Required: *$5*\n"
+                "💰 Balance: *$15* (pay on or before training day)\n\n"
 
-            "✅ Your seat is only reserved after the $5 deposit has been confirmed.\n\n"
+                "✅ Your seat is only reserved after the $5 deposit has been confirmed.\n\n"
 
-            "Let's begin.\n\n"
+                "Let's begin.\n\n"
 
-            "✍🏽 Please enter your *FULL NAME*."
-        )
+                "✍🏽 Please enter your *FULL NAME*."
+            )
 
-        return jsonify({"status":"ok"})
+            return jsonify({"status":"ok"})
 
     elif user["state"] == "offline_name":
 
