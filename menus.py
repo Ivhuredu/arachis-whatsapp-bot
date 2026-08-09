@@ -500,5 +500,27 @@ def build_account_dashboard(phone):
 
     return text
 
+def build_payment_menu():
+
+    return (
+        "💳 *ARACHIS TRAINING PACKAGES*\n\n"
+
+        "1️⃣ Basic Training - $5\n"
+        "   ✔ Starter manufacturing lessons\n\n"
+
+        "2️⃣ Premium Training - $10\n"
+        "   ✔ Complete manufacturing course\n"
+        "   ✔ AI Assistant\n\n"
+
+        "3️⃣ Custom Package\n"
+        "   ✔ $2 per formula\n\n"
+
+        "4️⃣ Advanced Manufacturing - $20\n\n"
+
+        "5️⃣ Spices & Seasonings - $10\n\n"
+
+        "Reply with 1, 2, 3, 4 or 5."
+    )
+
 
 
