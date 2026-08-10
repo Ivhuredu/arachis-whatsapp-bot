@@ -6828,30 +6828,6 @@ def webhook():
 
                 return jsonify({"status":"ok"})
 
-    # =====================================
-    # Arachis Virtual Employee
-    # =====================================
-
-    ai_answer = ai_virtual_employee(
-        phone,
-        incoming
-    )
-
-    log_activity(phone, "ai_question", incoming)
-
-    update_metrics(phone, "ai")
-
-    log_activity(phone, "ai_answer", ai_answer[:500])
-
-    send_message(phone, ai_answer)
-
-    return jsonify({"status": "ok"})
-
-    # ===== DEFAULT FALLBACK =====
-    send_message(phone, "Nyora *MENU*")
-    return jsonify({"status": "ok"})
-
-
 # =========================
 # ADMIN WEB DASHBOARD
 # =========================
