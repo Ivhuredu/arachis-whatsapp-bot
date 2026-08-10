@@ -5833,9 +5833,15 @@ def webhook():
 
         c.execute("""
             UPDATE offline_registrations
-            SET event_id=%s
+            SET
+                event_id=%s,
+                event_title=%s
             WHERE phone=%s
-        """, (event[0], phone))
+        """, (
+            event[0],
+            event[1],
+            phone
+        ))
 
         conn.commit()
         release_db(conn)
