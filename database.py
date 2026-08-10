@@ -455,3 +455,38 @@ def init_db():
     
     conn.commit()
     DATABASE_POOL.putconn(conn)
+
+def get_registration_name(phone):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT full_name
+        FROM offline_registrations
+        WHERE phone=%s
+    """, (phone,))
+
+    row = c.fetchone()
+
+    release_db(conn)
+
+    return row[0] if row else ""
+
+
+def get_registration_location(phone):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT location
+        FROM offline_registrations
+        WHERE phone=%s
+    """, (phone,))
+
+    row = c.fetchone()
+
+    release_db(conn)
+
+    return row[0] if row else ""
