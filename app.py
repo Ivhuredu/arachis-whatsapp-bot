@@ -2447,18 +2447,21 @@ def webhook():
                 seats
             ) = upcoming
 
-            set_state(phone, "offline_intro")
+            set_state(phone, "offline_name")
 
             send_message(
                 phone,
-                f"🎓 *NEXT PRACTICAL TRAINING*\n\n"
-                f"📍 {city}\n"
-                f"🏢 {venue}\n"
+                f"🎓 *{title}*\n\n"
+                f"📍 {venue}\n"
+                f"🏙 {city}\n"
                 f"📅 {event_date}\n"
-                f"🕘 {start_time}\n"
-                f"💵 Fee: ${fee}\n"
-                f"💰 Deposit: ${deposit}\n\n"
-                "Let's register you."
+                f"🕘 {start_time}\n\n"
+                f"💵 Training Fee: ${fee}\n"
+                f"💳 Deposit Required: ${deposit}\n\n"
+
+                "📝 Let's reserve your seat.\n\n"
+
+                "Please enter your *FULL NAME*."
             )
 
             return jsonify({"status":"ok"})
@@ -3164,53 +3167,50 @@ def webhook():
             "practical training"
         ]
 
-        if any(word in text for word in registration_words):
+        upcoming = get_next_training()
 
-            upcoming = get_next_training()
-
-            if not upcoming:
-
-                send_message(
-                    phone,
-                    "There are currently no upcoming practical training events."
-                )
-
-                return jsonify({"status":"ok"})
-
-            (
-                event_id,
-                title,
-                city,
-                venue,
-                event_date,
-                start_time,
-                fee,
-                deposit,
-                products,
-                status,
-                booked,
-                seats
-            ) = upcoming
-
-            set_state(phone, "offline_intro")
+        if not upcoming:
 
             send_message(
                 phone,
-                f"🎓 *{title}*\n\n"
-                f"📍 {venue}\n"
-                f"🏙 {city}\n"
-                f"📅 {event_date}\n"
-                f"🕘 {start_time}\n\n"
-                f"💵 Training Fee: ${fee}\n"
-                f"💳 Deposit Required: ${deposit}\n\n"
-
-                "Your seat is reserved after paying the deposit.\n"
-                "The remaining balance is paid on or before training day.\n\n"
-
-                "Reply *YES* to begin registration."
+                "There are currently no upcoming practical training events."
             )
 
             return jsonify({"status":"ok"})
+
+        (
+            event_id,
+            title,
+            city,
+            venue,
+            event_date,
+            start_time,
+            fee,
+            deposit,
+            products,
+            status,
+            booked,
+            seats
+        ) = upcoming
+
+        set_state(phone, "offline_name")
+
+        send_message(
+            phone,
+            f"🎓 *{title}*\n\n"
+            f"📍 {venue}\n"
+            f"🏙 {city}\n"
+            f"📅 {event_date}\n"
+            f"🕘 {start_time}\n\n"
+            f"💵 Training Fee: ${fee}\n"
+            f"💳 Deposit Required: ${deposit}\n\n"
+
+            "📝 Let's reserve your seat.\n\n"
+
+            "Please enter your *FULL NAME*."
+        )
+
+        return jsonify({"status":"ok"})
 
 
         answer = ai_virtual_employee(
