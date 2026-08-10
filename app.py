@@ -6049,26 +6049,6 @@ def webhook():
             send_message(phone, "Invalid choice")
             return jsonify({"status": "ok"})
 
-    elif user["state"] == STATE_VIRTUAL_EMPLOYEE:
-
-        if incoming.lower() == "menu":
-            set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone)))
-            return jsonify({"status": "ok"})
-
-        ai_answer = ai_virtual_employee(
-            phone,
-            incoming
-        )
-
-        send_message(phone, ai_answer)
-
-        log_activity(phone, "ai_question", incoming)
-        update_metrics(phone, "ai")
-        log_activity(phone, "ai_answer", ai_answer[:500])
-
-        return jsonify({"status": "ok"})
-
     elif user["state"] == "photo_details":
 
         conn = get_db()
@@ -6795,7 +6775,7 @@ def webhook():
             limit = 8
 
         if package == "advanced":
-            limit = 10
+            limit = 50
 
         if package == "spices":
             limit = 5
