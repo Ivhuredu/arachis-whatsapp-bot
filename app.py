@@ -35,6 +35,14 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
+import random
+from datetime import datetime
+
+def generate_booking_number(event_id):
+    today = datetime.now().strftime("%y%m%d")
+    rand = random.randint(1000, 9999)
+    return f"AR-{event_id}-{today}-{rand}"
+
 
 app = Flask(__name__)
 
@@ -2323,6 +2331,152 @@ def webhook():
             )
 
         return jsonify({"status": "ok"})
+
+    # ==========================================
+    # APPROVE TRAINING DEPOSIT
+    # ==========================================
+
+    if phone in ADMIN_NUMBERS and incoming.upper().startswith("APPROVE "):
+
+        booking = incoming.split(" ",1)[1].strip()
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            SELECT
+                phone,
+                event_id,
+                full_name
+            FROM offline_registrations
+            WHERE booking_number=%s
+        """, (booking,))
+
+        row = c.fetchone()
+
+        if not row:
+
+            release_db(conn)
+
+            send_message(
+                phone,
+                "Booking number not found."
+            )
+
+            return jsonify({"status":"ok"})
+
+
+        student_phone, event_id, student_name = row
+
+
+        c.execute("""
+            UPDATE offline_registrations
+            SET
+                deposit_paid=TRUE,
+                registration_status='Confirmed',
+                deposit_verified_at=NOW(),
+                approved_by=%s
+            WHERE booking_number=%s
+        """, (
+            phone,
+            booking
+        ))
+
+
+        c.execute("""
+            UPDATE training_events
+            SET booked = booked + 1
+            WHERE id=%s
+        """, (event_id,))
+
+        conn.commit()
+
+        release_db(conn)
+
+
+        send_message(
+            student_phone,
+            f"🎉 *DEPOSIT APPROVED!*\n\n"
+
+            f"Booking Number:\n"
+
+            f"{booking}\n\n"
+
+            "✅ Your seat has now been RESERVED.\n\n"
+
+            "The remaining *$15* can be paid on or before the training day.\n\n"
+
+            "We look forward to seeing you."
+        )
+
+
+        send_message(
+            phone,
+            f"✅ Deposit approved for\n\n"
+
+            f"{student_name}\n\n"
+
+            f"{booking}"
+        )
+
+        return jsonify({"status":"ok"})
+
+    # ==========================================
+    # REJECT TRAINING DEPOSIT
+    # ==========================================
+
+    if phone in ADMIN_NUMBERS and incoming.upper().startswith("REJECT "):
+
+        booking = incoming.split(" ",1)[1].strip()
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            SELECT phone
+            FROM offline_registrations
+            WHERE booking_number=%s
+        """, (booking,))
+
+        row = c.fetchone()
+
+        if not row:
+
+            release_db(conn)
+
+            send_message(phone, "Booking not found.")
+
+            return jsonify({"status":"ok"})
+
+
+        student_phone = row[0]
+
+
+        c.execute("""
+            UPDATE offline_registrations
+            SET registration_status='Deposit Rejected'
+            WHERE booking_number=%s
+        """, (booking,))
+
+        conn.commit()
+
+        release_db(conn)
+
+
+        send_message(
+            student_phone,
+            "❌ Unfortunately we could not verify your deposit.\n\n"
+
+            "Please resend the EcoCash confirmation SMS."
+        )
+
+
+        send_message(
+            phone,
+            "Deposit rejected."
+        )
+
+        return jsonify({"status":"ok"})
 
     user = get_user(phone)
     state = user.get("state", STATE_MAIN)
@@ -5887,24 +6041,72 @@ def webhook():
         conn = get_db()
         c = conn.cursor()
 
+        # Get registration details
+        c.execute("""
+            SELECT
+                event_id,
+                event_title,
+                full_name,
+                location
+            FROM offline_registrations
+            WHERE phone=%s
+        """, (phone,))
+
+        row = c.fetchone()
+
+        if not row:
+
+            release_db(conn)
+
+            send_message(
+                phone,
+                "Registration not found. Please start again."
+            )
+
+            set_state(phone, STATE_MAIN)
+
+            return jsonify({"status":"ok"})
+
+        event_id, event_title, full_name, location = row
+
+        # Generate booking number
+        booking_number = generate_booking_number(event_id)
+
+        # Save registration
         c.execute("""
             UPDATE offline_registrations
             SET
                 detergent_choice=%s,
+                booking_number=%s,
                 registration_status='Awaiting Deposit'
             WHERE phone=%s
-        """, (product, phone))
+        """, (
+            product,
+            booking_number,
+            phone
+        ))
 
         conn.commit()
+
         release_db(conn)
 
         set_state(phone, "awaiting_offline_deposit")
 
+        # ===============================
+        # STUDENT CONFIRMATION
+        # ===============================
+
         send_message(
             phone,
-            "✅ *PRACTICAL TRAINING REGISTRATION COMPLETE!*\n\n"
+            f"🎉 *REGISTRATION SUCCESSFUL!*\n\n"
 
-            "Your registration has been received successfully.\n\n"
+            f"🎟 *Booking Number*\n"
+            f"{booking_number}\n\n"
+
+            f"👤 {full_name}\n"
+            f"📍 {location}\n"
+            f"🎓 {event_title}\n"
+            f"🎁 FREE Product: {product}\n\n"
 
             "━━━━━━━━━━━━━━━━━━\n"
             "💵 Training Fee: $20\n"
@@ -5912,8 +6114,7 @@ def webhook():
             "💰 Balance: $15\n"
             "━━━━━━━━━━━━━━━━━━\n\n"
 
-            "✅ Your *$5 deposit* reserves your seat.\n"
-            "The remaining *$15* can be paid on or before the training day.\n\n"
+            "✅ Your seat will only be reserved once your $5 deposit has been approved.\n\n"
 
             "📲 *PAY YOUR DEPOSIT*\n\n"
 
@@ -5924,8 +6125,28 @@ def webhook():
             "After payment, please forward your EcoCash confirmation SMS here."
         )
 
-        return jsonify({"status":"ok"})
+        # ===============================
+        # ADMIN NOTIFICATION
+        # ===============================
 
+        send_message(
+            ADMIN_NUMBERS[0],
+            f"🆕 *NEW TRAINING REGISTRATION*\n\n"
+
+            f"🎟 Booking: {booking_number}\n\n"
+
+            f"👤 {full_name}\n"
+            f"📞 {phone}\n"
+            f"📍 {location}\n\n"
+
+            f"🎓 {event_title}\n\n"
+
+            f"🎁 FREE Product: {product}\n\n"
+
+            "💳 Status: Awaiting $5 Deposit"
+        )
+
+        return jsonify({"status":"ok"})
     # ==========================================
     # AWAITING OFFLINE TRAINING DEPOSIT
     # ==========================================
@@ -5949,38 +6170,63 @@ def webhook():
 
         c.execute("""
             UPDATE offline_registrations
-            SET payment_proof=%s
+            SET
+                payment_proof=%s,
+                registration_status='Deposit Submitted'
             WHERE phone=%s
         """, (incoming, phone))
 
         conn.commit()
+
+        c.execute("""
+            SELECT
+                booking_number,
+                full_name,
+                event_title
+            FROM offline_registrations
+            WHERE phone=%s
+        """, (phone,))
+
+        booking, name, event = c.fetchone()
+
         release_db(conn)
 
+        # Notify Admin
 
-        # Notify admin
         send_message(
             ADMIN_NUMBERS[0],
-            f"📥 *NEW OFFLINE TRAINING DEPOSIT*\n\n"
-            f"Phone: {phone}\n\n"
-            f"Payment Proof:\n\n{incoming}"
-        )
+            f"💳 *DEPOSIT SUBMITTED*\n\n"
 
+            f"🎟 {booking}\n\n"
+
+            f"👤 {name}\n"
+
+            f"📞 {phone}\n\n"
+
+            f"🎓 {event}\n\n"
+
+            f"Payment Proof:\n\n"
+
+            f"{incoming}\n\n"
+
+            f"Reply:\n"
+
+            f"APPROVE {booking}\n\n"
+
+            f"or\n\n"
+
+            f"REJECT {booking}"
+        )
 
         set_state(phone, STATE_MAIN)
 
-
         send_message(
             phone,
-            "🎉 Thank you!\n\n"
+            "✅ Thank you.\n\n"
 
-            "Your deposit has been received and is awaiting verification.\n\n"
+            "Your deposit has been submitted for verification.\n\n"
 
-            "Once approved:\n"
-            "✅ Your seat will be reserved.\n"
-            "✅ You'll receive a confirmation message.\n\n"
-
-            "Remember:\n"
-            "The remaining *$15* can be paid on or before the training day."
+            "You'll receive confirmation once it has been approved."
         )
 
         return jsonify({"status":"ok"})
