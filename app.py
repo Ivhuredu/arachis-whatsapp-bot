@@ -7026,6 +7026,8 @@ def webhook():
 
                 return jsonify({"status": "ok"})
 
+    return jsonify({"status": "ok"})
+
 # =========================
 # ADMIN WEB DASHBOARD
 # =========================
