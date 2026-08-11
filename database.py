@@ -490,3 +490,57 @@ def get_registration_location(phone):
     release_db(conn)
 
     return row[0] if row else ""
+
+# ==========================================
+# PENDING ACTION HELPERS
+# ==========================================
+
+def set_pending_action(phone, action):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE users
+        SET pending_action=%s
+        WHERE phone=%s
+    """, (action, phone))
+
+    conn.commit()
+    release_db(conn)
+
+
+def get_pending_action(phone):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT pending_action
+        FROM users
+        WHERE phone=%s
+    """, (phone,))
+
+    row = c.fetchone()
+
+    release_db(conn)
+
+    if row:
+        return row[0]
+
+    return None
+
+
+def clear_pending_action(phone):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE users
+        SET pending_action=NULL
+        WHERE phone=%s
+    """, (phone,))
+
+    conn.commit()
+    release_db(conn)
