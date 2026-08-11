@@ -6935,69 +6935,96 @@ def webhook():
 # =========================
 # UNPAID USER PROTECTION
 # =========================
-    if not user["is_paid"]:
 
-        faq = faq_engine(incoming)
+if not user["is_paid"]:
 
-        if faq:
-            send_message(phone, faq)
-            return jsonify({"status": "ok"})
+    faq = faq_engine(incoming)
 
-        if incoming not in ["menu","start","pay","1","2","3","4","5","6","7","8","9","10","app","apk","download app","download apk","android app"]:
-            send_message(
-                phone,
-                "📚 AI trainer & ma formula anovhurwa kune vakabhadhara chete.\nNyora *PAY* kuti utange."
-            )
-            return jsonify({"status":"ok"}) 
-    blocked_commands = ["1","2","3","4","5","6","menu","start","pay","admin","hie","makadini"]
-    
-    if not incoming.isdigit() and user["is_paid"] and not ai_handled:
-        simple_reply = simple_ai_bypass(incoming)
+    if faq:
+        send_message(phone, faq)
+        return jsonify({"status": "ok"})
 
-        if simple_reply:
-            send_message(phone, simple_reply)
-            return jsonify({"status":"ok"})
-               
-        package = user.get("package","basic")
+    if incoming not in [
+        "menu",
+        "start",
+        "pay",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "app",
+        "apk",
+        "download app",
+        "download apk",
+        "android app"
+    ]:
+        send_message(
+            phone,
+            "📚 AI trainer & ma formula anovhurwa kune vakabhadhara chete.\n"
+            "Nyora *PAY* kuti utange."
+        )
+        return jsonify({"status": "ok"})
 
+
+# =========================
+# PAID USER AI TRAINER
+# =========================
+
+if not incoming.isdigit() and user["is_paid"] and not ai_handled:
+
+    package = user.get("package", "basic")
+
+    limit = 5
+
+    if package == "premium":
+        limit = 8
+
+    if package == "advanced":
+        limit = 50
+
+    if package == "spices":
         limit = 5
 
-        if package == "premium":
-            limit = 8
+    today_count = ai_questions_today(phone)
 
-        if package == "advanced":
-            limit = 50
+    if today_count >= limit:
 
-        if package == "spices":
-            limit = 5
+        send_message(
+            phone,
+            f"⛔ Wapedza AI limit yako ye nhasi ({limit})."
+        )
 
-        today_count = ai_questions_today(phone)
+        return jsonify({"status": "ok"})
 
-        if today_count >= limit:
+    allowed_modules = get_user_modules(phone, incoming)
 
+    if not allowed_modules:
+
+        # Allow business questions even without a module
+        business_keywords = [
+            "profit",
+            "price",
+            "sell",
+            "business",
+            "market"
+        ]
+
+        if any(k in incoming.lower() for k in business_keywords):
+            combined_text = ""
+
+        else:
             send_message(
                 phone,
-                f"⛔ Wapedza AI limit yako ye nhasi ({limit})."
+                "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
             )
 
-            return jsonify({"status":"ok"})
-
-        allowed_modules = get_user_modules(phone, incoming)
-
-        if not allowed_modules:
-
-            # Allow business questions even without module
-            business_keywords = ["profit", "price", "sell", "business", "market"]
-
-            if any(k in incoming.lower() for k in business_keywords):
-                combined_text = ""
-            else:
-                send_message(
-                      phone,
-                      "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
-                )
-
-                return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
 # =========================
 # ADMIN WEB DASHBOARD
