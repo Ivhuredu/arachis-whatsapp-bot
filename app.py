@@ -1803,57 +1803,6 @@ def detect_module_from_question(question, allowed_modules):
 
     # 3️⃣ fallback = last opened module
     return allowed_modules[-1] if allowed_modules else None
-# =========================
-# AI FAQ
-# =========================
-def faq_engine(msg):
-
-    m = msg.lower()
-
-    faq_map = {
-        "ingredients": "Unogona kuwana ma ingredients kuma chemical suppliers. Nyora *9* paMENU uone supplier directory.",
-        "ndomawana kupi": "Nyora *9* paMENU uone vatengesi vemachemicals vari pedyo.",
-        "kubhadhara sei": "Kubhadhara nyora *PAY* wobva watevera mirairo yeEcoCash.",
-        "payment": "Nyora *PAY* kuti utange kubhadhara.",
-        "send payment": "Tumira EcoCash confirmation SMS pano kana wapedza.",
-        "certificate": "Ehe, unopihwa certificate kana wapedza kudzidza.",
-        "imwe mari": "Kwete. Unobhadhara kamwe chete chete — hapana monthly fee.",
-        "refund": "Hatina refund nekuti ma lessons anobva avhurwa ipapo ipapo.",
-        "time": "Unodzidza paunoda, hapana nguva yakatarwa.",
-        "duration": "Unogona kupedza nekukurumidza kana zvishoma nezvishoma — self paced."
-    }
-
-    for key in faq_map:
-        if key in m:
-            return faq_map[key]
-
-    return None
-
-def simple_ai_bypass(msg):
-
-    m = msg.lower().strip()
-
-    simple = {
-
-        "hi": "Makadii 👋",
-        "hello": "Makadii 👋",
-        "thanks": "Makorokoto 👍",
-        "thank you": "Makorokoto 👍",
-
-        "price": "Basic $5 | Premium $10",
-        "course price": "Basic $5 | Premium $10",
-
-        "ecocash": "Pay to 0773208904",
-        "payment": "Pay to 0773208904",
-
-        "where can i sell":
-        "Unogona kutengesa kuma shops, markets, schools, tuckshops nemuma locations.",
-
-        "profit":
-        "Profit inoenderana neproduction cost yako uye packaging."
-    }
-
-    return simple.get(m)
 
 def open_lesson_direct(phone, module):
     modules = load_lessons()
