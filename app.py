@@ -6933,50 +6933,14 @@ def webhook():
             return jsonify({"status": "ok"})
 
     # =========================
-    # UNPAID USER PROTECTION
-    # =========================
-
-    if not user["is_paid"]:
-
-        faq = faq_engine(incoming)
-
-        if faq:
-            send_message(phone, faq)
-            return jsonify({"status": "ok"})
-
-        if incoming not in [
-            "menu",
-            "start",
-            "pay",
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-            "7",
-            "8",
-            "9",
-            "10",
-            "app",
-            "apk",
-            "download app",
-            "download apk",
-            "android app"
-        ]:
-            send_message(
-                phone,
-                "📚 AI trainer & ma formula anovhurwa kune vakabhadhara chete.\n"
-                "Nyora *PAY* kuti utange."
-            )
-            return jsonify({"status": "ok"})
-
-
-    # =========================
     # PAID USER AI TRAINER
     # =========================
 
-    if not incoming.isdigit() and user["is_paid"] and not ai_handled:
+    if user["is_paid"] and not ai_handled:
+
+    # -----------------------------------------
+    # DAILY AI LIMIT
+    # -----------------------------------------
 
         package = user.get("package", "basic")
 
@@ -6985,10 +6949,10 @@ def webhook():
         if package == "premium":
             limit = 8
 
-        if package == "advanced":
+        elif package == "advanced":
             limit = 50
 
-        if package == "spices":
+        elif package == "spices":
             limit = 5
 
         today_count = ai_questions_today(phone)
@@ -6997,34 +6961,74 @@ def webhook():
 
             send_message(
                 phone,
-                f"⛔ Wapedza AI limit yako ye nhasi ({limit})."
+                f"⛔ Wapedza AI limit yako ye nhasi ({limit}).\n\n"
+                "Unogona kuenderera mberi mangwana."
             )
 
             return jsonify({"status": "ok"})
 
-        allowed_modules = get_user_modules(phone, incoming)
 
-        if not allowed_modules:
+    # -----------------------------------------
+    # AI VIRTUAL EMPLOYEE
+    # -----------------------------------------
+    #
+        # IMPORTANT:
+        # Do NOT require the student to have opened
+        # a module before asking the AI a question.
+        #
+        # The AI should be able to handle:
+        # - manufacturing questions
+        # - ingredient questions
+        # - business questions
+        # - supplier questions
+        # - practical training questions
+        # - costing/profit questions
+        # - general Arachis questions
+        # -----------------------------------------
 
-            # Allow business questions even without a module
-            business_keywords = [
-                "profit",
-                "price",
-                "sell",
-                "business",
-                "market"
-            ]
+        ai_answer = ai_virtual_employee(
+            phone,
+            incoming
+        )
 
-            if any(k in incoming.lower() for k in business_keywords):
-                combined_text = ""
 
-            else:
-                send_message(
-                    phone,
-                    "Ndapota vhura module kutanga kuti ndikubatsire zvakarurama."
-                )
+    # -----------------------------------------
+    # LOG AI ACTIVITY
+    # -----------------------------------------
 
-                return jsonify({"status": "ok"})
+        log_activity(
+            phone,
+            "ai_question",
+            incoming
+        )
+
+        update_metrics(
+            phone,
+            "ai"
+        )
+
+        log_activity(
+            phone,
+            "ai_answer",
+            ai_answer[:500]
+        )
+
+
+    # -----------------------------------------
+    # SEND AI RESPONSE
+    # -----------------------------------------
+
+        send_message(
+            phone,
+            ai_answer
+        )
+
+        return jsonify({"status": "ok"})
+
+
+# =========================
+# FINAL WEBHOOK FALLBACK
+# =========================
 
     return jsonify({"status": "ok"})
 
