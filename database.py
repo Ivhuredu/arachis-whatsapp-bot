@@ -478,24 +478,6 @@ def get_registration_name(phone):
 
     return row[0] if row else ""
 
-
-def get_registration_location(phone):
-
-    conn = get_db()
-    c = conn.cursor()
-
-    c.execute("""
-        SELECT location
-        FROM offline_registrations
-        WHERE phone=%s
-    """, (phone,))
-
-    row = c.fetchone()
-
-    release_db(conn)
-
-    return row[0] if row else ""
-
 # ==========================================
 # PENDING ACTION HELPERS
 # ==========================================
@@ -513,7 +495,6 @@ def set_pending_action(phone, action):
 
     conn.commit()
     release_db(conn)
-
 
 def get_pending_action(phone):
 
