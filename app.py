@@ -2664,6 +2664,67 @@ def webhook():
         return jsonify({"status": "ok"})
 
     # ==========================================
+    # PENDING ACTION HANDLER
+    # ==========================================
+
+    pending_action = get_pending_action(phone)
+
+    if pending_action == "training_registration":
+
+        text = incoming.lower().strip()
+
+        registration_confirmations = [
+            "yes",
+            "yes please",
+            "yes i want to book",
+            "yes i want to register",
+            "i want to book",
+            "i want to register",
+            "book",
+            "book me",
+            "register",
+            "register me",
+            "booking",
+            "proceed",
+            "yes proceed",
+            "continue",
+            "ok",
+            "okay",
+            "sure",
+            "interested",
+            "join",
+            "reserve",
+            "reserve my seat"
+        ]
+
+        if any(
+            phrase in text
+            for phrase in registration_confirmations
+        ):
+
+            clear_pending_action(phone)
+
+            set_state(phone, "offline_name")
+
+            send_message(
+                phone,
+                "🎓 *PRACTICAL TRAINING REGISTRATION*\n\n"
+
+                "Great! Let's reserve your seat.\n\n"
+
+                "💵 Training Fee: $20\n"
+                "💳 Deposit Required: $5\n"
+                "💰 Balance: $15\n\n"
+
+                "Your seat will be reserved once the $5 deposit "
+                "has been confirmed.\n\n"
+
+                "✍🏽 Please enter your *FULL NAME*."
+            )
+
+            return jsonify({"status": "ok"})
+
+    # ==========================================
     # LEARN MENU
     # ==========================================
 
@@ -3415,232 +3476,343 @@ def webhook():
             return jsonify({"status":"ok"})
 
     # ==========================================
-    # VIRTUAL EMPLOYEE (ARACHIS BRAIN)
+# VIRTUAL EMPLOYEE
+# ARACHIS BRAIN
+# ==========================================
+
+elif state == STATE_VIRTUAL_EMPLOYEE:
+
+    text = incoming.lower().strip()
+
+    # ==========================================
+    # MENU
     # ==========================================
 
-    elif state == STATE_VIRTUAL_EMPLOYEE:
+    if text in ["menu", "back", "home"]:
 
-        text = incoming.lower().strip()
+        clear_pending_action(phone)
 
-        # ==========================================
-        # TRAINING QUESTIONS
-        # ==========================================
+        set_state(phone, STATE_MAIN)
 
-        training_words = [
-            "training",
-            "offline",
-            "practical",
-            "workshop",
-            "bulawayo",
-            "harare",
-            "gweru",
-            "register",
-            "registration",
-            "book",
-            "booking",
-            "reserve",
-            "seat",
-            "join training",
-            "attend",
-            "attend training",
-            "sign me up",
-            "register me",
-            "deposit",
-            "venue",
-            "location",
-            "date",
-            "when is the training",
-            "next training",
-            "training fee"
-        ]
+        send_message(
+            phone,
+            main_menu(get_user(phone))
+        )
 
-        if any(word in text for word in training_words):
-
-            upcoming = get_next_training()
-
-            if not upcoming:
-
-                send_message(
-                    phone,
-                    "There are currently no upcoming practical training events."
-                )
-
-                return jsonify({"status":"ok"})
+        return jsonify({"status": "ok"})
 
 
-            (
-                event_id,
-                title,
-                city,
-                venue,
-                event_date,
-                start_time,
-                fee,
-                deposit,
-                products,
-                status,
-                booked,
-                seats
-            ) = upcoming
+    # ==========================================
+    # PRACTICAL TRAINING
+    # ==========================================
+
+    training_words = [
+        "training",
+        "offline training",
+        "practical training",
+        "practical",
+        "workshop",
+        "bulawayo",
+        "harare",
+        "gweru",
+        "next training",
+        "when is the next training",
+        "when is training",
+        "training date",
+        "training dates",
+        "training venue",
+        "training location",
+        "where is the training",
+        "where is training",
+        "how much is training",
+        "training fee",
+        "training cost",
+        "training deposit",
+        "deposit for training"
+    ]
 
 
-            # -------------------------------------
-            # REGISTRATION REQUEST
-            # -------------------------------------
+    if any(word in text for word in training_words):
 
-            registration_words = [
-                "register",
-                "register me",
-                "book",
-                "book me",
-                "reserve",
-                "reserve seat",
-                "join",
-                "attend",
-                "sign me up",
-                "yes register",
-                "yes proceed",
-                "proceed"
-            ]
+        upcoming = get_next_training()
 
-            if any(word in text for word in registration_words):
+        if not upcoming:
 
-                set_state(phone, "offline_name")
-
-                send_message(
-                    phone,
-                    f"🎓 *{title}*\n\n"
-
-                    f"📍 {venue}\n"
-                    f"🏙 {city}\n"
-                    f"📅 {event_date}\n"
-                    f"🕘 {start_time}\n\n"
-
-                    f"💵 Training Fee: ${fee}\n"
-                    f"💳 Deposit Required: ${deposit}\n\n"
-
-                    "📝 Let's reserve your seat.\n\n"
-
-                    "Please enter your *FULL NAME*."
-                )
-
-                return jsonify({"status":"ok"})
-
-
-            # -------------------------------------
-            # GENERAL TRAINING QUESTION
-            # -------------------------------------
+            clear_pending_action(phone)
 
             send_message(
                 phone,
-                f"🎓 *NEXT PRACTICAL TRAINING*\n\n"
+                "There are currently no upcoming "
+                "practical training events."
+            )
+
+            return jsonify({"status": "ok"})
+
+
+        (
+            event_id,
+            title,
+            city,
+            venue,
+            event_date,
+            start_time,
+            fee,
+            deposit,
+            products,
+            status,
+            booked,
+            seats
+        ) = upcoming
+
+
+        # ------------------------------------------
+        # CHECK AVAILABLE SEATS
+        # ------------------------------------------
+
+        try:
+            remaining_seats = max(
+                0,
+                int(seats or 0) - int(booked or 0)
+            )
+        except Exception:
+            remaining_seats = 0
+
+
+        # ------------------------------------------
+        # IF USER IS ALREADY ASKING TO REGISTER
+        # ------------------------------------------
+
+        registration_words = [
+            "register",
+            "registration",
+            "register me",
+            "i want to register",
+            "i want to book",
+            "book",
+            "book me",
+            "booking",
+            "reserve",
+            "reserve my seat",
+            "book my seat",
+            "sign me up",
+            "join training",
+            "attend training"
+        ]
+
+
+        if any(word in text for word in registration_words):
+
+            if remaining_seats <= 0:
+
+                clear_pending_action(phone)
+
+                send_message(
+                    phone,
+                    "❌ Unfortunately, this training is now full."
+                )
+
+                return jsonify({"status": "ok"})
+
+
+            clear_pending_action(phone)
+
+            set_state(phone, "offline_name")
+
+            send_message(
+                phone,
+
+                f"🎓 *{title}*\n\n"
 
                 f"📍 {venue}\n"
                 f"🏙 {city}\n"
                 f"📅 {event_date}\n"
                 f"🕘 {start_time}\n\n"
 
-                f"💵 Fee: ${fee}\n"
-                f"💳 Deposit: ${deposit}\n"
-                f"🪑 Seats Remaining: {seats-booked}\n\n"
+                f"💵 Training Fee: ${fee}\n"
+                f"💳 Deposit Required: ${deposit}\n"
+                f"🪑 Seats Remaining: {remaining_seats}\n\n"
 
-                "Reply *REGISTER* if you would like to reserve your seat."
+                "📝 *Let's reserve your seat.*\n\n"
+
+                "✍🏽 Please enter your *FULL NAME*."
             )
 
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
 
-        # ==========================================
-        # PAYMENT QUESTIONS
-        # ==========================================
+        # ------------------------------------------
+        # GENERAL TRAINING INFORMATION
+        # ------------------------------------------
 
-        payment_words = [
-            "pay",
-            "payment",
-            "upgrade",
-            "deposit",
-            "ecocash",
-            "fee",
-            "price"
-        ]
-
-        if any(word in text for word in payment_words):
-
-            set_state(phone, "pay_menu")
-
-            send_message(
-                phone,
-                build_payment_menu()
-            )
-
-            return jsonify({"status":"ok"})
+        # Remember that the next response may be
+        # an acceptance such as YES / PROCEED / BOOK.
+        set_pending_action(phone, "training_registration")
 
 
-        # ==========================================
-        # SUPPLIER DIRECTORY
-        # ==========================================
-
-        supplier_words = [
-            "supplier",
-            "suppliers",
-            "ingredients",
-            "ingredient",
-            "where can i buy",
-            "chemical supplier",
-            "containers",
-            "bottles",
-            "packaging"
-        ]
-
-        if any(word in text for word in supplier_words):
-
-            set_state(phone, "supplier_directory")
-
-            send_message(
-                phone,
-                build_supplier_directory()
-            )
-
-            return jsonify({"status":"ok"})
-
-
-        # ==========================================
-        # CALCULATOR
-        # ==========================================
-
-        calculator_words = [
-            "calculator",
-            "profit",
-            "pricing",
-            "calculate",
-            "costing",
-            "cost"
-        ]
-
-        if any(word in text for word in calculator_words):
-
-            set_state(phone, STATE_CALCULATOR)
-
-            send_message(
-                phone,
-                build_calculator_menu()
-            )
-
-            return jsonify({"status":"ok"})
-
-
-        # ==========================================
-        # DEFAULT → AI KNOWLEDGE ENGINE
-        # ==========================================
-
-        answer = ai_virtual_employee(
+        send_message(
             phone,
-            incoming
+
+            f"🎓 *NEXT PRACTICAL TRAINING*\n\n"
+
+            f"📍 {venue}\n"
+            f"🏙 {city}\n"
+            f"📅 {event_date}\n"
+            f"🕘 {start_time}\n\n"
+
+            f"💵 Training Fee: ${fee}\n"
+            f"💳 Deposit Required: ${deposit}\n"
+            f"🪑 Seats Remaining: {remaining_seats}\n\n"
+
+            "You can reserve your seat with a *$5 deposit*.\n"
+            "The remaining balance is paid on or before "
+            "the training day.\n\n"
+
+            "Would you like to register for this training?\n\n"
+
+            "Reply *YES* to continue."
         )
 
-        send_message(phone, answer)
+        return jsonify({"status": "ok"})
 
-        return jsonify({"status":"ok"})
+
+    # ==========================================
+    # PAYMENT
+    # ==========================================
+
+    payment_words = [
+        "pay",
+        "payment",
+        "payment details",
+        "ecocash",
+        "upgrade",
+        "upgrade my training",
+        "upgrade my plan"
+    ]
+
+
+    if any(word in text for word in payment_words):
+
+        clear_pending_action(phone)
+
+        set_state(phone, "pay_menu")
+
+        send_message(
+            phone,
+            build_payment_menu()
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    # ==========================================
+    # SUPPLIERS
+    # ==========================================
+
+    supplier_words = [
+        "supplier",
+        "suppliers",
+        "ingredient supplier",
+        "ingredient suppliers",
+        "where can i buy",
+        "where do i buy",
+        "chemical supplier",
+        "chemical suppliers",
+        "container supplier",
+        "bottle supplier",
+        "packaging supplier"
+    ]
+
+
+    if any(word in text for word in supplier_words):
+
+        clear_pending_action(phone)
+
+        set_state(phone, "supplier_directory")
+
+        send_message(
+            phone,
+            "🧪 *SUPPLIER DIRECTORY*\n\n"
+
+            "Choose a category:\n\n"
+
+            "1️⃣ Detergent Ingredients\n"
+            "2️⃣ Drink Ingredients\n"
+            "3️⃣ Containers & Bottles\n"
+            "4️⃣ Laboratory Equipment\n"
+            "5️⃣ Search for a Supplier\n\n"
+
+            "Reply with 1, 2, 3, 4 or 5."
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    # ==========================================
+    # CALCULATOR
+    # ==========================================
+
+    calculator_words = [
+        "calculator",
+        "calculate",
+        "calculate profit",
+        "profit calculator",
+        "profit",
+        "cost calculator",
+        "costing",
+        "cost",
+        "pricing",
+        "selling price"
+    ]
+
+
+    if any(word in text for word in calculator_words):
+
+        clear_pending_action(phone)
+
+        set_state(phone, STATE_CALCULATOR)
+
+        send_message(
+            phone,
+            build_calculator_menu()
+        )
+
+        return jsonify({"status": "ok"})
+
+
+    # ==========================================
+    # DEFAULT → MANUFACTURING AI
+    # ==========================================
+
+    clear_pending_action(phone)
+
+    ai_answer = ai_virtual_employee(
+        phone,
+        incoming
+    )
+
+    send_message(
+        phone,
+        ai_answer
+    )
+
+    log_activity(
+        phone,
+        "ai_question",
+        incoming
+    )
+
+    update_metrics(
+        phone,
+        "ai"
+    )
+
+    log_activity(
+        phone,
+        "ai_answer",
+        ai_answer[:500]
+    )
+
+    return jsonify({"status": "ok"})
 
     # ==========================================
     # BROWSE COURSES
