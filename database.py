@@ -231,6 +231,11 @@ def init_db():
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS pending_purchase TEXT
     """)
+    
+    c.execute("""
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS pending_action TEXT
+    """)
 
     c.execute("""
     CREATE TABLE IF NOT EXISTS marketplace_products (
