@@ -1258,107 +1258,182 @@ def get_department_knowledge(department):
         departments["general"]
     )
 
-def detect_department(question):
+def ai_department_router(phone, question):
+    """
+    AI-powered department router.
 
-    q = question.lower()
+    No keyword matching.
+    GPT decides which Arachis department should handle
+    the customer's question based on the current question,
+    recent conversation and customer context.
+    """
 
-    training_keywords = [
-        "training", "practical", "offline", "online",
-        "venue", "schedule", "date", "book", "booking",
-        "seat", "deposit", "event",
-        "bulawayo", "harare", "gweru",
-        "mutare", "masvingo", "kwekwe",
-        "victoria falls"
-    ]
+    profile = get_customer_profile(phone)
 
-    manufacturing_keywords = [
-        "dishwash", "foam bath", "pine gel",
-        "bleach", "soap", "detergent",
-        "formula", "ingredient",
-        "batch", "cmc", "sles",
-        "np9", "np6", "salt",
-        "thick", "viscosity"
-    ]
+    # Use a single conversation memory for the virtual employee.
+    memory = get_memory(phone, "virtual_employee")
 
-    supplier_keywords = [
-        "supplier",
-        "ingredient",
-        "where can i buy",
-        "packaging",
-        "chemical supplier"
-    ]
+    memory_text = ""
 
-    sales_keywords = [
-        "price",
-        "package",
-        "premium",
-        "basic",
-        "upgrade",
-        "promotion"
-    ]
+    for message in memory[-10:]:
+        role = message.get("role", "")
+        content = message.get("content", "")
 
-    support_keywords = [
-        "payment",
-        "paid",
-        "login",
-        "lesson",
-        "download",
-        "app",
-        "password",
-        "access"
-    ]
+        memory_text += f"{role}: {content}\n"
 
-    business_keywords = [
-        "business",
-        "profit",
-        "pricing",
-        "marketing",
-        "customer",
-        "startup"
-    ]
-
-    if any(k in q for k in training_keywords):
-        return "training_events"
-
-    if any(k in q for k in manufacturing_keywords):
-        return "manufacturing"
-
-    if any(k in q for k in supplier_keywords):
-        return "supplier"
-
-    if any(k in q for k in sales_keywords):
-        return "sales"
-
-    if any(k in q for k in support_keywords):
-        return "support"
-
-    if any(k in q for k in business_keywords):
-        return "advisor"
-
-    return "general"
-
-def ai_department_router(question):
-
-    # First try the fast keyword router
-    route = router.route(question)
-
-    print("=" * 50)
-    print("FAST ROUTER")
-    print("Department:", route.department)
-    print("Confidence:", route.confidence)
-    print("=" * 50)
-
-    # If keyword router is confident, use it
-    if route.confidence >= 2:
-        return route.department
-
-    # Otherwise ask GPT
     prompt = f"""
-You are the Arachis Department Router.
+You are the CENTRAL AI ROUTER for Arachis Manufacturing.
 
-Choose ONLY one department.
+Your job is NOT to answer the customer.
 
-Departments:
+Your job is to understand the customer's CURRENT INTENT and
+send the conversation to the correct Arachis department.
+
+IMPORTANT:
+
+DO NOT use keywords or simple word matching.
+
+Understand the meaning of the customer's question using:
+1. The current message
+2. Previous conversation
+3. The customer's context
+4. The customer's current topic
+
+AVAILABLE DEPARTMENTS:
+
+manufacturing
+- Product formulas
+- Manufacturing procedures
+- Ingredients and chemical functions
+- Production problems
+- Batch calculations
+- Product troubleshooting
+- Quality control
+- Manufacturing lessons
+
+supplier
+- Where to buy ingredients
+- Raw material suppliers
+- Packaging suppliers
+- Equipment suppliers
+- Supplier availability
+
+sales
+- Arachis packages
+- Training packages
+- Prices
+- Promotions
+- Upgrades
+- What is included in a package
+
+advisor
+- Business planning
+- Profit
+- Pricing products
+- Investment
+- Starting or growing a business
+- Business strategy
+
+support
+- App problems
+- Login problems
+- Lesson access
+- Payment problems
+- Account problems
+- Downloads
+- Technical problems
+
+training_events
+- Practical training
+- Training dates
+- Venues
+- Registration
+- Deposits
+- Training seats
+- Training schedules
+- Online training information
+
+marketing
+- Advertising
+- WhatsApp marketing
+- Facebook marketing
+- Branding
+- Posters
+- Customer acquisition
+
+marketplace
+- Marketplace listings
+- Marketplace orders
+- Buying or selling through the marketplace
+
+general
+- Questions that do not clearly belong to another department
+- General Arachis information
+
+IMPORTANT CONVERSATION RULE:
+
+The customer's latest message may be a follow-up.
+
+Example:
+
+Customer:
+"How do I make dishwash?"
+
+Assistant:
+[answers]
+
+Customer:
+"Give me the formula."
+
+The second message means the customer wants the dishwash formula.
+Do NOT treat it as a new unrelated conversation.
+
+Another example:
+
+Customer:
+"Where can I buy SLES?"
+
+Assistant:
+[answers]
+
+Customer:
+"What about in Bulawayo?"
+
+This is still a SUPPLIER conversation.
+
+Another example:
+
+Customer:
+"I paid for Premium."
+
+Assistant:
+[answers]
+
+Customer:
+"It is still locked."
+
+This is still a SUPPORT conversation.
+
+CURRENT CUSTOMER PROFILE:
+
+{json.dumps(profile, indent=2)}
+
+RECENT CONVERSATION:
+
+{memory_text}
+
+CURRENT CUSTOMER MESSAGE:
+
+{question}
+
+Return ONLY valid JSON in this exact format:
+
+{{
+    "department": "manufacturing",
+    "reason": "The customer is asking for a product formulation."
+}}
+
+The department MUST be one of:
 
 manufacturing
 supplier
@@ -1369,12 +1444,6 @@ training_events
 marketing
 marketplace
 general
-
-Customer Question:
-
-{question}
-
-Return ONLY the department name.
 """
 
     try:
@@ -1384,18 +1453,36 @@ Return ONLY the department name.
             input=prompt
         )
 
-        dept = response.output_text.strip().lower()
+        result = json.loads(response.output_text)
 
-        if dept not in DEPARTMENTS:
-            dept = "general"
+        department = result.get("department", "general")
 
-        print("GPT ROUTER:", dept)
+        allowed_departments = {
+            "manufacturing",
+            "supplier",
+            "sales",
+            "advisor",
+            "support",
+            "training_events",
+            "marketing",
+            "marketplace",
+            "general"
+        }
 
-        return dept
+        if department not in allowed_departments:
+            department = "general"
+
+        print("=" * 60)
+        print("AI DEPARTMENT ROUTER")
+        print("Department:", department)
+        print("Reason:", result.get("reason", ""))
+        print("=" * 60)
+
+        return department
 
     except Exception as e:
 
-        print("ROUTER ERROR:", e)
+        print("AI DEPARTMENT ROUTER ERROR:", e)
 
         return "general"
 
@@ -1406,13 +1493,14 @@ Return ONLY the department name.
 def ai_virtual_employee(phone, question, department=None):
 
     if department is None:
-        department = ai_department_router(question)
-        print("=" * 60)
-        print("ARACHIS VIRTUAL EMPLOYEE")
-        print("Phone:", phone)
-        print("Department:", department)
-        print("Question:", question)
-        print("=" * 60)
+        department = ai_department_router(phone, question)
+
+    print("=" * 60)
+    print("ARACHIS VIRTUAL EMPLOYEE")
+    print("Phone:", phone)
+    print("Department:", department)
+    print("Question:", question)
+    print("=" * 60)
         
     user = get_user(phone)
 
@@ -1699,111 +1787,6 @@ RULES:
 
     return response.choices[0].message.content
 
-# =========================
-# AI ROUTER
-# =========================
-
-from dataclasses import dataclass
-import re
-
-
-@dataclass
-class RouteResult:
-    department: str
-    confidence: float
-    reason: str
-
-
-class AIRouter:
-
-    def __init__(self):
-
-        self.departments = {
-
-            "training_events": [
-
-                "training",
-                "practical",
-                "offline",
-                "online",
-
-                "bulawayo",
-                "harare",
-                "gweru",
-                "mutare",
-                "masvingo",
-
-                "venue",
-                "schedule",
-                "date",
-                "event",
-
-                "seat",
-                "booking",
-                "book",
-
-                "deposit",
-
-                "next training"
-
-            ],
-
-            "sales":[
-
-                "price",
-
-                "cost",
-
-                "package",
-
-                "premium",
-
-                "basic",
-
-                "upgrade",
-
-                "promotion",
-
-                "discount"
-
-            ],
-            
-
-            "manufacturing": [
-                "formula","recipe","manufacture","make",
-                "problem","batch","foam","bleach",
-                "soap","detergent","drink","paint",
-                "polish","quality"
-            ],
-
-            "supplier": [
-                "supplier","ingredients","chemical",
-                "where can i buy","where do i buy",
-                "sles","caustic","perfume",
-                "citric acid","cmc","wax"
-            ],
-
-            "support": [
-                "app","login","password",
-                "download","payment failed",
-                "approved","unlock","cannot open"
-            ],
-
-            "advisor": [
-                "business","capital","profit",
-                "pricing","investment","start business"
-            ],
-
-            "marketing": [
-                "advert","poster","branding",
-                "facebook","whatsapp marketing"
-            ],
-
-            "marketplace": [
-                "marketplace","order","shopping",
-                "cart","buy ingredients"
-            ]
-        }
 
     def clean(self, text):
 
