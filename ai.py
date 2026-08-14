@@ -1846,40 +1846,9 @@ RULES:
         text = re.sub(r"[^\w\s]", " ", text)
         return text
 
-    def route(self, message):
-
-        message = self.clean(message)
-
-        scores = {}
-
-        for department, keywords in self.departments.items():
-
-            score = 0
-
-            for keyword in keywords:
-
-                if keyword in message:
-                    score += 1
-
-            scores[department] = score
-
-        best = max(scores, key=scores.get)
-
-        if scores[best] == 0:
-
-            return RouteResult(
-                department="general",
-                confidence=0,
-                reason="No keyword matched"
-            )
-
-        return RouteResult(
-            department=best,
-            confidence=scores[best],
-            reason=f"{scores[best]} keywords matched"
-        )
+    
 
 
-router = AIRouter()
+
 
 
