@@ -34,7 +34,7 @@ def ai_questions_today(phone):
 # AI MEMORY SYSTEM
 # =========================
 
-MAX_MEMORY_MESSAGES = 4   # last 6 exchanges
+MAX_MEMORY_MESSAGES = 12   # last 6 exchanges
 
 def save_memory(phone, module, role, message):
     conn = get_db()
@@ -1506,6 +1506,22 @@ def ai_virtual_employee(phone, question, department=None):
 
     profile = get_customer_profile(phone)
 
+    # ==========================================
+    # VIRTUAL EMPLOYEE MEMORY
+    # ==========================================
+
+    memory_messages = get_memory(phone, "virtual_employee")
+
+    memory_text = ""
+
+    for m in memory_messages:
+        memory_text += f"{m['role']}: {m['content']}\n"
+
+    print("=" * 60)
+    print("VIRTUAL EMPLOYEE MEMORY")
+    print(memory_text)
+    print("=" * 60)
+
     department_prompt = build_department_prompt(department)
 
     department_knowledge = get_department_knowledge(department)
@@ -1614,6 +1630,24 @@ Database Access: {department_knowledge["can_query_database"]}
 
 Live Data: {department_knowledge["live_data"]}
 
+Conversation Memory
+
+Recent conversation with this customer:
+
+{memory_text}
+
+Use this conversation history to understand the customer's current question.
+
+IMPORTANT CONVERSATION RULES:
+
+- Remember what the customer was discussing.
+- Treat short follow-up questions as part of the current conversation.
+- Do not ask the customer to repeat information that is already clear.
+- If the customer says "give me the formula", determine which product they were discussing.
+- If the customer says "what about in Bulawayo?", determine what they are referring to from the previous conversation.
+- If the customer changes topic, follow the new topic naturally.
+- Do not mix unrelated information from previous conversations into the current answer.
+
 Customer Information
 
 Phone:
@@ -1720,6 +1754,24 @@ General Company Rules
             tools=tools
         )
         answer = response.output_text.strip()
+
+        # ==========================================
+        # SAVE VIRTUAL EMPLOYEE MEMORY
+        # ==========================================
+
+        save_memory(
+            phone,
+            "virtual_employee",
+            "user",
+            question
+        )
+
+        save_memory(
+            phone,
+            "virtual_employee",
+            "assistant",
+            answer
+        )
 
         update_customer_profile_ai(
             phone,
