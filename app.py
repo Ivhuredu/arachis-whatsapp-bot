@@ -2470,150 +2470,371 @@ def webhook():
         return jsonify({"status": "ok"})
 
     # ==========================================
-    # APPROVE TRAINING DEPOSIT
+    # UNIFIED ADMIN APPROVAL COMMAND
     # ==========================================
 
-    if phone in ADMIN_NUMBERS and incoming.upper().startswith("APPROVE "):
+    if phone in ADMIN_NUMBERS and incoming.strip().lower().startswith("approve "):
 
-        booking = incoming.split(" ",1)[1].strip()
+        parts = incoming.strip().split()
 
-        conn = get_db()
-        c = conn.cursor()
+    # ------------------------------------------
+    # BASIC COMMAND VALIDATION
+    # ------------------------------------------
 
-        c.execute("""
-            SELECT
+        if len(parts) < 2:
+            send_message(
                 phone,
-                event_id,
-                full_name
-            FROM offline_registrations
-            WHERE booking_number=%s
-        """, (booking,))
+                "❌ Invalid approval command.\n\n"
+                "ONLINE LESSON:\n"
+                "approve +2637xxxx basic\n"
+                "approve +2637xxxx premium\n"
+                "approve +2637xxxx advanced\n"
+                "approve +2637xxxx spices\n"
+                "approve +2637xxxx custom dishwash\n\n"
+                "OFFLINE TRAINING:\n"
+                "approve AR-XXXXX"
+            )
+            return jsonify({"status": "ok"})
 
-        row = c.fetchone()
 
-        if not row:
+        target = parts[1].strip()
 
+
+    # ==========================================
+    # OFFLINE PRACTICAL TRAINING APPROVAL
+    # ==========================================
+        #
+        # Offline booking numbers start with AR-
+        #
+        # Example:
+        # approve AR-123-20260817-4567
+        #
+
+        if target.upper().startswith("AR-"):
+
+            booking = target
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute("""
+                SELECT
+                    phone,
+                    event_id,
+                    full_name,
+                    event_title
+                FROM offline_registrations
+                WHERE booking_number=%s
+            """, (booking,))
+
+            row = c.fetchone()
+
+            if not row:
+                release_db(conn)
+
+                send_message(
+                    phone,
+                    f"❌ Booking number not found.\n\n"
+                    f"Booking: {booking}"
+                )
+
+                return jsonify({"status": "ok"})
+
+
+            student_phone = row[0]
+            event_id = row[1]
+            full_name = row[2]
+            event_title = row[3]
+
+            # Approve registration
+            c.execute("""
+                UPDATE offline_registrations
+                SET registration_status='Deposit Approved'
+                WHERE booking_number=%s
+            """, (booking,))
+
+            conn.commit()
             release_db(conn)
+
+
+            # Notify student
+            send_message(
+                student_phone,
+                f"🎉 *DEPOSIT APPROVED!*\n\n"
+                f"Hello {full_name},\n\n"
+                f"Your $5 deposit for:\n"
+                f"🎓 {event_title}\n\n"
+                f"has been successfully approved.\n\n"
+                f"🎟 Booking Number: {booking}\n\n"
+                f"✅ Your seat is now RESERVED.\n\n"
+                f"💵 Balance to pay on training day: $15\n\n"
+                f"We look forward to seeing you at the training."
+            )
+
+
+            # Notify admin
+            send_message(
+                phone,
+                f"✅ *OFFLINE TRAINING APPROVED*\n\n"
+                f"Student: {full_name}\n"
+                f"Phone: {student_phone}\n"
+                f"Booking: {booking}\n"
+                f"Training: {event_title}"
+            )
+
+            return jsonify({"status": "ok"})
+
+
+    # ==========================================
+    # ONLINE LESSON APPROVAL
+    # ==========================================
+
+        # Expected:
+        #
+        # approve +263772926711 basic
+        # approve +263772926711 premium
+        # approve +263772926711 advanced
+        # approve +263772926711 spices
+        # approve +263772926711 custom foam_bath
+        #
+
+        if not target.startswith("+"):
 
             send_message(
                 phone,
-                "Booking number not found."
+                "❌ Invalid approval command.\n\n"
+                "For online lessons use:\n"
+                "approve +2637xxxx package\n\n"
+                "Example:\n"
+                "approve +263772926711 custom foam_bath\n\n"
+                "For practical training use:\n"
+                "approve AR-XXXXX"
             )
 
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
 
-        student_phone, event_id, student_name = row
+        # Need at least:
+        # approve
+        # phone
+        # package
+
+        if len(parts) < 3:
+
+            send_message(
+                phone,
+                "❌ Missing package.\n\n"
+                "Use:\n"
+                "approve +2637xxxx basic\n"
+                "approve +2637xxxx premium\n"
+                "approve +2637xxxx advanced\n"
+                "approve +2637xxxx spices\n"
+                "approve +2637xxxx custom foam_bath"
+            )
+
+            return jsonify({"status": "ok"})
 
 
-        c.execute("""
-            UPDATE offline_registrations
-            SET
-                deposit_paid=TRUE,
-                registration_status='Confirmed',
-                deposit_verified_at=NOW(),
-                approved_by=%s
-            WHERE booking_number=%s
-        """, (
-            phone,
-            booking
-        ))
+        target = normalize_phone(parts[1])
+        package = parts[2].lower().strip()
 
-
-        c.execute("""
-            UPDATE training_events
-            SET booked = booked + 1
-            WHERE id=%s
-        """, (event_id,))
-
-        conn.commit()
-
-        release_db(conn)
-
-
-        send_message(
-            student_phone,
-            f"🎉 *DEPOSIT APPROVED!*\n\n"
-
-            f"Booking Number:\n"
-
-            f"{booking}\n\n"
-
-            "✅ Your seat has now been RESERVED.\n\n"
-
-            "The remaining *$15* can be paid on or before the training day.\n\n"
-
-            "We look forward to seeing you."
-        )
-
-
-        send_message(
-            phone,
-            f"✅ Deposit approved for\n\n"
-
-            f"{student_name}\n\n"
-
-            f"{booking}"
-        )
-
-        return jsonify({"status":"ok"})
 
     # ==========================================
-    # REJECT TRAINING DEPOSIT
+    # CUSTOM ONLINE LESSON
     # ==========================================
 
-    if phone in ADMIN_NUMBERS and incoming.upper().startswith("REJECT "):
+        if package == "custom":
 
-        booking = incoming.split(" ",1)[1].strip()
+            if len(parts) < 4:
+
+                send_message(
+                    phone,
+                    "❌ Custom formula is missing.\n\n"
+                    "Use:\n"
+                    "approve +2637xxxx custom module_name\n\n"
+                    "Example:\n"
+                    "approve +263772926711 custom foam_bath"
+                )
+
+                return jsonify({"status": "ok"})
+
+
+            module = parts[3].lower().strip()
+
+
+            all_modules = (
+                DETERGENT_MODULES
+                + BEVERAGE_MODULES
+                + ADVANCED_MODULES
+                + SPICE_MODULES
+            )
+
+
+            if module not in all_modules:
+
+                send_message(
+                    phone,
+                    "❌ Invalid module name.\n\n"
+                    "Examples:\n"
+                    "dishwash\n"
+                    "foam_bath\n"
+                    "pine_gel\n"
+                    "freezits\n"
+                    "paint"
+                )
+
+                return jsonify({"status": "ok"})
+
+
+            create_user(target)
+
+
+            conn = get_db()
+            c = conn.cursor()
+
+
+            # Approve payment
+            c.execute("""
+                UPDATE users
+                SET
+                    is_paid=1,
+                    payment_status='approved',
+                    package='custom'
+                WHERE phone=%s
+            """, (target,))
+
+
+        # Unlock custom module
+            c.execute("""
+                INSERT INTO custom_module_access (phone, module)
+                VALUES (%s, %s)
+                ON CONFLICT (phone, module) DO NOTHING
+            """, (target, module))
+
+
+        # Also unlock normal module access
+            c.execute("""
+                INSERT INTO module_access (phone, module)
+                VALUES (%s, %s)
+                ON CONFLICT (phone, module) DO NOTHING
+            """, (target, module))
+
+
+            conn.commit()
+            release_db(conn)
+
+
+            log_activity(
+                target,
+                "manual_custom_approved",
+                module
+            )
+
+
+        # Student notification
+            send_message(
+                target,
+                f"🎉 *Payment Approved!*\n\n"
+                f"Custom Formula Unlocked:\n"
+                f"✔ {module.replace('_', ' ').title()}\n\n"
+                f"Nyora *MENU* kuti uvhure lesson yako."
+            )
+
+
+        # Admin confirmation
+            send_message(
+                phone,
+                f"✅ *ONLINE PAYMENT APPROVED*\n\n"
+                f"Student: {target}\n"
+                f"Package: CUSTOM\n"
+                f"Formula: {module.replace('_', ' ').title()}"
+            )
+
+
+            return jsonify({"status": "ok"})
+
+
+    # ==========================================
+    # NORMAL ONLINE PACKAGES
+    # ==========================================
+
+        if package not in [
+            "basic",
+            "premium",
+            "advanced",
+            "spices"
+        ]:
+
+            send_message(
+                phone,
+                "❌ Invalid package.\n\n"
+                "Available packages:\n"
+                "basic\n"
+                "premium\n"
+                "advanced\n"
+                "spices\n"
+                "custom"
+            )
+
+            return jsonify({"status": "ok"})
+
+
+        create_user(target)
+
 
         conn = get_db()
         c = conn.cursor()
 
-        c.execute("""
-            SELECT phone
-            FROM offline_registrations
-            WHERE booking_number=%s
-        """, (booking,))
 
-        row = c.fetchone()
+        has_spices = 1 if package in [
+            "spices",
+            "advanced"
+        ] else 0
 
-        if not row:
-
-            release_db(conn)
-
-            send_message(phone, "Booking not found.")
-
-            return jsonify({"status":"ok"})
-
-
-        student_phone = row[0]
+        has_advanced = 1 if package == "advanced" else 0
 
 
         c.execute("""
-            UPDATE offline_registrations
-            SET registration_status='Deposit Rejected'
-            WHERE booking_number=%s
-        """, (booking,))
+            UPDATE users
+            SET
+                is_paid=1,
+                payment_status='approved',
+                package=%s,
+                has_spices=%s,
+                has_advanced=%s,
+                pending_purchase=NULL
+            WHERE phone=%s
+        """, (
+            package,
+            has_spices,
+            has_advanced,
+            target
+        ))
+
 
         conn.commit()
-
         release_db(conn)
 
 
+    # Student notification
         send_message(
-            student_phone,
-            "❌ Unfortunately we could not verify your deposit.\n\n"
-
-            "Please resend the EcoCash confirmation SMS."
+            target,
+            f"🎉 *Payment Approved!*\n\n"
+            f"Package: {package.upper()}\n\n"
+            f"Nyora *MENU* kuti utange kudzidza."
         )
 
 
+    # Admin confirmation
         send_message(
             phone,
-            "Deposit rejected."
+            f"✅ *ONLINE PAYMENT APPROVED*\n\n"
+            f"Student: {target}\n"
+            f"Package: {package.upper()}"
         )
 
-        return jsonify({"status":"ok"})
+
+        return jsonify({"status": "ok"})
 
     user = get_user(phone)
     state = user.get("state", STATE_MAIN)
