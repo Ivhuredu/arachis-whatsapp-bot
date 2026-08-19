@@ -1,8 +1,6 @@
 import os
 import json
 import base64
-import re
-from dataclasses import dataclass
 
 from openai import OpenAI
 
@@ -474,69 +472,6 @@ def get_user_modules(phone, message):
 
     return []
 
-# ✅ MODIFIED (MODULE-AWARE AI)
-def ai_trainer_reply(phone, question, allowed_modules=None):
-    active_module = "general"
-
-    if allowed_modules:
-        active_module = allowed_modules[-1]
-
-    memory_messages = get_memory(phone, active_module)
-
-    memory_text = ""
-    for m in memory_messages:
-        memory_text += f"{m['role']}: {m['content']}\n"
-
-    instructions = f"""
-You are Arachis AI Trainer.
-
-Help Zimbabwean students with:
-- detergent production
-- drink production
-- business advice
-
-Reply simply in English or Shona.
-
-When replying in shona make sure it's grammatically correct and natural.
-
-Use lesson files first before answering.
-
-Keep the a short and precise.
-
-Recent memory:
-{memory_text}
-"""
-
-    try:
-        response = openai_client.responses.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
-            instructions=instructions,
-            input=question,
-            tools=[
-                {
-                    "type": "file_search",
-                    "vector_store_ids": [
-                        os.getenv("ARACHIS_VECTOR_STORE_ID")
-                    ]
-                }
-        
-            ]
-        )
-
-        answer = response.output_text.strip()
-
-        save_memory(phone, active_module, "user", question)
-        save_memory(phone, active_module, "assistant", answer)
-
-        return answer
-
-    except Exception as e:
-        print("OPENAI AGENT ERROR:", e)
-        return "Pane problem paAI trainer parizvino. Ndapota edzai zvakare kana taurai naAdmin."
-
-# ==========================================
-# AI DEPARTMENT PROMPTS
-# ==========================================
 # =====================================================
 # ARACHIS AI DEPARTMENTS
 # =====================================================
@@ -2023,12 +1958,7 @@ RULES:
     return response.choices[0].message.content
 
 
-    def clean(self, text):
-
-        text = text.lower()
-        text = re.sub(r"[^\w\s]", " ", text)
-        return text
-
+    
     
 
 
