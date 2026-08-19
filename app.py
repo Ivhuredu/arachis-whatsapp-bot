@@ -2852,7 +2852,7 @@ def webhook():
 
         send_message(
             phone,
-            main_menu(user)
+            main_menu(user, phone)
         )
 
         return jsonify({"status": "ok"})
@@ -2885,7 +2885,7 @@ def webhook():
         send_message(
             phone,
             "✅ Current operation cancelled.\n\n"
-            + main_menu(user)
+            + main_menu(user, phone)
         )
 
         return jsonify({"status": "ok"})
@@ -2898,7 +2898,7 @@ def webhook():
 
         send_message(
             phone,
-            main_menu(user)
+            main_menu(user, phone)
         )
 
         return jsonify({"status": "ok"})
@@ -3175,7 +3175,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone)))
+            send_message(phone, main_menu(get_user(phone), phone)))
             return jsonify({"status":"ok"})
 
 
@@ -3288,7 +3288,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone)))
+            send_message(phone, main_menu(get_user(phone), phone)))
             return jsonify({"status":"ok"})
 
 
@@ -3396,7 +3396,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone)))
+            send_message(phone, main_menu(get_user(phone), phone)))
             return jsonify({"status":"ok"})
 
 
@@ -3485,7 +3485,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone)))
+            send_message(phone, main_menu(get_user(phone), phone)))
             return jsonify({"status":"ok"})
 
 
@@ -3557,7 +3557,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone)))
+            send_message(phone, main_menu(get_user(phone), phone)))
             return jsonify({"status":"ok"})
 
     elif state == STATE_STUDENT_DASHBOARD:
@@ -3647,7 +3647,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone))
+                main_menu(get_user(phone), phone))
             )
 
             return jsonify({"status":"ok"})
@@ -3710,7 +3710,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone))
+                main_menu(get_user(phone), phone))
             )
 
             return jsonify({"status":"ok"})
@@ -4720,7 +4720,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone))
+                main_menu(get_user(phone), phone))
             )
 
             return jsonify({"status": "ok"})
@@ -5253,7 +5253,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone))
+                main_menu(get_user(phone), phone))
             )
 
             return jsonify({"status":"ok"})
@@ -5386,7 +5386,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone))
+                main_menu(get_user(phone), phone))
             )
 
             return jsonify({"status":"ok"})
@@ -5576,7 +5576,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone))
+                main_menu(get_user(phone), phone))
             )
 
             return jsonify({"status":"ok"})
@@ -5795,7 +5795,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone))
+                main_menu(get_user(phone), phone))
             )
 
             return jsonify({"status":"ok"})
