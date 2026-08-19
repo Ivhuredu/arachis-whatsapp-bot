@@ -5253,11 +5253,10 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone), phone))
+                main_menu(get_user(phone), phone)
             )
 
-            return jsonify({"status":"ok"})
-
+            return jsonify({"status": "ok"})
 
         package = (user.get("package") or "").lower()
 
