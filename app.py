@@ -3175,7 +3175,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone), phone)))
+            send_message(phone, main_menu(get_user(phone), phone))
             return jsonify({"status":"ok"})
 
 
@@ -3288,7 +3288,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone), phone)))
+            send_message(phone, main_menu(get_user(phone), phone))
             return jsonify({"status":"ok"})
 
 
@@ -3396,7 +3396,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone), phone)))
+            send_message(phone, main_menu(get_user(phone), phone))
             return jsonify({"status":"ok"})
 
 
@@ -3485,7 +3485,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone), phone)))
+            send_message(phone, main_menu(get_user(phone), phone))
             return jsonify({"status":"ok"})
 
 
@@ -3557,7 +3557,7 @@ def webhook():
         elif incoming in ["back","menu","home"]:
 
             set_state(phone, STATE_MAIN)
-            send_message(phone, main_menu(get_user(phone), phone)))
+            send_message(phone, main_menu(get_user(phone), phone))
             return jsonify({"status":"ok"})
 
     elif state == STATE_STUDENT_DASHBOARD:
@@ -3647,7 +3647,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone), phone))
+                main_menu(get_user(phone), phone)
             )
 
             return jsonify({"status":"ok"})
@@ -3710,7 +3710,7 @@ def webhook():
 
             send_message(
                 phone,
-                main_menu(get_user(phone), phone))
+                main_menu(get_user(phone), phone)
             )
 
             return jsonify({"status":"ok"})
