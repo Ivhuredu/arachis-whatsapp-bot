@@ -1258,6 +1258,116 @@ def get_department_knowledge(department):
         departments["general"]
     )
 
+# ==========================================
+# AI USER ACCESS CONTEXT
+# ==========================================
+
+def get_ai_user_context(phone):
+    """
+    Determine whether the person is:
+    - guest
+    - student
+    - admin
+
+    Also return the student's package and
+    authorized modules.
+    """
+
+    phone = normalize_phone(phone)
+
+    # ------------------------------------------
+    # ADMIN
+    # ------------------------------------------
+
+    try:
+        if is_admin_phone(phone):
+
+            return {
+                "user_type": "admin",
+                "is_admin": True,
+                "is_student": False,
+                "is_paid": True,
+                "package": "admin",
+                "allowed_modules": ["*"]
+            }
+
+    except Exception as e:
+
+        print("ADMIN CHECK ERROR:", e)
+
+    # ------------------------------------------
+    # DATABASE USER
+    # ------------------------------------------
+
+    try:
+
+        user = get_user(phone)
+
+    except Exception as e:
+
+        print("GET USER ERROR:", e)
+        user = None
+
+    # ------------------------------------------
+    # GUEST
+    # ------------------------------------------
+
+    if not user:
+
+        return {
+            "user_type": "guest",
+            "is_admin": False,
+            "is_student": False,
+            "is_paid": False,
+            "package": "none",
+            "allowed_modules": []
+        }
+
+    # ------------------------------------------
+    # PAYMENT STATUS
+    # ------------------------------------------
+
+    is_paid = bool(user.get("is_paid"))
+
+    package = user.get("package") or "none"
+
+    # ------------------------------------------
+    # REGISTERED BUT NOT PAID
+    # ------------------------------------------
+
+    if not is_paid:
+
+        return {
+            "user_type": "guest",
+            "is_admin": False,
+            "is_student": False,
+            "is_paid": False,
+            "package": package,
+            "allowed_modules": []
+        }
+
+    # ------------------------------------------
+    # PAID STUDENT
+    # ------------------------------------------
+
+    try:
+
+        allowed_modules = get_allowed_modules_for_user(phone)
+
+    except Exception as e:
+
+        print("MODULE ACCESS ERROR:", e)
+        allowed_modules = []
+
+    return {
+        "user_type": "student",
+        "is_admin": False,
+        "is_student": True,
+        "is_paid": True,
+        "package": package,
+        "allowed_modules": allowed_modules
+    }
+
 def ai_department_router(phone, question):
     """
     AI-powered department router.
@@ -1507,15 +1617,38 @@ def ai_virtual_employee(phone, question, department=None):
     profile = get_customer_profile(phone)
 
     # ==========================================
+    # USER ACCESS LEVEL
+    # ==========================================
+
+    ai_user = get_ai_user_context(phone)
+
+    print("=" * 60)
+    print("AI USER ACCESS")
+    print("User Type:", ai_user["user_type"])
+    print("Admin:", ai_user["is_admin"])
+    print("Student:", ai_user["is_student"])
+    print("Paid:", ai_user["is_paid"])
+    print("Package:", ai_user["package"])
+    print("Allowed Modules:", ai_user["allowed_modules"])
+    print("=" * 60)
+
+    # ==========================================
     # VIRTUAL EMPLOYEE MEMORY
     # ==========================================
 
-    memory_messages = get_memory(phone, "virtual_employee")
+    memory_messages = get_memory(
+        phone,
+        "virtual_employee"
+    )
 
     memory_text = ""
 
     for m in memory_messages:
-        memory_text += f"{m['role']}: {m['content']}\n"
+
+        role = m.get("role", "")
+        content = m.get("content", "")
+
+        memory_text += f"{role}: {content}\n"
 
     print("=" * 60)
     print("VIRTUAL EMPLOYEE MEMORY")
@@ -1647,6 +1780,56 @@ IMPORTANT CONVERSATION RULES:
 - If the customer says "what about in Bulawayo?", determine what they are referring to from the previous conversation.
 - If the customer changes topic, follow the new topic naturally.
 - Do not mix unrelated information from previous conversations into the current answer.
+
+USER ACCESS LEVEL
+
+The system has already verified this customer's access level.
+
+User Type:
+{ai_user["user_type"]}
+
+Admin:
+{ai_user["is_admin"]}
+
+Registered Student:
+{ai_user["is_student"]}
+
+Payment Approved:
+{ai_user["is_paid"]}
+
+Package:
+{ai_user["package"]}
+
+Authorized Lessons:
+{json.dumps(ai_user["allowed_modules"], indent=2)}
+
+ACCESS CONTROL RULES
+
+- Never assume a guest is a registered student.
+- A guest may receive general information and public Arachis information.
+- A guest must NOT receive protected Arachis lesson content.
+- A paid student may access only lessons listed under Authorized Lessons.
+- Never reveal a lesson merely because the customer says they paid.
+- Never assume that a package gives access to every lesson.
+- Admin users have full authorized access.
+- Do not expose internal database information.
+- Do not tell customers how the access-control system works internally.
+- If a student asks for a lesson they are not authorized to access, explain that their current package does not include it and direct them to the appropriate upgrade/package.
+- If the user is a guest and asks for a protected formula or lesson, explain that the protected lesson is available to registered students.
+
+CONVERSATION MEMORY
+
+Recent conversation:
+
+{memory_text}
+
+Use this conversation to understand follow-up questions.
+
+- Do not make the customer repeat information that is already clear.
+- "Give me the formula" should refer to the product currently being discussed.
+- "What about in Bulawayo?" should refer to the subject currently being discussed.
+- Maintain the current topic unless the customer clearly changes it.
+- Do not mix unrelated old conversations into the current answer.
 
 Customer Information
 
