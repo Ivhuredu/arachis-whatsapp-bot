@@ -7367,8 +7367,7 @@ def admin_dashboard():
             return redirect(url_for("admin_dashboard"))
 
     stats = get_dashboard_stats()
-    install_stats = get_app_install_stats()
-
+    
     # =========================================================
     # 📊 ENHANCED DASHBOARD METRICS
     # =========================================================
@@ -7474,7 +7473,7 @@ def admin_dashboard():
             + COALESCE(modules_opened, 0) * 3
         ) DESC,
         last_active DESC
-        LIMIT 10
+        LIMIT 50
     """)
     most_active_students = c.fetchall()
 
@@ -7544,7 +7543,7 @@ def admin_dashboard():
             open_count
         FROM app_installs
         ORDER BY last_opened_at DESC NULLS LAST
-        LIMIT 20
+        
     """)
     recent_installs = c.fetchall()
 
@@ -7617,14 +7616,6 @@ def admin_dashboard():
     """)
     students = c.fetchall()
     
-    c.execute("""
-    SELECT phone, template_name, status, error_details, created_at, updated_at
-    FROM template_messages
-    ORDER BY updated_at DESC
-    LIMIT 50
-    """)
-    template_logs = c.fetchall()
-
     c.execute("""
         SELECT id, category, name, price, unit, seller_name, seller_phone,
                seller_location, status, created_at
@@ -8107,22 +8098,6 @@ def admin_dashboard():
         <a href="/admin/followup-unpaid">Send follow-up to unpaid users</a>
         <hr>
         """
-
-    html += "<hr><h3>📨 Template Delivery Logs</h3>"
-
-    if not template_logs:
-        html += "<p>No template logs yet.</p>"
-    else:
-        for t in template_logs:
-            html += f"""
-            📱 {t[0]} |
-            Template: {t[1]} |
-            Status: <b>{t[2]}</b> |
-            Error: {t[3]} |
-            Sent: {t[4]} |
-            Updated: {t[5]}
-            <br>
-            """
 
     html += "<hr><h3>📜 Activity Feed (Latest 1000)</h3>"
 
