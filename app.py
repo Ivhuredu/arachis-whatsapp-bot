@@ -7369,6 +7369,187 @@ def admin_dashboard():
     stats = get_dashboard_stats()
     install_stats = get_app_install_stats()
 
+    # =========================================================
+    # 📊 ENHANCED DASHBOARD METRICS
+    # =========================================================
+    conn = get_db()
+    c = conn.cursor()
+
+    # -------------------------
+    # APP METRICS
+    # -------------------------
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM app_installs
+    """)
+    total_app_devices = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM app_installs
+        WHERE last_opened_at::date = CURRENT_DATE
+    """)
+    app_active_today = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM app_installs
+        WHERE last_opened_at >= CURRENT_TIMESTAMP - INTERVAL '7 DAYS'
+    """)
+    app_active_week = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM app_installs
+        WHERE last_opened_at >= CURRENT_TIMESTAMP - INTERVAL '30 DAYS'
+    """)
+    app_active_month = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COALESCE(SUM(open_count), 0)
+        FROM app_installs
+    """)
+    total_app_opens = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COALESCE(AVG(open_count), 0)
+        FROM app_installs
+    """)
+    average_app_opens = round(float(c.fetchone()[0] or 0), 1)
+
+    # -------------------------
+    # TRAINING METRICS
+    # -------------------------
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM activity_log
+        WHERE action = 'open_module'
+    """)
+    total_module_opens = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM activity_log
+        WHERE action = 'open_module'
+        AND created_at::date = CURRENT_DATE
+    """)
+    module_opens_today = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT details, COUNT(*) AS opens
+        FROM activity_log
+        WHERE action = 'open_module'
+        GROUP BY details
+        ORDER BY opens DESC
+        LIMIT 10
+    """)
+    popular_modules = c.fetchall()
+
+    # -------------------------
+    # STUDENT ENGAGEMENT
+    # -------------------------
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM student_metrics
+        WHERE modules_opened > 0
+    """)
+    students_with_module_activity = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM student_metrics
+        WHERE modules_opened = 0
+    """)
+    students_without_module_activity = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT phone, total_messages, ai_questions, modules_opened, last_active
+        FROM student_metrics
+        ORDER BY (
+            COALESCE(total_messages, 0)
+            + COALESCE(ai_questions, 0) * 2
+            + COALESCE(modules_opened, 0) * 3
+        ) DESC,
+        last_active DESC
+        LIMIT 10
+    """)
+    most_active_students = c.fetchall()
+
+    # -------------------------
+    # PAYMENT / APP CONVERSION
+    # -------------------------
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM users
+        WHERE is_paid = 1
+    """)
+    paid_students = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(DISTINCT u.phone)
+        FROM users u
+        INNER JOIN app_installs a
+            ON a.phone = u.phone
+        WHERE u.is_paid = 1
+    """)
+    paid_with_app = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(DISTINCT u.phone)
+        FROM users u
+        INNER JOIN app_installs a
+            ON a.phone = u.phone
+        WHERE u.is_paid = 0
+    """)
+    unpaid_with_app = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(DISTINCT u.phone)
+        FROM users u
+        LEFT JOIN app_installs a
+            ON a.phone = u.phone
+        WHERE u.is_paid = 1
+        AND a.phone IS NULL
+    """)
+    paid_without_app = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(DISTINCT u.phone)
+        FROM users u
+        INNER JOIN app_installs a
+            ON a.phone = u.phone
+        WHERE u.is_paid = 1
+        AND (
+            a.last_opened_at IS NULL
+            OR a.last_opened_at < CURRENT_TIMESTAMP - INTERVAL '7 DAYS'
+        )
+    """)
+    paid_inactive_7_days = c.fetchone()[0] or 0
+
+    # -------------------------
+    # RECENT APP USERS
+    # -------------------------
+
+    c.execute("""
+        SELECT
+            device_id,
+            phone,
+            app_version,
+            device_model,
+            last_opened_at,
+            open_count
+        FROM app_installs
+        ORDER BY last_opened_at DESC NULLS LAST
+        LIMIT 20
+    """)
+    recent_installs = c.fetchall()
+
+    release_db(conn)
+
     conn = get_db()
     c = conn.cursor()
 
@@ -7458,40 +7639,283 @@ def admin_dashboard():
     
     html = "<h2>Arachis Admin Dashboard</h2>"
 
-    # ===== STATS =====
-    html += f"""
-    <h3>📊 System Stats</h3>
-    <ul>
-        <li>Total WhatsApp Users: <b>{stats['total_users']}</b></li>
-        <li>Paid Users: <b>{stats['paid_users']}</b></li>
-        <li>Module Opens: <b>{stats['module_opens']}</b></li>
-        <li>AI Questions Asked: <b>{stats['ai_questions']}</b></li>
-        <li>Blocked Access Attempts: <b>{stats['blocked_attempts']}</b></li>
-    </ul>
+    # =========================================================
+    # 📊 DASHBOARD
+    # =========================================================
 
-    <h3>📱 Android App Installs</h3>
-    <ul>
-        <li>Total App Installs / First Opens: <b>{install_stats['total_installs']}</b></li>
-        <li>Active Today: <b>{install_stats['active_today']}</b></li>
-        <li>Devices Linked To WhatsApp Number: <b>{install_stats['logged_in_devices']}</b></li>
-    </ul>
+    html = "<h2>📊 Arachis Admin Dashboard</h2>"
+
+    # =========================================================
+    # SYSTEM OVERVIEW
+    # =========================================================
+
+    html += f"""
+    <h3>👥 System Overview</h3>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+
+        <tr>
+            <td>WhatsApp Users</td>
+            <td><b>{stats['total_users']}</b></td>
+        </tr>
+
+        <tr>
+            <td>Paid Students</td>
+            <td><b>{paid_students}</b></td>
+        </tr>
+
+        <tr>
+            <td>Total Android Devices</td>
+            <td><b>{total_app_devices}</b></td>
+        </tr>
+
+        <tr>
+            <td>Total App Opens</td>
+            <td><b>{total_app_opens}</b></td>
+        </tr>
+
+        <tr>
+            <td>Total Lesson Opens</td>
+            <td><b>{total_module_opens}</b></td>
+        </tr>
+
+        <tr>
+            <td>AI Questions</td>
+            <td><b>{stats['ai_questions']}</b></td>
+        </tr>
+
+        <tr>
+            <td>Blocked Access Attempts</td>
+            <td><b>{stats['blocked_attempts']}</b></td>
+        </tr>
+    </table>
+
     <hr>
     """
-    html += "<h3>📲 Recent Android App Opens</h3>"
 
-    if not install_stats["recent_installs"]:
-        html += "<p>No app opens tracked yet.</p>"
-    else:
-        for r in install_stats["recent_installs"]:
+    # =========================================================
+    # APP ENGAGEMENT
+    # =========================================================
+
+    html += f"""
+    <h3>📱 Android App Engagement</h3>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+
+        <tr>
+            <td>Total Devices</td>
+            <td><b>{total_app_devices}</b></td>
+        </tr>
+
+        <tr>
+            <td>Active Today</td>
+            <td><b>{app_active_today}</b></td>
+        </tr>
+
+        <tr>
+            <td>Active This Week</td>
+            <td><b>{app_active_week}</b></td>
+        </tr>
+
+        <tr>
+            <td>Active This Month</td>
+            <td><b>{app_active_month}</b></td>
+        </tr>
+
+        <tr>
+            <td>Total App Opens</td>
+            <td><b>{total_app_opens}</b></td>
+        </tr>
+
+        <tr>
+            <td>Average Opens / Device</td>
+            <td><b>{average_app_opens}</b></td>
+        </tr>
+    </table>
+
+    <hr>
+    """
+
+    # =========================================================
+    # TRAINING ENGAGEMENT
+    # =========================================================
+
+    html += f"""
+    <h3>🎓 Training Engagement</h3>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+
+        <tr>
+            <td>Total Lesson Opens</td>
+            <td><b>{total_module_opens}</b></td>
+        </tr>
+
+        <tr>
+            <td>Lesson Opens Today</td>
+            <td><b>{module_opens_today}</b></td>
+        </tr>
+
+        <tr>
+            <td>Students With Lesson Activity</td>
+            <td><b>{students_with_module_activity}</b></td>
+        </tr>
+
+        <tr>
+            <td>Students With No Lesson Activity</td>
+            <td><b>{students_without_module_activity}</b></td>
+        </tr>
+    </table>
+
+    <h4>🔥 Most Popular Lessons</h4>
+    """
+
+    if popular_modules:
+        html += """
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Rank</th>
+                <th>Lesson</th>
+                <th>Opens</th>
+            </tr>
+        """
+
+        for i, module in enumerate(popular_modules, start=1):
             html += f"""
-            📱 Device: {r[3]} |
-            Phone: {r[1]} |
-            Version: {r[2]} |
-            First Open: {r[4]} |
-            Last Open: {r[5]} |
-            Opens: {r[6]}
-            <br>
+            <tr>
+                <td>{i}</td>
+                <td>{module[0]}</td>
+                <td><b>{module[1]}</b></td>
+            </tr>
             """
+
+        html += "</table>"
+    else:
+        html += "<p>No lesson activity yet.</p>"
+
+    html += "<hr>"
+
+    # =========================================================
+    # CONVERSION
+    # =========================================================
+
+    html += f"""
+    <h3>💰 Student → App Conversion</h3>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+        <tr>
+            <th>Group</th>
+            <th>Students</th>
+        </tr>
+
+        <tr>
+            <td>Paid + Using App</td>
+            <td><b>{paid_with_app}</b></td>
+        </tr>
+
+        <tr>
+            <td>Paid + No App</td>
+            <td><b>{paid_without_app}</b></td>
+        </tr>
+
+        <tr>
+            <td>Unpaid + Using App</td>
+            <td><b>{unpaid_with_app}</b></td>
+        </tr>
+
+        <tr>
+            <td>Paid But Inactive 7+ Days</td>
+            <td><b>{paid_inactive_7_days}</b></td>
+        </tr>
+    </table>
+
+    <hr>
+    """
+
+    # =========================================================
+    # STUDENT INTELLIGENCE
+    # =========================================================
+
+    html += """
+    <h3>🧠 Most Active Students</h3>
+    """
+
+    if most_active_students:
+        html += """
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Phone</th>
+                <th>Messages</th>
+                <th>AI Questions</th>
+                <th>Modules</th>
+                <th>Last Active</th>
+            </tr>
+        """
+
+        for s in most_active_students:
+            html += f"""
+            <tr>
+                <td>{s[0]}</td>
+                <td>{s[1]}</td>
+                <td>{s[2]}</td>
+                <td>{s[3]}</td>
+                <td>{s[4]}</td>
+            </tr>
+            """
+
+        html += "</table>"
+    else:
+        html += "<p>No student activity yet.</p>"
+
+    html += "<hr>"
+    
+    # =========================================================
+    # RECENT APP ACTIVITY
+    # =========================================================
+
+    html += """
+    <h3>📲 Recent Android App Activity</h3>
+    """
+
+    if not recent_installs:
+        html += "<p>No app activity tracked yet.</p>"
+    else:
+        html += """
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Device</th>
+                <th>Phone</th>
+                <th>Version</th>
+                <th>Model</th>
+                <th>Last Open</th>
+                <th>Total Opens</th>
+            </tr>
+        """
+
+        for r in recent_installs:
+            html += f"""
+            <tr>
+                <td>{r[0]}</td>
+                <td>{r[1]}</td>
+                <td>{r[2]}</td>
+                <td>{r[3]}</td>
+                <td>{r[4]}</td>
+                <td><b>{r[5]}</b></td>
+            </tr>
+            """
+
+        html += "</table>"
 
     html += "<hr>"
 
@@ -7675,18 +8099,7 @@ def admin_dashboard():
             🗓 {created}<br>
             <a href='/admin/approve-offline/{phone}'>✅ Approve</a>
             <hr>
-            """
-        html += "<hr><h3>🧠 Student Intelligence</h3>"
-
-        for s in students:
-            html += f"""
-            📱 {s[0]} |
-            💬 Msgs: {s[1]} |
-            🤖 AI: {s[2]} |
-            📚 Modules: {s[3]} |
-            🕒 Last: {s[4]}
-            <br>
-            """    
+            """  
 
         html += """
         <hr>
