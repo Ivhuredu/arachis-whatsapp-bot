@@ -7338,6 +7338,198 @@ def admin_dashboard():
 
             return redirect(url_for("admin_dashboard"))
 
+        # ============================================================
+        # LIVE TRAINING MANAGEMENT
+        # ============================================================
+
+        html += """
+        <hr>
+
+        <h3>🎥 Live Training / Online Classroom</h3>
+
+        <p>
+        Create the next online training session here.
+        The Android app will receive published sessions automatically
+        from Render — no APK update is required.
+        </p>
+
+        <form method="POST" action="/admin/live-training/add">
+
+            <label>Training Title</label><br>
+            <input
+                type="text"
+                name="title"
+                required
+                placeholder="Example: Live Detergent Production Training"
+                style="width:400px;"
+            >
+
+            <br><br>
+
+            <label>Description</label><br>
+            <textarea
+                name="description"
+                rows="4"
+                cols="60"
+                placeholder="What will students learn?"
+            ></textarea>
+
+            <br><br>
+
+            <label>Date and Time</label><br>
+            <input
+                type="datetime-local"
+                name="scheduled_at"
+            >
+
+            <br><br>
+
+            <label>Video URL</label><br>
+            <input
+                type="url"
+                name="video_url"
+                placeholder="https://..."
+                style="width:500px;"
+            >
+
+            <br><br>
+
+            <label>Thumbnail URL</label><br>
+            <input
+                type="url"
+                name="thumbnail_url"
+                placeholder="https://..."
+                style="width:500px;"
+            >
+
+            <br><br>
+
+            <label>Language</label><br>
+
+            <select name="language">
+                <option value="en">English</option>
+                <option value="sn">Shona</option>
+            </select>
+
+            <br><br>
+
+            <button type="submit">
+                Add Live Training
+            </button>
+
+        </form>
+
+        <hr>
+
+        <h4>📚 Existing Live Training Sessions</h4>
+        """
+        if live_training_classes:
+
+            html += """
+            <table border="1" cellpadding="6" cellspacing="0">
+
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Date</th>
+                    <th>Language</th>
+                    <th>Status</th>
+                    <th>Video</th>
+                    <th>Actions</th>
+                </tr>
+            """
+
+            for live_class in live_training_classes:
+
+                (
+                    class_id,
+                    title,
+                    description,
+                    scheduled_at,
+                    video_url,
+                    thumbnail_url,
+                    language,
+                    status,
+                    created_at
+                ) = live_class
+
+                scheduled_display = (
+                    scheduled_at.strftime("%Y-%m-%d %H:%M")
+                    if scheduled_at
+                    else "Not scheduled"
+                )
+
+                video_display = (
+                    "<a href='"
+                    + str(video_url)
+                    + "' target='_blank'>Open Video</a>"
+                    if video_url
+                    else "No video"
+                )
+
+                html += f"""
+                <tr>
+
+                    <td>{class_id}</td>
+
+                    <td>
+                        <b>{title}</b><br>
+                        {description or ""}
+                    </td>
+
+                    <td>{scheduled_display}</td>
+
+                    <td>{language}</td>
+
+                    <td>
+                        <b>{status}</b>
+                    </td>
+
+                    <td>
+                        {video_display}
+                    </td>
+
+                    <td>
+
+                        <a href="/admin/live-training/status/{class_id}/published">
+                            Publish
+                        </a>
+
+                        |
+
+                        <a href="/admin/live-training/status/{class_id}/draft">
+                            Draft
+                        </a>
+
+                        |
+
+                        <a href="/admin/live-training/status/{class_id}/archived">
+                            Archive
+                        </a>
+
+                        |
+
+                        <a
+                            href="/admin/live-training/delete/{class_id}"
+                            style="color:red;"
+                            onclick="return confirm('Delete this Live Training session?');"
+                        >
+                            Delete
+                        </a>
+
+                    </td>
+
+                </tr>
+                """
+
+            html += "</table>"
+
+        else:
+
+            html += "<p>No Live Training sessions created yet.</p>"
+
+        html += "<hr>"
+
         # =========================
         # EXISTING PDF/APK UPLOAD LOGIC
         # =========================
@@ -7373,6 +7565,34 @@ def admin_dashboard():
     # =========================================================
     conn = get_db()
     c = conn.cursor()
+
+    # ============================================================
+    # LIVE TRAINING DATA
+    # ============================================================
+
+    c.execute("""
+        SELECT
+            id,
+            title,
+            description,
+            scheduled_at,
+            video_url,
+            thumbnail_url,
+            language,
+            status,
+            created_at
+        FROM live_training_classes
+        ORDER BY
+            CASE
+                WHEN scheduled_at >= CURRENT_TIMESTAMP THEN 0
+                ELSE 1
+            END,
+            scheduled_at ASC NULLS LAST,
+            created_at DESC
+        LIMIT 100
+    """)
+
+    live_training_classes = c.fetchall()
 
     # -------------------------
     # APP METRICS
@@ -7445,6 +7665,66 @@ def admin_dashboard():
         LIMIT 10
     """)
     popular_modules = c.fetchall()
+
+    # ============================================================
+    # ANDROID LESSON ANALYTICS
+    # ============================================================
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM lesson_open_events
+    """)
+    android_lesson_opens = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(DISTINCT phone)
+        FROM lesson_open_events
+        WHERE phone IS NOT NULL
+          AND phone <> ''
+    """)
+    android_students_opening_lessons = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT COUNT(*)
+        FROM lesson_open_events
+        WHERE opened_at::date = CURRENT_DATE
+    """)
+    android_lesson_opens_today = c.fetchone()[0] or 0
+
+    c.execute("""
+        SELECT
+            lesson_id,
+            COALESCE(MAX(lesson_name), lesson_id) AS lesson_name,
+            COUNT(*) AS opens
+        FROM lesson_open_events
+        GROUP BY lesson_id
+        ORDER BY opens DESC
+        LIMIT 20
+    """)
+    android_popular_lessons = c.fetchall()
+
+    c.execute("""
+        SELECT
+            language,
+            COUNT(*) AS opens
+        FROM lesson_open_events
+        GROUP BY language
+        ORDER BY opens DESC
+    """)
+    android_language_usage = c.fetchall()
+
+    c.execute("""
+        SELECT
+            phone,
+            MAX(opened_at) AS last_lesson_opened
+        FROM lesson_open_events
+        WHERE phone IS NOT NULL
+          AND phone <> ''
+        GROUP BY phone
+        ORDER BY last_lesson_opened DESC
+        LIMIT 50
+    """)
+    recent_lesson_students = c.fetchall()
 
     # -------------------------
     # STUDENT ENGAGEMENT
@@ -7734,6 +8014,108 @@ def admin_dashboard():
 
     <hr>
     """
+    # ============================================================
+    # ANDROID LESSON ANALYTICS
+    # ============================================================
+
+    html += f"""
+    <hr>
+
+    <h3>📚 Android Lesson Analytics</h3>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+
+        <tr>
+            <td>Total Android Lesson Opens</td>
+            <td><b>{android_lesson_opens}</b></td>
+        </tr>
+
+        <tr>
+            <td>Lesson Opens Today</td>
+            <td><b>{android_lesson_opens_today}</b></td>
+        </tr>
+
+        <tr>
+            <td>Students Opening Lessons</td>
+            <td><b>{android_students_opening_lessons}</b></td>
+        </tr>
+
+    </table>
+
+    <h4>🔥 Most Opened Android Lessons</h4>
+    """
+
+    if android_popular_lessons:
+
+        html += """
+        <table border="1" cellpadding="6" cellspacing="0">
+
+            <tr>
+                <th>Lesson</th>
+                <th>Opens</th>
+            </tr>
+        """
+
+        for lesson in android_popular_lessons:
+
+            html += f"""
+            <tr>
+                <td>{lesson[1]}</td>
+                <td><b>{lesson[2]}</b></td>
+            </tr>
+            """
+
+        html += "</table>"
+
+    else:
+
+        html += "<p>No Android lesson opens recorded yet.</p>"
+
+
+    html += """
+    <h4>🌍 Language Usage</h4>
+    """
+
+    if android_language_usage:
+
+        html += """
+        <table border="1" cellpadding="6" cellspacing="0">
+
+            <tr>
+                <th>Language</th>
+                <th>Lesson Opens</th>
+            </tr>
+        """
+
+        for language_row in android_language_usage:
+
+            language_name = (
+                "Shona"
+                if language_row[0] == "sn"
+                else "English"
+                if language_row[0] == "en"
+                else language_row[0]
+            )
+
+            html += f"""
+            <tr>
+                <td>{language_name}</td>
+                <td><b>{language_row[1]}</b></td>
+            </tr>
+            """
+
+        html += "</table>"
+
+    else:
+
+        html += "<p>No language usage recorded yet.</p>"
+
+    html += "<hr>"
 
     # =========================================================
     # TRAINING ENGAGEMENT
@@ -8420,6 +8802,205 @@ def mobile_install():
             "message": "Server error"
         }), 500
 
+# ============================================================
+# MOBILE LESSON OPEN TRACKING
+# ============================================================
+
+@app.route("/api/mobile/lesson-open", methods=["POST"])
+def mobile_lesson_open():
+    conn = None
+
+    try:
+        data = request.get_json(silent=True) or {}
+
+        phone = str(data.get("phone", "") or "").strip()
+        device_id = str(data.get("device_id", "") or "").strip()
+        lesson_id = str(data.get("lesson_id", "") or "").strip()
+        lesson_name = str(data.get("lesson_name", "") or "").strip()
+        category = str(data.get("category", "") or "").strip()
+        language = str(data.get("language", "en") or "en").strip().lower()
+        app_version = str(data.get("app_version", "") or "").strip()
+        device_model = str(data.get("device_model", "") or "").strip()
+
+        if phone:
+            phone = normalize_phone(phone)
+
+        if not lesson_id:
+            return jsonify({
+                "success": False,
+                "message": "Lesson ID required"
+            }), 400
+
+        # Keep language values predictable
+        if language not in ["en", "sn"]:
+            language = "en"
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            INSERT INTO lesson_open_events (
+                phone,
+                device_id,
+                lesson_id,
+                lesson_name,
+                category,
+                language,
+                app_version,
+                device_model
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            phone,
+            device_id,
+            lesson_id,
+            lesson_name,
+            category,
+            language,
+            app_version,
+            device_model
+        ))
+
+        conn.commit()
+        release_db(conn)
+        conn = None
+
+        # Also update the existing student activity system.
+        if phone:
+            try:
+                update_metrics(phone, "module")
+                log_activity(
+                    phone,
+                    "open_module_app",
+                    lesson_id
+                )
+            except Exception as activity_error:
+                print(
+                    "LESSON ACTIVITY UPDATE ERROR:",
+                    activity_error
+                )
+
+        return jsonify({
+            "success": True,
+            "message": "Lesson open tracked"
+        })
+
+    except Exception as e:
+        print("MOBILE LESSON OPEN ERROR:", e)
+
+        if conn:
+            try:
+                conn.rollback()
+                release_db(conn)
+            except Exception:
+                pass
+
+        # Tracking must NEVER prevent the student
+        # from opening the lesson.
+        return jsonify({
+            "success": False,
+            "message": "Tracking temporarily unavailable"
+        }), 200
+
+# ============================================================
+# MOBILE LIVE TRAINING
+# ============================================================
+
+@app.route("/api/mobile/live-training", methods=["GET"])
+def mobile_live_training():
+    conn = None
+
+    try:
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            SELECT
+                id,
+                title,
+                description,
+                scheduled_at,
+                video_url,
+                thumbnail_url,
+                language,
+                status,
+                created_at,
+                updated_at
+            FROM live_training_classes
+            WHERE status = 'published'
+            ORDER BY
+                CASE
+                    WHEN scheduled_at >= CURRENT_TIMESTAMP THEN 0
+                    ELSE 1
+                END,
+                scheduled_at ASC NULLS LAST,
+                created_at DESC
+            LIMIT 50
+        """)
+
+        rows = c.fetchall()
+
+        release_db(conn)
+        conn = None
+
+        classes = []
+
+        for row in rows:
+            (
+                class_id,
+                title,
+                description,
+                scheduled_at,
+                video_url,
+                thumbnail_url,
+                language,
+                status,
+                created_at,
+                updated_at
+            ) = row
+
+            classes.append({
+                "id": class_id,
+                "title": title or "",
+                "description": description or "",
+                "scheduled_at": (
+                    scheduled_at.isoformat()
+                    if scheduled_at else None
+                ),
+                "video_url": video_url or "",
+                "thumbnail_url": thumbnail_url or "",
+                "language": language or "en",
+                "status": status or "published",
+                "created_at": (
+                    created_at.isoformat()
+                    if created_at else None
+                ),
+                "updated_at": (
+                    updated_at.isoformat()
+                    if updated_at else None
+                )
+            })
+
+        return jsonify({
+            "success": True,
+            "classes": classes
+        })
+
+    except Exception as e:
+        print("LIVE TRAINING API ERROR:", e)
+
+        if conn:
+            try:
+                release_db(conn)
+            except Exception:
+                pass
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to load Live Training",
+            "classes": []
+        }), 200
+
 @app.route("/api/mobile/login", methods=["POST"])
 def mobile_login():
     try:
@@ -8630,6 +9211,108 @@ def mobile_login():
             "success": False,
             "message": "Server error. Please try again."
         }), 500
+
+# ============================================================
+# ADMIN LIVE TRAINING MANAGEMENT
+# ============================================================
+
+@app.route("/admin/live-training/add", methods=["POST"])
+@requires_auth
+def admin_live_training_add():
+
+    title = request.form.get("title", "").strip()
+    description = request.form.get("description", "").strip()
+    scheduled_at = request.form.get("scheduled_at", "").strip()
+    video_url = request.form.get("video_url", "").strip()
+    thumbnail_url = request.form.get("thumbnail_url", "").strip()
+    language = request.form.get("language", "en").strip().lower()
+
+    if not title:
+        return "Live Training title is required", 400
+
+    if language not in ["en", "sn"]:
+        language = "en"
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO live_training_classes (
+            title,
+            description,
+            scheduled_at,
+            video_url,
+            thumbnail_url,
+            language,
+            status,
+            created_by
+        )
+        VALUES (
+            %s,
+            %s,
+            NULLIF(%s, '')::timestamptz,
+            %s,
+            %s,
+            %s,
+            'draft',
+            'admin_dashboard'
+        )
+    """, (
+        title,
+        description,
+        scheduled_at,
+        video_url,
+        thumbnail_url,
+        language
+    ))
+
+    conn.commit()
+    release_db(conn)
+
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/live-training/status/<int:class_id>/<status>")
+@requires_auth
+def admin_live_training_status(class_id, status):
+
+    if status not in ["draft", "published", "archived"]:
+        return "Invalid status", 400
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE live_training_classes
+        SET
+            status=%s,
+            updated_at=CURRENT_TIMESTAMP
+        WHERE id=%s
+    """, (
+        status,
+        class_id
+    ))
+
+    conn.commit()
+    release_db(conn)
+
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/live-training/delete/<int:class_id>")
+@requires_auth
+def admin_live_training_delete(class_id):
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        DELETE FROM live_training_classes
+        WHERE id=%s
+    """, (class_id,))
+
+    conn.commit()
+    release_db(conn)
+
+    return redirect(url_for("admin_dashboard"))
 
 @app.route("/api/mobile/marketplace/products", methods=["GET"])
 def mobile_marketplace_products():
