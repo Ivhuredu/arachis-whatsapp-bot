@@ -7647,7 +7647,7 @@ def admin_dashboard():
         <p>No Android lesson opens recorded yet.</p>
         """
 
-     html += "<hr>"
+    html += "<hr>"
 
     # -------------------------
     # STUDENT ENGAGEMENT
