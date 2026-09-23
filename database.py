@@ -292,6 +292,60 @@ def init_db():
         open_count INTEGER DEFAULT 1
     )
     """)
+    # ============================================================
+    # LESSON USAGE + LIVE TRAINING TABLES
+    # ============================================================
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS lesson_open_events (
+            id BIGSERIAL PRIMARY KEY,
+            phone VARCHAR(50),
+            device_id VARCHAR(255),
+            lesson_id VARCHAR(255) NOT NULL,
+            lesson_name TEXT,
+            category VARCHAR(255),
+            language VARCHAR(20) DEFAULT 'en',
+            app_version VARCHAR(50),
+            device_model VARCHAR(255),
+            opened_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    c.execute("""
+        CREATE INDEX IF NOT EXISTS idx_lesson_open_events_lesson
+        ON lesson_open_events (lesson_id, opened_at)
+    """)
+
+    c.execute("""
+        CREATE INDEX IF NOT EXISTS idx_lesson_open_events_phone
+        ON lesson_open_events (phone, opened_at)
+    """)
+
+    c.execute("""
+        CREATE INDEX IF NOT EXISTS idx_lesson_open_events_opened_at
+        ON lesson_open_events (opened_at)
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS live_training_classes (
+            id BIGSERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            scheduled_at TIMESTAMPTZ,
+            video_url TEXT,
+            thumbnail_url TEXT,
+            language VARCHAR(20) DEFAULT 'en',
+            status VARCHAR(30) DEFAULT 'draft',
+            created_by VARCHAR(100),
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    c.execute("""
+        CREATE INDEX IF NOT EXISTS idx_live_training_status
+        ON live_training_classes (status, scheduled_at)
+    """)
     c.execute("""
     CREATE TABLE IF NOT EXISTS training_events (
         id SERIAL PRIMARY KEY,
