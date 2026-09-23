@@ -7338,198 +7338,6 @@ def admin_dashboard():
 
             return redirect(url_for("admin_dashboard"))
 
-        # ============================================================
-        # LIVE TRAINING MANAGEMENT
-        # ============================================================
-
-        html += """
-        <hr>
-
-        <h3>🎥 Live Training / Online Classroom</h3>
-
-        <p>
-        Create the next online training session here.
-        The Android app will receive published sessions automatically
-        from Render — no APK update is required.
-        </p>
-
-        <form method="POST" action="/admin/live-training/add">
-
-            <label>Training Title</label><br>
-            <input
-                type="text"
-                name="title"
-                required
-                placeholder="Example: Live Detergent Production Training"
-                style="width:400px;"
-            >
-
-            <br><br>
-
-            <label>Description</label><br>
-            <textarea
-                name="description"
-                rows="4"
-                cols="60"
-                placeholder="What will students learn?"
-            ></textarea>
-
-            <br><br>
-
-            <label>Date and Time</label><br>
-            <input
-                type="datetime-local"
-                name="scheduled_at"
-            >
-
-            <br><br>
-
-            <label>Video URL</label><br>
-            <input
-                type="url"
-                name="video_url"
-                placeholder="https://..."
-                style="width:500px;"
-            >
-
-            <br><br>
-
-            <label>Thumbnail URL</label><br>
-            <input
-                type="url"
-                name="thumbnail_url"
-                placeholder="https://..."
-                style="width:500px;"
-            >
-
-            <br><br>
-
-            <label>Language</label><br>
-
-            <select name="language">
-                <option value="en">English</option>
-                <option value="sn">Shona</option>
-            </select>
-
-            <br><br>
-
-            <button type="submit">
-                Add Live Training
-            </button>
-
-        </form>
-
-        <hr>
-
-        <h4>📚 Existing Live Training Sessions</h4>
-        """
-        if live_training_classes:
-
-            html += """
-            <table border="1" cellpadding="6" cellspacing="0">
-
-                <tr>
-                    <th>ID</th>
-                    <th>Title</th>
-                    <th>Date</th>
-                    <th>Language</th>
-                    <th>Status</th>
-                    <th>Video</th>
-                    <th>Actions</th>
-                </tr>
-            """
-
-            for live_class in live_training_classes:
-
-                (
-                    class_id,
-                    title,
-                    description,
-                    scheduled_at,
-                    video_url,
-                    thumbnail_url,
-                    language,
-                    status,
-                    created_at
-                ) = live_class
-
-                scheduled_display = (
-                    scheduled_at.strftime("%Y-%m-%d %H:%M")
-                    if scheduled_at
-                    else "Not scheduled"
-                )
-
-                video_display = (
-                    "<a href='"
-                    + str(video_url)
-                    + "' target='_blank'>Open Video</a>"
-                    if video_url
-                    else "No video"
-                )
-
-                html += f"""
-                <tr>
-
-                    <td>{class_id}</td>
-
-                    <td>
-                        <b>{title}</b><br>
-                        {description or ""}
-                    </td>
-
-                    <td>{scheduled_display}</td>
-
-                    <td>{language}</td>
-
-                    <td>
-                        <b>{status}</b>
-                    </td>
-
-                    <td>
-                        {video_display}
-                    </td>
-
-                    <td>
-
-                        <a href="/admin/live-training/status/{class_id}/published">
-                            Publish
-                        </a>
-
-                        |
-
-                        <a href="/admin/live-training/status/{class_id}/draft">
-                            Draft
-                        </a>
-
-                        |
-
-                        <a href="/admin/live-training/status/{class_id}/archived">
-                            Archive
-                        </a>
-
-                        |
-
-                        <a
-                            href="/admin/live-training/delete/{class_id}"
-                            style="color:red;"
-                            onclick="return confirm('Delete this Live Training session?');"
-                        >
-                            Delete
-                        </a>
-
-                    </td>
-
-                </tr>
-                """
-
-            html += "</table>"
-
-        else:
-
-            html += "<p>No Live Training sessions created yet.</p>"
-
-        html += "<hr>"
-
         # =========================
         # EXISTING PDF/APK UPLOAD LOGIC
         # =========================
@@ -8114,6 +7922,203 @@ def admin_dashboard():
     else:
 
         html += "<p>No language usage recorded yet.</p>"
+
+    html += "<hr>"
+
+    # ============================================================
+    # 🎥 LIVE TRAINING / ONLINE CLASSROOM
+    # ============================================================
+
+    html += """
+    <hr>
+
+    <h3>🎥 Live Training / Online Classroom</h3>
+
+    <p>
+    Create and manage the online training sessions that appear
+    inside the Arachis Android app.
+    </p>
+
+    <form method="POST" action="/admin/live-training/add">
+
+        <label><b>Training Title</b></label><br>
+        <input
+            type="text"
+            name="title"
+            required
+            placeholder="Example: Live Detergent Production Training"
+            style="width:400px;"
+        >
+
+        <br><br>
+
+        <label><b>Description</b></label><br>
+        <textarea
+            name="description"
+            rows="4"
+            cols="60"
+            placeholder="What will students learn?"
+        ></textarea>
+
+        <br><br>
+
+        <label><b>Date and Time</b></label><br>
+        <input
+            type="datetime-local"
+            name="scheduled_at"
+        >
+
+        <br><br>
+
+        <label><b>Video URL</b></label><br>
+        <input
+            type="url"
+            name="video_url"
+            placeholder="https://..."
+            style="width:500px;"
+        >
+
+        <br><br>
+
+        <label><b>Thumbnail URL</b></label><br>
+        <input
+            type="url"
+            name="thumbnail_url"
+            placeholder="https://..."
+            style="width:500px;"
+        >
+
+        <br><br>
+
+        <label><b>Language</b></label><br>
+
+        <select name="language">
+            <option value="en">English</option>
+            <option value="sn">Shona</option>
+        </select>
+
+        <br><br>
+
+        <button type="submit">
+            ➕ Add Live Training
+        </button>
+
+    </form>
+
+    <hr>
+
+    <h4>📚 Existing Live Training Sessions</h4>
+    """
+
+    if live_training_classes:
+
+        html += """
+        <table border="1" cellpadding="6" cellspacing="0">
+
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Date</th>
+                <th>Language</th>
+                <th>Status</th>
+                <th>Video</th>
+                <th>Actions</th>
+            </tr>
+        """
+
+        for live_class in live_training_classes:
+
+            (
+                class_id,
+                title,
+                description,
+                scheduled_at,
+                video_url,
+                thumbnail_url,
+                language,
+                status,
+                created_at
+            ) = live_class
+
+            scheduled_display = (
+                scheduled_at.strftime("%Y-%m-%d %H:%M")
+                if scheduled_at
+                else "Not scheduled"
+            )
+
+            if video_url:
+                video_display = (
+                    "<a href='"
+                    + str(video_url)
+                    + "' target='_blank'>Open Video</a>"
+                )
+            else:
+                video_display = "No video"
+
+            html += f"""
+            <tr>
+
+                <td>{class_id}</td>
+
+                <td>
+                    <b>{title}</b><br>
+                    {description or ""}
+                </td>
+
+                <td>{scheduled_display}</td>
+
+                <td>{language}</td>
+
+                <td>
+                    <b>{status}</b>
+                </td>
+
+                <td>
+                    {video_display}
+                </td>
+
+                <td>
+
+                    <a href="/admin/live-training/status/{class_id}/published">
+                        Publish
+                    </a>
+
+                    |
+
+                    <a href="/admin/live-training/status/{class_id}/draft">
+                        Draft
+                    </a>
+
+                    |
+
+                    <a href="/admin/live-training/status/{class_id}/archived">
+                        Archive
+                    </a>
+
+                    |
+
+                    <a
+                        href="/admin/live-training/delete/{class_id}"
+                        style="color:red;"
+                        onclick="return confirm('Delete this Live Training session?');"
+                    >
+                        Delete
+                    </a>
+
+                </td>
+
+            </tr>
+            """
+
+        html += "</table>"
+
+    else:
+
+        html += """
+        <p>
+            No Live Training sessions created yet.
+        </p>
+        """
 
     html += "<hr>"
 
