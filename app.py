@@ -7555,100 +7555,6 @@ def admin_dashboard():
 
     android_lesson_open_details = c.fetchall()
 
-    # ============================================================
-    # 📚 LESSON OPEN HISTORY
-    # ============================================================
-
-    html += """
-    <hr>
-
-    <h3>📚 Android Lesson Open History</h3>
-
-    <p>
-    This shows exactly which lessons students opened from the Android app.
-    </p>
-    """
-
-    if android_lesson_open_details:
-
-        html += """
-        <table border="1" cellpadding="6" cellspacing="0">
-
-            <tr>
-                <th>Student</th>
-                <th>Lesson</th>
-                <th>Lesson ID</th>
-                <th>Category</th>
-                <th>Language</th>
-                <th>Device</th>
-                <th>App Version</th>
-                <th>Opened At</th>
-            </tr>
-        """
-
-        for row in android_lesson_open_details:
-
-            (
-                phone,
-                lesson_id,
-                lesson_name,
-                category,
-                language,
-                device_model,
-                app_version,
-                opened_at
-            ) = row
-
-            if opened_at:
-                try:
-                    opened_display = opened_at.astimezone(
-                        ZIMBABWE_TZ
-                    ).strftime("%Y-%m-%d %H:%M")
-                except Exception:
-                    opened_display = str(opened_at)
-            else:
-                opened_display = ""
-
-            language_display = (
-                "Shona"
-                if language == "sn"
-                else "English"
-            )
-
-            html += f"""
-            <tr>
-
-                <td>{phone or "Unknown"}</td>
-
-                <td>
-                    <b>{lesson_name or lesson_id or "Unknown lesson"}</b>
-                </td>
-
-                <td>{lesson_id or ""}</td>
-
-                <td>{category or ""}</td>
-
-                <td>{language_display}</td>
-
-                <td>{device_model or ""}</td>
-
-                <td>{app_version or ""}</td>
-
-                <td>{opened_display}</td>
-
-            </tr>
-            """
-
-        html += "</table>"
-
-    else:
-
-        html += """
-        <p>No Android lesson opens recorded yet.</p>
-        """
-
-    html += "<hr>"
-
     # -------------------------
     # STUDENT ENGAGEMENT
     # -------------------------
@@ -8037,6 +7943,100 @@ def admin_dashboard():
     else:
 
         html += "<p>No language usage recorded yet.</p>"
+
+    html += "<hr>"
+
+    # ============================================================
+    # 📚 LESSON OPEN HISTORY
+    # ============================================================
+
+    html += """
+    <hr>
+
+    <h3>📚 Android Lesson Open History</h3>
+
+    <p>
+    This shows exactly which lessons students opened from the Android app.
+    </p>
+    """
+
+    if android_lesson_open_details:
+
+        html += """
+        <table border="1" cellpadding="6" cellspacing="0">
+
+            <tr>
+                <th>Student</th>
+                <th>Lesson</th>
+                <th>Lesson ID</th>
+                <th>Category</th>
+                <th>Language</th>
+                <th>Device</th>
+                <th>App Version</th>
+                <th>Opened At</th>
+            </tr>
+        """
+
+        for row in android_lesson_open_details:
+
+            (
+                phone,
+                lesson_id,
+                lesson_name,
+                category,
+                language,
+                device_model,
+                app_version,
+                opened_at
+            ) = row
+
+            if opened_at:
+                try:
+                    opened_display = opened_at.astimezone(
+                        ZIMBABWE_TZ
+                    ).strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    opened_display = str(opened_at)
+            else:
+                opened_display = ""
+
+            language_display = (
+                "Shona"
+                if language == "sn"
+                else "English"
+            )
+
+            html += f"""
+            <tr>
+
+                <td>{phone or "Unknown"}</td>
+
+                <td>
+                    <b>{lesson_name or lesson_id or "Unknown lesson"}</b>
+                </td>
+
+                <td>{lesson_id or ""}</td>
+
+                <td>{category or ""}</td>
+
+                <td>{language_display}</td>
+
+                <td>{device_model or ""}</td>
+
+                <td>{app_version or ""}</td>
+
+                <td>{opened_display}</td>
+
+            </tr>
+            """
+
+        html += "</table>"
+
+    else:
+
+        html += """
+        <p>No Android lesson opens recorded yet.</p>
+        """
 
     html += "<hr>"
 
