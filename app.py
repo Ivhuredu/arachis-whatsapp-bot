@@ -5,6 +5,8 @@ from database import get_db, release_db, init_db
 import os
 import json
 import base64
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask import Response
@@ -14,6 +16,7 @@ from config import *
 from ai import *
 from utils import safe_text
 from services import *
+
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -7388,6 +7391,7 @@ def admin_dashboard():
             thumbnail_url,
             language,
             status,
+            duration_minutes,
             created_at
         FROM live_training_classes
         ORDER BY
@@ -8047,11 +8051,11 @@ def admin_dashboard():
     html += """
     <hr>
 
-    <h3>🎥 Live Training / Online Classroom</h3>
+    <h3>🎥 Scheduled Training Broadcasts</h3>
 
     <p>
-    Create and manage the online training sessions that appear
-    inside the Arachis Android app.
+    Schedule recorded in-person training videos to be shown to students
+    as Live Training sessions at a specific date and time.
     </p>
 
     <form method="POST" action="/admin/live-training/add">
@@ -8085,7 +8089,7 @@ def admin_dashboard():
 
         <br><br>
 
-        <label><b>Video URL</b></label><br>
+        <label><b>Recorded Training Video URL</b></label>
         <input
             type="url"
             name="video_url"
@@ -8152,6 +8156,7 @@ def admin_dashboard():
                 thumbnail_url,
                 language,
                 status,
+                duration_minutes,
                 created_at
             ) = live_class
 
@@ -9023,7 +9028,105 @@ def mobile_lesson_open():
         }), 200
 
 # ============================================================
-# MOBILE LIVE TRAINING
+# LIVE TRAINING / SCHEDULED REPLAY STATE
+# ============================================================
+
+HARARE_TZ = ZoneInfo("Africa/Harare")
+
+
+def get_training_state(scheduled_at, duration_minutes=120):
+    """
+    Calculate the current state of a scheduled recorded training.
+
+    States:
+        unscheduled - no scheduled date/time
+        upcoming    - scheduled time has not arrived
+        live_now    - current time is within the training window
+        replay      - scheduled training has finished
+
+    All comparisons are timezone-aware.
+    """
+
+    if not scheduled_at:
+        return {
+            "state": "unscheduled",
+            "label": "Not Scheduled",
+            "is_live": False
+        }
+
+    # PostgreSQL timestamptz normally returns an aware datetime.
+    # This also protects us if a naive datetime somehow comes back.
+    if scheduled_at.tzinfo is None:
+        scheduled_at = scheduled_at.replace(tzinfo=HARARE_TZ)
+
+    # Convert to UTC for reliable comparison.
+    scheduled_at_utc = scheduled_at.astimezone(timezone.utc)
+
+    now_utc = datetime.now(timezone.utc)
+
+    try:
+        duration_minutes = int(duration_minutes or 120)
+    except (TypeError, ValueError):
+        duration_minutes = 120
+
+    # Prevent invalid/zero durations.
+    if duration_minutes <= 0:
+        duration_minutes = 120
+
+    end_at_utc = scheduled_at_utc + timedelta(
+        minutes=duration_minutes
+    )
+
+    # --------------------------------------------------------
+    # BEFORE TRAINING
+    # --------------------------------------------------------
+    if now_utc < scheduled_at_utc:
+        seconds_until_start = int(
+            (scheduled_at_utc - now_utc).total_seconds()
+        )
+
+        return {
+            "state": "upcoming",
+            "label": "Upcoming",
+            "is_live": False,
+            "seconds_until_start": max(0, seconds_until_start),
+            "started_at": scheduled_at_utc.isoformat(),
+            "ends_at": end_at_utc.isoformat()
+        }
+
+    # --------------------------------------------------------
+    # TRAINING IS CURRENTLY PLAYING
+    # --------------------------------------------------------
+    if now_utc < end_at_utc:
+        seconds_remaining = int(
+            (end_at_utc - now_utc).total_seconds()
+        )
+
+        return {
+            "state": "live_now",
+            "label": "LIVE NOW",
+            "is_live": True,
+            "seconds_until_start": 0,
+            "seconds_remaining": max(0, seconds_remaining),
+            "started_at": scheduled_at_utc.isoformat(),
+            "ends_at": end_at_utc.isoformat()
+        }
+
+    # --------------------------------------------------------
+    # TRAINING HAS FINISHED
+    # --------------------------------------------------------
+    return {
+        "state": "replay",
+        "label": "Replay",
+        "is_live": False,
+        "seconds_until_start": 0,
+        "seconds_remaining": 0,
+        "started_at": scheduled_at_utc.isoformat(),
+        "ends_at": end_at_utc.isoformat()
+    }
+
+# ============================================================
+# MOBILE LIVE TRAINING API
 # ============================================================
 
 @app.route("/api/mobile/live-training", methods=["GET"])
@@ -9044,6 +9147,7 @@ def mobile_live_training():
                 thumbnail_url,
                 language,
                 status,
+                duration_minutes,
                 created_at,
                 updated_at
             FROM live_training_classes
@@ -9075,26 +9179,78 @@ def mobile_live_training():
                 thumbnail_url,
                 language,
                 status,
+                duration_minutes,
                 created_at,
                 updated_at
             ) = row
 
+            # ------------------------------------------------
+            # CALCULATE AUTOMATIC TRAINING STATE
+            # ------------------------------------------------
+            training_state = get_training_state(
+                scheduled_at,
+                duration_minutes
+            )
+
             classes.append({
                 "id": class_id,
+
                 "title": title or "",
+
                 "description": description or "",
+
                 "scheduled_at": (
                     scheduled_at.isoformat()
                     if scheduled_at else None
                 ),
+
                 "video_url": video_url or "",
+
                 "thumbnail_url": thumbnail_url or "",
+
                 "language": language or "en",
+
+                # This remains the ADMIN publication status.
+                # It is NOT the live/replay state.
                 "status": status or "published",
+
+                # Actual calculated broadcast state.
+                "training_state": training_state["state"],
+
+                # Friendly text for the Android app.
+                "training_state_label": training_state["label"],
+
+                # True only while the scheduled training window
+                # is currently active.
+                "is_live": training_state["is_live"],
+
+                "seconds_until_start": training_state.get(
+                    "seconds_until_start", 0
+                ),
+
+                "seconds_remaining": training_state.get(
+                    "seconds_remaining", 0
+                ),
+
+                "started_at": training_state.get(
+                    "started_at"
+                ),
+
+                "ends_at": training_state.get(
+                    "ends_at"
+                ),
+
+                "duration_minutes": (
+                    int(duration_minutes)
+                    if duration_minutes
+                    else 120
+                ),
+
                 "created_at": (
                     created_at.isoformat()
                     if created_at else None
                 ),
+
                 "updated_at": (
                     updated_at.isoformat()
                     if updated_at else None
@@ -9107,7 +9263,6 @@ def mobile_live_training():
         })
 
     except Exception as e:
-        print("LIVE TRAINING API ERROR:", e)
 
         if conn:
             try:
@@ -9115,12 +9270,17 @@ def mobile_live_training():
             except Exception:
                 pass
 
+        print(
+            "ERROR /api/mobile/live-training:",
+            str(e)
+        )
+
         return jsonify({
             "success": False,
             "message": "Unable to load Live Training",
             "classes": []
         }), 200
-
+        
 @app.route("/api/mobile/login", methods=["POST"])
 def mobile_login():
     try:
@@ -9335,23 +9495,69 @@ def mobile_login():
 # ============================================================
 # ADMIN LIVE TRAINING MANAGEMENT
 # ============================================================
-
 @app.route("/admin/live-training/add", methods=["POST"])
 @requires_auth
 def admin_live_training_add():
 
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
-    scheduled_at = request.form.get("scheduled_at", "").strip()
+    scheduled_at_raw = request.form.get("scheduled_at", "").strip()
     video_url = request.form.get("video_url", "").strip()
     thumbnail_url = request.form.get("thumbnail_url", "").strip()
     language = request.form.get("language", "en").strip().lower()
+
+    # Duration
+    duration_minutes_raw = request.form.get(
+        "duration_minutes",
+        "120"
+    ).strip()
+
+    try:
+        duration_minutes = int(duration_minutes_raw)
+    except (TypeError, ValueError):
+        duration_minutes = 120
+
+    if duration_minutes <= 0:
+        duration_minutes = 120
+
+    if duration_minutes > 1440:
+        duration_minutes = 1440
 
     if not title:
         return "Live Training title is required", 400
 
     if language not in ["en", "sn"]:
         language = "en"
+
+    # ========================================================
+    # CONVERT ADMIN DATE/TIME FROM HARARE TIME TO UTC
+    # ========================================================
+
+    scheduled_at_db = None
+
+    if scheduled_at_raw:
+
+        try:
+            # datetime-local gives us:
+            # 2026-10-02T10:00
+            #
+            # We interpret that as Zimbabwe/Harare time.
+            local_dt = datetime.strptime(
+                scheduled_at_raw,
+                "%Y-%m-%dT%H:%M"
+            ).replace(
+                tzinfo=HARARE_TZ
+            )
+
+            # Convert to UTC before storing in PostgreSQL
+            scheduled_at_db = local_dt.astimezone(timezone.utc)
+
+        except ValueError:
+            return "Invalid scheduled date/time", 400
+
+    # ========================================================
+    # SAVE TRAINING
+    # ========================================================
 
     conn = get_db()
     c = conn.cursor()
@@ -9365,25 +9571,28 @@ def admin_live_training_add():
             thumbnail_url,
             language,
             status,
+            duration_minutes,
             created_by
         )
         VALUES (
             %s,
             %s,
-            NULLIF(%s, '')::timestamptz,
+            %s,
             %s,
             %s,
             %s,
             'draft',
+            %s,
             'admin_dashboard'
         )
     """, (
         title,
         description,
-        scheduled_at,
+        scheduled_at_db,
         video_url,
         thumbnail_url,
-        language
+        language,
+        duration_minutes
     ))
 
     conn.commit()
