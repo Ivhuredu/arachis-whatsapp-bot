@@ -6,4 +6,5 @@ werkzeug
 psycopg2-binary
 PyPDF2
 python-dotenv
+boto3
 
