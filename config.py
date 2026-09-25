@@ -51,6 +51,155 @@ APKPURE_URL = "https://apkpure.com/p/com.arachis.training"
 ALLOWED_EXTENSIONS = {"pdf", "apk"}
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
+# ============================================================
+# BACKBLAZE B2 PRIVATE VIDEO STORAGE
+# ============================================================
+
+B2_KEY_ID = os.environ.get("B2_KEY_ID", "").strip()
+B2_APPLICATION_KEY = os.environ.get("B2_APPLICATION_KEY", "").strip()
+B2_BUCKET_NAME = os.environ.get(
+    "B2_BUCKET_NAME",
+    "arachis-training"
+).strip()
+
+B2_ENDPOINT = os.environ.get(
+    "B2_ENDPOINT",
+    "https://s3.us-east-005.backblazeb2.com"
+).strip()
+
+
+def get_b2_client():
+    """
+    Create a Backblaze B2 S3-compatible client.
+
+    Credentials are read ONLY from server environment variables.
+    They are never sent to Android.
+    """
+
+    if not B2_KEY_ID or not B2_APPLICATION_KEY:
+        raise RuntimeError(
+            "Backblaze credentials are not configured. "
+            "Set B2_KEY_ID and B2_APPLICATION_KEY in Render."
+        )
+
+    return boto3.client(
+        "s3",
+        endpoint_url=B2_ENDPOINT,
+        aws_access_key_id=B2_KEY_ID,
+        aws_secret_access_key=B2_APPLICATION_KEY,
+        config=Config(signature_version="s3v4"),
+        region_name="us-east-005"
+    )
+
+
+def get_b2_object_key(video_reference):
+    """
+    Convert the stored video reference into a Backblaze object key.
+
+    Supported examples:
+
+        Dishwash.mp4
+
+        live_training/Dishwash.mp4
+
+        b2://arachis-training/Dishwash.mp4
+
+        https://f005.backblazeb2.com/file/arachis-training/Dishwash.mp4
+
+    Returns:
+        Dishwash.mp4
+    """
+
+    if not video_reference:
+        return None
+
+    value = str(video_reference).strip()
+
+    if not value:
+        return None
+
+    # --------------------------------------------------------
+    # Already a simple object path
+    # --------------------------------------------------------
+    if not value.startswith(("http://", "https://", "b2://")):
+        return value.lstrip("/")
+
+    # --------------------------------------------------------
+    # b2://arachis-training/Dishwash.mp4
+    # --------------------------------------------------------
+    if value.startswith("b2://"):
+
+        parsed = urlparse(value)
+
+        bucket = parsed.netloc
+        object_key = parsed.path.lstrip("/")
+
+        if bucket and bucket != B2_BUCKET_NAME:
+            raise ValueError(
+                "Video belongs to an unexpected Backblaze bucket."
+            )
+
+        return unquote(object_key)
+
+    # --------------------------------------------------------
+    # Backblaze public URL
+    #
+    # https://f005.backblazeb2.com/file/
+    #     arachis-training/Dishwash.mp4
+    # --------------------------------------------------------
+    parsed = urlparse(value)
+
+    hostname = (parsed.hostname or "").lower()
+
+    if "backblazeb2.com" in hostname:
+
+        path = unquote(parsed.path).lstrip("/")
+
+        prefix = f"file/{B2_BUCKET_NAME}/"
+
+        if path.startswith(prefix):
+            return path[len(prefix):]
+
+        # S3-style URL:
+        # https://s3.us-east-005.backblazeb2.com/
+        #     arachis-training/Dishwash.mp4
+        bucket_prefix = f"{B2_BUCKET_NAME}/"
+
+        if path.startswith(bucket_prefix):
+            return path[len(bucket_prefix):]
+
+    raise ValueError(
+        "Unsupported video URL. "
+        "Use a Backblaze video URL or object path."
+    )
+
+
+def generate_b2_signed_video_url(video_reference, expires_seconds=7200):
+    """
+    Generate a temporary signed URL for a private Backblaze video.
+
+    Default expiration:
+        7200 seconds = 2 hours
+    """
+
+    object_key = get_b2_object_key(video_reference)
+
+    if not object_key:
+        return ""
+
+    s3 = get_b2_client()
+
+    signed_url = s3.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={
+            "Bucket": B2_BUCKET_NAME,
+            "Key": object_key
+        },
+        ExpiresIn=expires_seconds
+    )
+
+    return signed_url
+
 PACKAGES = {
     "basic": {
         "price": 5.0,
