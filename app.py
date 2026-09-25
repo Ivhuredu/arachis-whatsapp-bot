@@ -9263,23 +9263,23 @@ def mobile_live_training():
         })
 
     except Exception as e:
-
         if conn:
             try:
                 release_db(conn)
             except Exception:
                 pass
 
-        print(
-            "ERROR /api/mobile/live-training:",
-            str(e)
-        )
+        import traceback
+
+        print("ERROR /api/mobile/live-training:", repr(e))
+        traceback.print_exc()
 
         return jsonify({
             "success": False,
             "message": "Unable to load Live Training",
+            "error": repr(e),
             "classes": []
-        }), 200
+        }), 500
         
 @app.route("/api/mobile/login", methods=["POST"])
 def mobile_login():
