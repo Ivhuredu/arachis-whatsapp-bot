@@ -5,6 +5,9 @@ from database import get_db, release_db, init_db
 import os
 import json
 import base64
+import boto3
+from botocore.client import Config
+from urllib.parse import urlparse, unquote
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from werkzeug.utils import secure_filename
@@ -8089,13 +8092,21 @@ def admin_dashboard():
 
         <br><br>
 
-        <label><b>Recorded Training Video URL</b></label>
+        <label><b>Backblaze Video File</b></label><br>
+
         <input
-            type="url"
+            type="text"
             name="video_url"
-            placeholder="https://..."
+            placeholder="Example: Dishwash.mp4"
             style="width:500px;"
         >
+
+        <br>
+
+        <small>
+            Enter the exact video filename/path inside the
+            arachis-training Backblaze bucket.
+        </small>
 
         <br><br>
 
@@ -9131,9 +9142,11 @@ def get_training_state(scheduled_at, duration_minutes=120):
 
 @app.route("/api/mobile/live-training", methods=["GET"])
 def mobile_live_training():
+
     conn = None
 
     try:
+
         conn = get_db()
         c = conn.cursor()
 
@@ -9170,6 +9183,7 @@ def mobile_live_training():
         classes = []
 
         for row in rows:
+
             (
                 class_id,
                 title,
@@ -9185,14 +9199,48 @@ def mobile_live_training():
             ) = row
 
             # ------------------------------------------------
-            # CALCULATE AUTOMATIC TRAINING STATE
+            # CALCULATE TRAINING STATE
             # ------------------------------------------------
+
             training_state = get_training_state(
                 scheduled_at,
                 duration_minutes
             )
 
+            # ------------------------------------------------
+            # GENERATE PRIVATE BACKBLAZE VIDEO URL
+            # ------------------------------------------------
+
+            private_video_url = ""
+
+            if video_url:
+
+                try:
+
+                    private_video_url = (
+                        generate_b2_signed_video_url(
+                            video_url,
+                            expires_seconds=7200
+                        )
+                    )
+
+                except Exception as video_error:
+
+                    print(
+                        "BACKBLAZE VIDEO URL ERROR:",
+                        repr(video_error)
+                    )
+
+                    # Do not expose the raw private
+                    # storage URL or credentials.
+                    private_video_url = ""
+
+            # ------------------------------------------------
+            # BUILD RESPONSE
+            # ------------------------------------------------
+
             classes.append({
+
                 "id": class_id,
 
                 "title": title or "",
@@ -9201,35 +9249,39 @@ def mobile_live_training():
 
                 "scheduled_at": (
                     scheduled_at.isoformat()
-                    if scheduled_at else None
+                    if scheduled_at
+                    else None
                 ),
 
-                "video_url": video_url or "",
+                # IMPORTANT:
+                # Android receives the temporary signed URL,
+                # NOT the permanent Backblaze object URL.
+                "video_url": private_video_url,
 
                 "thumbnail_url": thumbnail_url or "",
 
                 "language": language or "en",
 
-                # This remains the ADMIN publication status.
-                # It is NOT the live/replay state.
+                # Admin publication status
                 "status": status or "published",
 
-                # Actual calculated broadcast state.
+                # Actual calculated state
                 "training_state": training_state["state"],
 
-                # Friendly text for the Android app.
-                "training_state_label": training_state["label"],
+                "training_state_label": (
+                    training_state["label"]
+                ),
 
-                # True only while the scheduled training window
-                # is currently active.
                 "is_live": training_state["is_live"],
 
                 "seconds_until_start": training_state.get(
-                    "seconds_until_start", 0
+                    "seconds_until_start",
+                    0
                 ),
 
                 "seconds_remaining": training_state.get(
-                    "seconds_remaining", 0
+                    "seconds_remaining",
+                    0
                 ),
 
                 "started_at": training_state.get(
@@ -9248,12 +9300,14 @@ def mobile_live_training():
 
                 "created_at": (
                     created_at.isoformat()
-                    if created_at else None
+                    if created_at
+                    else None
                 ),
 
                 "updated_at": (
                     updated_at.isoformat()
-                    if updated_at else None
+                    if updated_at
+                    else None
                 )
             })
 
@@ -9263,7 +9317,9 @@ def mobile_live_training():
         })
 
     except Exception as e:
+
         if conn:
+
             try:
                 release_db(conn)
             except Exception:
@@ -9271,7 +9327,11 @@ def mobile_live_training():
 
         import traceback
 
-        print("ERROR /api/mobile/live-training:", repr(e))
+        print(
+            "ERROR /api/mobile/live-training:",
+            repr(e)
+        )
+
         traceback.print_exc()
 
         return jsonify({
