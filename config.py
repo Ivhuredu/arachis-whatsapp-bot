@@ -1,5 +1,8 @@
 import os
 from pathlib import Path
+import boto3
+from botocore.client import Config
+from urllib.parse import urlparse, unquote
 
 BASE_DIR = Path(__file__).resolve().parent
 
