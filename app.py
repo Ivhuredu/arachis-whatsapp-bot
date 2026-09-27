@@ -1,3 +1,5 @@
+import hashlib
+from urllib.parse import parse_qsl
 import PyPDF2
 import requests
 from flask import Flask, request, jsonify, redirect, url_for
@@ -19,7 +21,6 @@ from config import *
 from ai import *
 from utils import safe_text
 from services import *
-
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -64,6 +65,10 @@ PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+PAYNOW_INTEGRATION_ID = os.getenv("PAYNOW_INTEGRATION_ID", "").strip()
+PAYNOW_INTEGRATION_KEY = os.getenv("PAYNOW_INTEGRATION_KEY", "").strip()
+PAYNOW_PAID_STATUSES = {"paid", "awaiting delivery", "delivered"}
     
 # =========================
 # HELPERS
@@ -474,6 +479,143 @@ def send_audio_series(phone, module):
         clean_url = f"{base_url}/{module}.ogg"
         versioned_url = clean_url + f"?v={int(time.time())}"
         send_voice(phone, versioned_url)
+
+
+def paynow_hash(values_in_order, integration_key):
+    """
+    Paynow's documented algorithm: concatenate the message's values (in the
+    exact order they appear, excluding the hash field itself), append the
+    integration key, UTF-8 encode, SHA512, output as UPPERCASE hex.
+    The key is lower-cased first — every real Paynow key is already lower-case,
+    so this only matters if you ever get one that isn't, but both official SDKs
+    do it and skipping it is a silent, hard-to-spot failure mode.
+    """
+    joined = "".join(values_in_order) + integration_key.lower()
+    return hashlib.sha512(joined.encode("utf-8")).hexdigest().upper()
+
+
+def verify_paynow_response(raw_body, integration_key):
+    """
+    Verifies ANY message from Paynow (initiate response, poll response, or the
+    /paynow/result webhook body) against its own hash. Hashes every field that
+    actually arrived, in arrival order — never a fixed/documented field list,
+    since Paynow sends fields (e.g. paynowreference) that aren't in the official
+    table but ARE inside the digest. Returns the parsed fields dict, or None if
+    the hash doesn't check out (meaning: never trust this message).
+    """
+    pairs = parse_qsl(raw_body, keep_blank_values=True)
+    received_hash = next((v for k, v in pairs if k.lower() == "hash"), None)
+    if not received_hash:
+        return None
+
+    values = [v for k, v in pairs if k.lower() != "hash"]
+    if paynow_hash(values, integration_key) != received_hash.upper():
+        return None
+
+    return {k.lower(): v for k, v in pairs}
+
+def normalize_ecocash_msisdn(phone):
+    # Paynow wants local format (0773xxxxxx), not the +263 format you store for WhatsApp.
+    p = phone.strip()
+    if p.startswith("+263"):
+        return "0" + p[4:]
+    if p.startswith("263"):
+        return "0" + p[3:]
+    return p
+
+def initiate_paynow_mobile_payment(phone, package, amount, method="ecocash"):
+    if not PAYNOW_INTEGRATION_ID or not PAYNOW_INTEGRATION_KEY:
+        return False, "Payments are not set up yet. Contact admin.", None
+
+    reference = f"PN-{int(time.time())}-{random.randint(1000, 9999)}"
+    base_url = "https://arachis-whatsapp-bot-2.onrender.com"
+
+    # Field order here is what gets hashed AND what gets POSTed — must match.
+    fields = [
+        ("id", PAYNOW_INTEGRATION_ID),
+        ("reference", reference),
+        ("amount", f"{amount:.2f}"),
+        ("additionalinfo", f"Arachis {package} package"),
+        ("returnurl", f"{base_url}/paynow/return?reference={reference}"),
+        ("resulturl", f"{base_url}/paynow/result"),
+        ("authemail", "students@arachistraining.co.zw"),
+        ("phone", normalize_ecocash_msisdn(phone)),
+        ("method", method),
+        ("merchanttrace", reference[-32:]),
+        ("status", "Message"),
+    ]
+    fields.append(("hash", paynow_hash([v for _, v in fields], PAYNOW_INTEGRATION_KEY)))
+
+    try:
+        response = requests.post(
+            "https://www.paynow.co.zw/interface/remotetransaction",
+            data=dict(fields),
+            timeout=20
+        )
+    except Exception:
+        return False, "Could not reach Paynow. Please try again.", None
+
+    parsed = verify_paynow_response(response.text, PAYNOW_INTEGRATION_KEY)
+    if not parsed:
+        print("PAYNOW HASH MISMATCH ON INITIATE:", response.text)
+        return False, "Payment could not be started safely. Try again.", None
+
+    if parsed.get("status", "").lower() != "ok":
+        return False, parsed.get("error", "Payment could not be started."), None
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO paynow_transactions (reference, phone, package, amount, method, status, poll_url, merchant_trace)
+        VALUES (%s,%s,%s,%s,%s,'sent',%s,%s)
+    """, (reference, phone, package, amount, method, parsed.get("pollurl", ""), reference[-32:]))
+    conn.commit()
+    release_db(conn)
+
+    return True, "Check your phone for a payment prompt and enter your PIN to complete payment.", reference
+
+def apply_paynow_payment(reference):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT phone, package, status FROM paynow_transactions WHERE reference=%s", (reference,))
+    row = c.fetchone()
+    if not row:
+        release_db(conn)
+        return False
+
+    phone, package, current_status = row
+    if current_status == "paid":
+        release_db(conn)
+        return True
+
+    c.execute("""
+        UPDATE paynow_transactions SET status='paid', updated_at=CURRENT_TIMESTAMP
+        WHERE reference=%s AND status != 'paid' RETURNING phone
+    """, (reference,))
+    won_race = c.fetchone()
+    conn.commit()
+    release_db(conn)
+    if not won_race:
+        return True  # another call (webhook vs. poll) already applied this
+
+    # Same activation your admin-approve routes already do.
+    has_spices = 1 if package in ["spices", "advanced"] else 0
+    has_advanced = 1 if package == "advanced" else 0
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE users SET is_paid=1, payment_status='approved', package=%s,
+            has_spices=CASE WHEN %s=1 THEN 1 ELSE has_spices END,
+            has_advanced=CASE WHEN %s=1 THEN 1 ELSE has_advanced END,
+            pending_purchase=NULL
+        WHERE phone=%s
+    """, (package, has_spices, has_advanced, phone))
+    conn.commit()
+    release_db(conn)
+
+    send_message(phone, f"🎉 Payment confirmed via Paynow!\nPackage: {package.upper()}\nWava kukwanisa kuona malesson ako.")
+    log_activity(phone, "paynow_payment_applied", reference)
+    return True
 
 # =========================
 # ADMIN ALERTS
@@ -8633,6 +8775,72 @@ def admin_dashboard():
         """
         
     return html
+
+@app.route("/api/mobile/paynow/initiate", methods=["POST"])
+def paynow_initiate():
+    data = request.get_json(silent=True) or {}
+    phone = normalize_phone(data.get("phone", "").strip())
+    package = data.get("package", "").strip().lower()
+    method = data.get("method", "ecocash").strip().lower()
+
+    if method not in ("ecocash", "onemoney"):
+        return jsonify({"success": False, "message": "Unsupported payment method."}), 400
+
+    amount = {"basic": BASIC_PRICE, "premium": PREMIUM_PRICE,
+              "advanced": ADVANCED_PRICE, "spices": SPICES_PRICE}.get(package)
+    if amount is None:
+        return jsonify({"success": False, "message": "Unknown package."}), 400
+
+    ok, message, reference = initiate_paynow_mobile_payment(phone, package, amount, method)
+    return jsonify({"success": ok, "message": message, "reference": reference}), (200 if ok else 400)
+
+
+@app.route("/api/mobile/paynow/status")
+def paynow_status():
+    reference = request.args.get("reference", "").strip()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT poll_url, status FROM paynow_transactions WHERE reference=%s", (reference,))
+    row = c.fetchone()
+    release_db(conn)
+    if not row:
+        return jsonify({"success": False, "message": "Unknown reference"}), 404
+
+    poll_url, current_status = row
+    if current_status == "paid":
+        return jsonify({"success": True, "status": "paid"})
+
+    try:
+        response = requests.post(poll_url, timeout=15)
+    except Exception:
+        return jsonify({"success": True, "status": "pending"})
+
+    parsed = verify_paynow_response(response.text, PAYNOW_INTEGRATION_KEY)
+    if not parsed:
+        return jsonify({"success": True, "status": "pending"})
+
+    status_word = parsed.get("status", "").lower()
+    if status_word in PAYNOW_PAID_STATUSES:
+        apply_paynow_payment(reference)
+        return jsonify({"success": True, "status": "paid"})
+    if status_word in ("cancelled", "disputed"):
+        return jsonify({"success": True, "status": "failed"})
+    return jsonify({"success": True, "status": "pending"})
+
+
+@app.route("/paynow/result", methods=["POST"])
+def paynow_result():
+    # The ONLY authoritative signal. Never fulfil from /paynow/return below —
+    # that's just where the customer lands and proves nothing.
+    parsed = verify_paynow_response(request.get_data(as_text=True), PAYNOW_INTEGRATION_KEY)
+    if parsed and parsed.get("status", "").lower() in PAYNOW_PAID_STATUSES:
+        apply_paynow_payment(parsed.get("reference", ""))
+    return "OK", 200  # always 200, even on a bad hash — a 4xx just triggers 10 retries
+
+
+@app.route("/paynow/return")
+def paynow_return():
+    return "Thank you! Please return to the Arachis app."
 
 @app.route("/payment-result", methods=["POST"])
 def payment_result():
