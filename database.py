@@ -472,6 +472,18 @@ def init_db():
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    CREATE TABLE IF NOT EXISTS paynow_transactions (
+        reference TEXT PRIMARY KEY,
+        phone TEXT NOT NULL,
+        package TEXT NOT NULL,
+        amount NUMERIC NOT NULL,
+        method TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'created',
+        poll_url TEXT,
+        merchant_trace TEXT UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     # ===============================
     # Upgrade customer_profiles table
     # ===============================
