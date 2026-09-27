@@ -9123,34 +9123,34 @@ def get_training_state(scheduled_at, duration_minutes=120):
             "ends_at": end_at_utc.isoformat()
         }
 
-        # --------------------------------------------------------
-        # RECORDING AVAILABLE (up to 12h after it aired)
-        # --------------------------------------------------------
-        expires_at_utc = end_at_utc + timedelta(hours=12)
+    # --------------------------------------------------------
+    # RECORDING AVAILABLE (up to 12h after it aired)
+    # --------------------------------------------------------
+    expires_at_utc = end_at_utc + timedelta(hours=12)
 
-        if now_utc < expires_at_utc:
-            return {
-                "state": "replay",
-                "label": "Replay",
-                "is_live": False,
-                "seconds_until_start": 0,
-                "seconds_remaining": 0,
-                "started_at": scheduled_at_utc.isoformat(),
-                "ends_at": end_at_utc.isoformat()
-            }
-
-        # --------------------------------------------------------
-        # RECORDING EXPIRED — must not remain available indefinitely
-        # --------------------------------------------------------
+    if now_utc < expires_at_utc:
         return {
-            "state": "expired",
-            "label": "Expired",
+            "state": "replay",
+            "label": "Replay",
             "is_live": False,
             "seconds_until_start": 0,
             "seconds_remaining": 0,
             "started_at": scheduled_at_utc.isoformat(),
             "ends_at": end_at_utc.isoformat()
         }
+
+    # --------------------------------------------------------
+    # RECORDING EXPIRED — must not remain available indefinitely
+    # --------------------------------------------------------
+    return {
+        "state": "expired",
+        "label": "Expired",
+        "is_live": False,
+        "seconds_until_start": 0,
+        "seconds_remaining": 0,
+        "started_at": scheduled_at_utc.isoformat(),
+        "ends_at": end_at_utc.isoformat()
+    }
 
 # ============================================================
 # MOBILE LIVE TRAINING API
@@ -9248,6 +9248,8 @@ def mobile_live_training():
                 scheduled_at,
                 duration_minutes
             )
+            if training_state["state"] == "expired":
+                continue
 
             # ------------------------------------------------
             # GENERATE PRIVATE BACKBLAZE VIDEO URL
