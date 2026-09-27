@@ -9123,18 +9123,34 @@ def get_training_state(scheduled_at, duration_minutes=120):
             "ends_at": end_at_utc.isoformat()
         }
 
-    # --------------------------------------------------------
-    # TRAINING HAS FINISHED
-    # --------------------------------------------------------
-    return {
-        "state": "replay",
-        "label": "Replay",
-        "is_live": False,
-        "seconds_until_start": 0,
-        "seconds_remaining": 0,
-        "started_at": scheduled_at_utc.isoformat(),
-        "ends_at": end_at_utc.isoformat()
-    }
+        # --------------------------------------------------------
+        # RECORDING AVAILABLE (up to 12h after it aired)
+        # --------------------------------------------------------
+        expires_at_utc = end_at_utc + timedelta(hours=12)
+
+        if now_utc < expires_at_utc:
+            return {
+                "state": "replay",
+                "label": "Replay",
+                "is_live": False,
+                "seconds_until_start": 0,
+                "seconds_remaining": 0,
+                "started_at": scheduled_at_utc.isoformat(),
+                "ends_at": end_at_utc.isoformat()
+            }
+
+        # --------------------------------------------------------
+        # RECORDING EXPIRED — must not remain available indefinitely
+        # --------------------------------------------------------
+        return {
+            "state": "expired",
+            "label": "Expired",
+            "is_live": False,
+            "seconds_until_start": 0,
+            "seconds_remaining": 0,
+            "started_at": scheduled_at_utc.isoformat(),
+            "ends_at": end_at_utc.isoformat()
+        }
 
 # ============================================================
 # MOBILE LIVE TRAINING API
@@ -9142,6 +9158,32 @@ def get_training_state(scheduled_at, duration_minutes=120):
 
 @app.route("/api/mobile/live-training", methods=["GET"])
 def mobile_live_training():
+
+    # Live Training is part of the paid program, exactly like the lessons —
+    # the app always sends the logged-in phone (see MobileApiClient.getLiveTraining).
+    phone = request.args.get("phone", "").strip()
+    phone = normalize_phone(phone) if phone else ""
+
+    if not phone:
+        return jsonify({
+            "success": False,
+            "locked": True,
+            "message": "Please log in with your WhatsApp number in the app first."
+        }), 403
+
+    if not is_admin_phone(phone):
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT is_paid FROM users WHERE phone=%s", (phone,))
+        row = c.fetchone()
+        release_db(conn)
+
+        if not row or not row[0]:
+            return jsonify({
+                "success": False,
+                "locked": True,
+                "message": "Live Training is part of our paid packages. Nyora PAY mu app kana paWhatsApp kuti uwane access."
+            }), 403
 
     conn = None
 
