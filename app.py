@@ -4249,31 +4249,38 @@ def webhook():
 
     # ==========================================
     # PAYMENT
+    # PAYNOW WHATSAPP FLOW
     # ==========================================
 
-        payment_words = [
-            "pay",
-            "payment",
-            "payment details",
-            "ecocash",
-            "upgrade",
-            "upgrade my training",
-            "upgrade my plan"
-        ]
+    payment_words = [
+        "pay",
+        "payment",
+        "payment details",
+        "ecocash"
+    ]
 
+    if any(word in text for word in payment_words):
 
-        if any(word in text for word in payment_words):
+        clear_pending_action(phone)
 
-            clear_pending_action(phone)
+        set_state(phone, "pay_menu")
 
-            set_state(phone, "pay_menu")
+        send_message(
+            phone,
+            "💳 *ARACHIS PAYMENT*\n\n"
+            "Choose your package:\n\n"
+            "1️⃣ Basic\n"
+            "2️⃣ Premium\n"
+            "3️⃣ Custom\n"
+            "4️⃣ Advanced\n"
+            "5️⃣ Spices & Seasonings\n\n"
+            "Reply with the number of your choice.\n\n"
+            "After selecting your package, "
+            "you will enter your EcoCash number and "
+            "Paynow will send the payment request."
+        )
 
-            send_message(
-                phone,
-                build_payment_menu()
-            )
-
-            return jsonify({"status": "ok"})
+        return jsonify({"status": "ok"})
 
 
     # ==========================================
