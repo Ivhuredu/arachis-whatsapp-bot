@@ -535,6 +535,7 @@ def initiate_paynow_mobile_payment(phone, package, amount, method="ecocash"):
         ("id", PAYNOW_INTEGRATION_ID),
         ("reference", reference),
         ("amount", f"{amount:.2f}"),
+        ("authemail", "nkomobeloved3@gmail.com"),
         ("additionalinfo", f"Arachis {package} package"),
         ("returnurl", f"{base_url}/paynow/return?reference={reference}"),
         ("resulturl", f"{base_url}/paynow/result"),
