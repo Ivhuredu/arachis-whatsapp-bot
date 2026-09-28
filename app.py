@@ -538,7 +538,6 @@ def initiate_paynow_mobile_payment(phone, package, amount, method="ecocash"):
         ("additionalinfo", f"Arachis {package} package"),
         ("returnurl", f"{base_url}/paynow/return?reference={reference}"),
         ("resulturl", f"{base_url}/paynow/result"),
-        ("authemail", "students@arachistraining.co.zw"),
         ("phone", normalize_ecocash_msisdn(phone)),
         ("method", method),
         ("merchanttrace", reference[-32:]),
