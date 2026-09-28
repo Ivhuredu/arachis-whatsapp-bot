@@ -558,11 +558,7 @@ def initiate_paynow_mobile_payment(phone, package, amount, method="ecocash"):
     parsed = verify_paynow_response(response.text, PAYNOW_INTEGRATION_KEY)
 
     if not parsed:
-        print("========== PAYNOW DEBUG ==========")
-        print("HTTP STATUS:", response.status_code)
-        print("PAYNOW RESPONSE:", response.text)
-        print("==================================")
-        return False, "Payment could not be started safely. Try again.", None
+        return False, f"PAYNOW DEBUG: HTTP {response.status_code} RESPONSE: {response.text[:1000]}", None
 
     if parsed.get("status", "").lower() != "ok":
         return False, parsed.get("error", "Payment could not be started."), None
