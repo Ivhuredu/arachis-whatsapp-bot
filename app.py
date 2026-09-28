@@ -523,28 +523,45 @@ def normalize_ecocash_msisdn(phone):
         return "0" + p[3:]
     return p
 
-def initiate_paynow_mobile_payment(phone, package, amount, method="ecocash"):
+def initiate_paynow_mobile_payment(
+    student_phone,
+    payment_phone,
+    package,
+    amount,
+    method="ecocash"
+):
     if not PAYNOW_INTEGRATION_ID or not PAYNOW_INTEGRATION_KEY:
         return False, "Payments are not set up yet. Contact admin.", None
 
+    payment_phone = normalize_ecocash_msisdn(payment_phone)
+
     reference = f"PN-{int(time.time())}-{random.randint(1000, 9999)}"
+
     base_url = "https://arachis-whatsapp-bot-2.onrender.com"
 
-    # Field order here is what gets hashed AND what gets POSTed — must match.
     fields = [
         ("id", PAYNOW_INTEGRATION_ID),
         ("reference", reference),
         ("amount", f"{amount:.2f}"),
-        ("authemail", "nkomobeloved3@gmail.com"),
         ("additionalinfo", f"Arachis {package} package"),
         ("returnurl", f"{base_url}/paynow/return?reference={reference}"),
         ("resulturl", f"{base_url}/paynow/result"),
-        ("phone", normalize_ecocash_msisdn(phone)),
+        ("authemail", "nkomobeloved3@gmail.com"),
+        ("phone", payment_phone),
         ("method", method),
         ("merchanttrace", reference[-32:]),
         ("status", "Message"),
     ]
-    fields.append(("hash", paynow_hash([v for _, v in fields], PAYNOW_INTEGRATION_KEY)))
+
+    fields.append(
+        (
+            "hash",
+            paynow_hash(
+                [v for _, v in fields],
+                PAYNOW_INTEGRATION_KEY
+            )
+        )
+    )
 
     try:
         response = requests.post(
@@ -552,69 +569,236 @@ def initiate_paynow_mobile_payment(phone, package, amount, method="ecocash"):
             data=dict(fields),
             timeout=20
         )
-    except Exception:
-        return False, "Could not reach Paynow. Please try again.", None
 
-    parsed = verify_paynow_response(response.text, PAYNOW_INTEGRATION_KEY)
+    except Exception as e:
+        print("PAYNOW CONNECTION ERROR:", e)
+
+        return (
+            False,
+            "Could not reach Paynow. Please try again.",
+            None
+        )
+
+    parsed = verify_paynow_response(
+        response.text,
+        PAYNOW_INTEGRATION_KEY
+    )
 
     if not parsed:
-        return False, f"PAYNOW DEBUG: HTTP {response.status_code} RESPONSE: {response.text[:1000]}", None
+
+        print(
+            "PAYNOW HASH MISMATCH ON INITIATE:",
+            response.text
+        )
+
+        return (
+            False,
+            "Payment could not be started safely. Please try again.",
+            None
+        )
 
     if parsed.get("status", "").lower() != "ok":
-        return False, parsed.get("error", "Payment could not be started."), None
+
+        return (
+            False,
+            parsed.get(
+                "error",
+                "Payment could not be started."
+            ),
+            None
+        )
 
     conn = get_db()
     c = conn.cursor()
+
     c.execute("""
-        INSERT INTO paynow_transactions (reference, phone, package, amount, method, status, poll_url, merchant_trace)
-        VALUES (%s,%s,%s,%s,%s,'sent',%s,%s)
-    """, (reference, phone, package, amount, method, parsed.get("pollurl", ""), reference[-32:]))
+        INSERT INTO paynow_transactions (
+            reference,
+            student_phone,
+            payment_phone,
+            phone,
+            package,
+            amount,
+            method,
+            status,
+            poll_url,
+            merchant_trace
+        )
+        VALUES (%s,%s,%s,%s,%s,%s,%s,'sent',%s,%s)
+    """, (
+        reference,
+        student_phone,
+        payment_phone,
+        student_phone,
+        package,
+        amount,
+        method,
+        parsed.get("pollurl", ""),
+        reference[-32:]
+    ))
+
     conn.commit()
     release_db(conn)
 
-    return True, "Check your phone for a payment prompt and enter your PIN to complete payment.", reference
+    return (
+        True,
+        "Check your EcoCash phone for the payment prompt and enter your PIN to complete the payment.",
+        reference
+    )
 
 def apply_paynow_payment(reference):
+
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT phone, package, status FROM paynow_transactions WHERE reference=%s", (reference,))
+
+    c.execute("""
+        SELECT
+            student_phone,
+            payment_phone,
+            phone,
+            package,
+            status
+        FROM paynow_transactions
+        WHERE reference=%s
+    """, (reference,))
+
     row = c.fetchone()
+
     if not row:
         release_db(conn)
+
+        print(
+            "PAYNOW APPLY ERROR: transaction not found:",
+            reference
+        )
+
         return False
 
-    phone, package, current_status = row
+    student_phone = row[0]
+    payment_phone = row[1]
+    old_phone = row[2]
+    package = row[3]
+    current_status = row[4]
+
+    # Backwards compatibility with old transactions
+    if not student_phone:
+        student_phone = old_phone
+
     if current_status == "paid":
         release_db(conn)
         return True
 
+    # Mark this transaction as paid exactly once
     c.execute("""
-        UPDATE paynow_transactions SET status='paid', updated_at=CURRENT_TIMESTAMP
-        WHERE reference=%s AND status != 'paid' RETURNING phone
+        UPDATE paynow_transactions
+        SET
+            status='paid',
+            updated_at=CURRENT_TIMESTAMP
+        WHERE reference=%s
+          AND status != 'paid'
+        RETURNING reference
     """, (reference,))
+
     won_race = c.fetchone()
+
     conn.commit()
     release_db(conn)
-    if not won_race:
-        return True  # another call (webhook vs. poll) already applied this
 
-    # Same activation your admin-approve routes already do.
-    has_spices = 1 if package in ["spices", "advanced"] else 0
+    if not won_race:
+        return True
+
+    # ------------------------------------------
+    # Determine package access
+    # ------------------------------------------
+
+    has_spices = 1 if package in [
+        "spices",
+        "advanced"
+    ] else 0
+
     has_advanced = 1 if package == "advanced" else 0
+
+    # ------------------------------------------
+    # Activate student's account
+    # ------------------------------------------
+
     conn = get_db()
     c = conn.cursor()
+
     c.execute("""
-        UPDATE users SET is_paid=1, payment_status='approved', package=%s,
-            has_spices=CASE WHEN %s=1 THEN 1 ELSE has_spices END,
-            has_advanced=CASE WHEN %s=1 THEN 1 ELSE has_advanced END,
+        UPDATE users
+        SET
+            is_paid=1,
+            payment_status='approved',
+            package=%s,
+            has_spices=CASE
+                WHEN %s=1 THEN 1
+                ELSE has_spices
+            END,
+            has_advanced=CASE
+                WHEN %s=1 THEN 1
+                ELSE has_advanced
+            END,
             pending_purchase=NULL
         WHERE phone=%s
-    """, (package, has_spices, has_advanced, phone))
+        RETURNING phone
+    """, (
+        package,
+        has_spices,
+        has_advanced,
+        student_phone
+    ))
+
+    activated_user = c.fetchone()
+
     conn.commit()
     release_db(conn)
 
-    send_message(phone, f"🎉 Payment confirmed via Paynow!\nPackage: {package.upper()}\nWava kukwanisa kuona malesson ako.")
-    log_activity(phone, "paynow_payment_applied", reference)
+    if not activated_user:
+
+        print(
+            "PAYNOW WARNING: payment successful but "
+            "student account was not found:",
+            student_phone
+        )
+
+        return False
+
+    # ------------------------------------------
+    # Notify student
+    # ------------------------------------------
+
+    send_message(
+        student_phone,
+        "🎉 *PAYMENT SUCCESSFUL!*\n\n"
+        f"Package: *{package.upper()}*\n\n"
+        "✅ Your payment has been confirmed by Paynow.\n"
+        "✅ Your package is now active.\n"
+        "✅ Your lessons are unlocked.\n\n"
+        "Type *MENU* to continue."
+    )
+
+    # ------------------------------------------
+    # Log payment
+    # ------------------------------------------
+
+    log_activity(
+        student_phone,
+        "paynow_payment_applied",
+        reference
+    )
+
+    print(
+        "PAYNOW PAYMENT ACTIVATED:",
+        reference,
+        "student:",
+        student_phone,
+        "payment:",
+        payment_phone,
+        "package:",
+        package
+    )
+
     return True
 
 # =========================
@@ -5935,6 +6119,11 @@ def webhook():
     # AWAITING PAYMENT
     # =====================================================
 
+    # =====================================================
+    # AWAITING PAYMENT
+    # PAYNOW ECOCASH FLOW
+    # =====================================================
+
     elif user["state"] == "awaiting_payment":
 
         if incoming.upper() in ["MENU", "BACK", "HOME"]:
@@ -5946,55 +6135,281 @@ def webhook():
                 main_menu(get_user(phone))
             )
 
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
 
         # ------------------------------------------
-        # Wait for EcoCash confirmation
+        # Get pending purchase
         # ------------------------------------------
 
-        if "ecocash" not in incoming.lower() and "confirmed" not in incoming.lower():
+        user = get_user(phone)
+
+        if not user:
 
             send_message(
                 phone,
-                "📩 Please forward your EcoCash confirmation SMS here.\n\n"
-                "Our system (or an administrator) will verify your payment and activate your package."
+                "❌ Your account could not be found. Please type MENU."
             )
 
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
 
-        conn = get_db()
-        c = conn.cursor()
+        pending_purchase = user.get("pending_purchase")
 
-        c.execute("""
-            UPDATE users
-            SET payment_status='pending'
-            WHERE phone=%s
-        """, (phone,))
+        if not pending_purchase:
 
-        conn.commit()
+            send_message(
+                phone,
+                "❌ No payment is currently pending.\n\n"
+                "Type MENU to start again."
+            )
 
-        release_db(conn)
+            set_state(phone, STATE_MAIN)
 
+            return jsonify({"status": "ok"})
+
+
+        # ------------------------------------------
+        # Determine package and price
+        # ------------------------------------------
+
+        package = None
+        amount = None
+        title = None
+
+
+        if pending_purchase == "basic":
+
+            package = "basic"
+            amount = BASIC_PRICE
+            title = "BASIC TRAINING PACKAGE"
+
+
+        elif pending_purchase == "premium":
+
+            package = "premium"
+            amount = PREMIUM_PRICE
+            title = "PREMIUM TRAINING PACKAGE"
+
+
+        elif pending_purchase == "advanced_full":
+
+            package = "advanced"
+            amount = ADVANCED_PRICE
+            title = "ADVANCED MANUFACTURING PACKAGE"
+
+
+        elif pending_purchase == "spices_full":
+
+            package = "spices"
+            amount = SPICES_PRICE
+            title = "SPICES & SEASONINGS PACKAGE"
+
+
+        elif pending_purchase == "upgrade_basic_to_premium":
+
+            package = "premium"
+            amount = 5
+            title = "BASIC ➜ PREMIUM"
+
+
+        elif pending_purchase == "upgrade_basic_to_spices":
+
+            package = "spices"
+            amount = 5
+            title = "ADD SPICES COURSE"
+
+
+        elif pending_purchase == "upgrade_basic_to_advanced":
+
+            package = "advanced"
+            amount = 10
+            title = "BASIC ➜ ADVANCED"
+
+
+        elif pending_purchase == "upgrade_premium_to_spices":
+
+            package = "spices"
+            amount = 5
+            title = "ADD SPICES COURSE"
+
+
+        elif pending_purchase == "upgrade_premium_to_advanced":
+
+            package = "advanced"
+            amount = 7
+            title = "PREMIUM ➜ ADVANCED"
+
+
+        else:
+
+            send_message(
+                phone,
+                "❌ I could not identify the selected package.\n\n"
+                "Please type MENU and try again."
+            )
+
+            return jsonify({"status": "ok"})
+
+
+        # ------------------------------------------
+        # Student must enter EcoCash number
+        # ------------------------------------------
+
+        payment_phone = incoming.strip()
+
+        # Remove spaces and common separators
+        payment_phone = (
+            payment_phone
+            .replace(" ", "")
+            .replace("-", "")
+        )
+
+
+        # Basic Zimbabwe mobile validation
+        if payment_phone.startswith("+263"):
+
+            if len(payment_phone) != 13:
+
+                send_message(
+                    phone,
+                    "❌ Invalid EcoCash number.\n\n"
+                    "Example:\n"
+                    "0771234567\n\n"
+                    "Please enter your EcoCash number again."
+                )
+
+                return jsonify({"status": "ok"})
+
+
+        elif payment_phone.startswith("263"):
+
+            if len(payment_phone) != 12:
+
+                send_message(
+                    phone,
+                    "❌ Invalid EcoCash number.\n\n"
+                    "Example:\n"
+                    "0771234567\n\n"
+                    "Please enter your EcoCash number again."
+                )
+
+                return jsonify({"status": "ok"})
+
+
+        elif payment_phone.startswith("0"):
+
+            if len(payment_phone) != 10:
+
+                send_message(
+                    phone,
+                    "❌ Invalid EcoCash number.\n\n"
+                    "Example:\n"
+                    "0771234567\n\n"
+                    "Please enter your EcoCash number again."
+                )
+
+                return jsonify({"status": "ok"})
+
+
+        else:
+
+            send_message(
+                phone,
+                "❌ Invalid EcoCash number.\n\n"
+                "Please enter it like:\n"
+                "0771234567"
+            )
+
+            return jsonify({"status": "ok"})
+
+
+        # ------------------------------------------
+        # Start Paynow payment
+        # ------------------------------------------
+
+        send_message(
+            phone,
+            "⏳ *Starting payment...*\n\n"
+            f"Package: *{title}*\n"
+            f"Amount: *${amount}*\n"
+            f"EcoCash: *{payment_phone}*\n\n"
+            "Please wait for the EcoCash payment prompt."
+        )
+
+
+        success, reply, reference = initiate_paynow_mobile_payment(
+            student_phone=phone,
+            payment_phone=payment_phone,
+            package=package,
+            amount=amount,
+            method="ecocash"
+        )
+
+
+        if not success:
+
+            send_message(
+                phone,
+                "❌ *PAYMENT COULD NOT BE STARTED*\n\n"
+                f"{reply}\n\n"
+                "Please try again or type MENU."
+            )
+
+            return jsonify({"status": "ok"})
+
+
+        # ------------------------------------------
+        # Payment request successfully sent
+        # ------------------------------------------
 
         set_state(phone, "payment_pending")
 
 
         send_message(
             phone,
-            "✅ *PAYMENT RECEIVED*\n\n"
-            "Thank you.\n\n"
-            "Your payment has been submitted for verification.\n\n"
-            "Once approved:\n"
-            "✔ Your package will be activated.\n"
-            "✔ Your lessons will unlock automatically.\n"
-            "✔ You'll receive a confirmation message."
+            "📲 *PAYMENT REQUEST SENT*\n\n"
+            f"Package: *{title}*\n"
+            f"Amount: *${amount}*\n\n"
+            f"EcoCash: *{payment_phone}*\n\n"
+            "👉 Check that EcoCash phone now.\n"
+            "👉 Enter your EcoCash PIN when prompted.\n\n"
+            "⏳ Your package will activate automatically "
+            "after Paynow confirms the payment.\n\n"
+            "⚠️ Do not send your EcoCash PIN to this WhatsApp number."
         )
 
-        notify_admin_payment(phone, incoming)
+        return jsonify({"status": "ok"})
 
-        return jsonify({"status":"ok"})
+    # =====================================================
+    # PAYNOW PAYMENT PENDING
+    # =====================================================
+
+    elif user["state"] == "payment_pending":
+
+        if incoming.upper() in ["MENU", "BACK", "HOME"]:
+
+            send_message(
+                phone,
+                "⏳ Your Paynow payment is still being processed.\n\n"
+                "If you have already entered your EcoCash PIN, "
+                "please wait for confirmation.\n\n"
+                "You do not need to send the EcoCash SMS."
+            )
+
+            return jsonify({"status": "ok"})
+
+
+        send_message(
+            phone,
+            "⏳ *PAYMENT STILL PROCESSING*\n\n"
+            "Please complete the EcoCash payment prompt on your phone.\n\n"
+            "Once Paynow confirms the payment, "
+            "your package will activate automatically.\n\n"
+            "You do not need to forward your EcoCash SMS."
+        )
+
+        return jsonify({"status": "ok"})
 
     elif user["state"] == "marketplace_home":
 
