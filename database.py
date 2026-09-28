@@ -281,6 +281,21 @@ def init_db():
     )
     """)
     c.execute("""
+        CREATE TABLE IF NOT EXISTS paynow_transactions (
+            id SERIAL PRIMARY KEY,
+            reference TEXT UNIQUE NOT NULL,
+            phone TEXT,
+            package TEXT,
+            amount REAL,
+            method TEXT,
+            status TEXT DEFAULT 'sent',
+            poll_url TEXT,
+            merchant_trace TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    c.execute("""
     CREATE TABLE IF NOT EXISTS app_installs (
         id SERIAL PRIMARY KEY,
         device_id TEXT UNIQUE,
