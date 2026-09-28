@@ -281,20 +281,37 @@ def init_db():
     )
     """)
     c.execute("""
-        CREATE TABLE IF NOT EXISTS paynow_transactions (
-            id SERIAL PRIMARY KEY,
-            reference TEXT UNIQUE NOT NULL,
-            phone TEXT,
-            package TEXT,
-            amount REAL,
-            method TEXT,
-            status TEXT DEFAULT 'sent',
-            poll_url TEXT,
-            merchant_trace TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
+    CREATE TABLE IF NOT EXISTS paynow_transactions (
+        id SERIAL PRIMARY KEY,
+        reference TEXT UNIQUE NOT NULL,
+        student_phone TEXT,
+        payment_phone TEXT,
+        phone TEXT,
+        package TEXT,
+        amount REAL,
+        method TEXT,
+        status TEXT DEFAULT 'sent',
+        poll_url TEXT,
+        merchant_trace TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
     """)
+    # Add newer Paynow columns to existing databases
+    try:
+        c.execute("""
+            ALTER TABLE paynow_transactions
+            ADD COLUMN IF NOT EXISTS student_phone TEXT
+        """)
+        c.execute("""
+            ALTER TABLE paynow_transactions
+            ADD COLUMN IF NOT EXISTS payment_phone TEXT
+        """)
+        conn.commit()
+    except Exception as e:
+        print("PAYNOW COLUMN UPDATE ERROR:", e)
+        conn.rollback()
+        
     c.execute("""
     CREATE TABLE IF NOT EXISTS app_installs (
         id SERIAL PRIMARY KEY,
