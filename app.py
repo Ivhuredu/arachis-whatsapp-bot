@@ -7676,46 +7676,6 @@ def webhook():
         set_state(phone, "main")
         return jsonify({"status": "ok"})
         
-# =========================
-# AUTO PAYMENT DETECTOR
-# =========================
-    if user["state"] == "awaiting_payment":
-
-        success, reply = verify_and_apply_payment(phone, incoming)
-
-        if success:
-            set_state(phone, "main")
-            send_message(phone, reply)
-            send_message(phone, main_menu())
-            return jsonify({"status": "ok"})
-        else:
-            send_message(phone, reply)
-            return jsonify({"status": "ok"})
-            
-    if user["state"] == "awaiting_upgrade_payment":
-
-        success, reply = verify_and_apply_payment(phone, incoming)
-
-        if success:
-
-            conn = get_db()
-            c = conn.cursor()
-            c.execute(
-                "UPDATE users SET package='premium' WHERE phone=%s",
-                (phone,)
-            )
-            conn.commit()
-            release_db(conn)
-
-            send_message(phone, "🎉 Upgrade successful! Wava pa Premium.")
-            set_state(phone, "main")
-            send_message(phone, main_menu())
-
-            return jsonify({"status": "ok"})
-        else:
-            send_message(phone, reply)
-            return jsonify({"status": "ok"})
-
     # =========================
     # PAID USER AI TRAINER
     # =========================
