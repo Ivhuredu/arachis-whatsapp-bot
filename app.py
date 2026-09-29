@@ -9160,21 +9160,102 @@ def admin_dashboard():
 
 @app.route("/api/mobile/paynow/initiate", methods=["POST"])
 def paynow_initiate():
+
     data = request.get_json(silent=True) or {}
-    phone = normalize_phone(data.get("phone", "").strip())
+
+    # Student's Arachis account / WhatsApp number
+    student_phone_raw = data.get("phone", "").strip()
+
+    # EcoCash number that should receive the payment request
+    payment_phone_raw = data.get(
+        "payment_phone",
+        student_phone_raw
+    ).strip()
+
+    student_phone = normalize_phone(student_phone_raw)
+
     package = data.get("package", "").strip().lower()
-    method = data.get("method", "ecocash").strip().lower()
+
+    method = data.get(
+        "method",
+        "ecocash"
+    ).strip().lower()
+
+
+    # ------------------------------------------
+    # Validate payment method
+    # ------------------------------------------
 
     if method not in ("ecocash", "onemoney"):
-        return jsonify({"success": False, "message": "Unsupported payment method."}), 400
 
-    amount = {"basic": BASIC_PRICE, "premium": PREMIUM_PRICE,
-              "advanced": ADVANCED_PRICE, "spices": SPICES_PRICE}.get(package)
+        return jsonify({
+            "success": False,
+            "message": "Unsupported payment method."
+        }), 400
+
+
+    # ------------------------------------------
+    # Validate student phone
+    # ------------------------------------------
+
+    if not student_phone_raw:
+
+        return jsonify({
+            "success": False,
+            "message": "Student phone number is required."
+        }), 400
+
+
+    # ------------------------------------------
+    # Validate EcoCash / OneMoney number
+    # ------------------------------------------
+
+    if not payment_phone_raw:
+
+        return jsonify({
+            "success": False,
+            "message": "Payment phone number is required."
+        }), 400
+
+
+    # ------------------------------------------
+    # Package prices
+    # ------------------------------------------
+
+    amount = {
+        "basic": BASIC_PRICE,
+        "premium": PREMIUM_PRICE,
+        "advanced": ADVANCED_PRICE,
+        "spices": SPICES_PRICE
+    }.get(package)
+
+
     if amount is None:
-        return jsonify({"success": False, "message": "Unknown package."}), 400
 
-    ok, message, reference = initiate_paynow_mobile_payment(phone, package, amount, method)
-    return jsonify({"success": ok, "message": message, "reference": reference}), (200 if ok else 400)
+        return jsonify({
+            "success": False,
+            "message": "Unknown package."
+        }), 400
+
+
+    # ------------------------------------------
+    # Start Paynow transaction
+    # ------------------------------------------
+
+    ok, message, reference = initiate_paynow_mobile_payment(
+        student_phone=student_phone,
+        payment_phone=payment_phone_raw,
+        package=package,
+        amount=amount,
+        method=method
+    )
+
+
+    return jsonify({
+        "success": ok,
+        "message": message,
+        "reference": reference
+    }), (200 if ok else 400)
 
 
 @app.route("/api/mobile/paynow/status")
