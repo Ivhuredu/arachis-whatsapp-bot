@@ -10057,6 +10057,138 @@ def mobile_live_training():
             "error": repr(e),
             "classes": []
         }), 500
+
+@app.route("/api/mobile/live-training/<int:class_id>/chat", methods=["GET"])
+def mobile_live_training_chat(class_id):
+    phone = normalize_phone(request.args.get("phone", "").strip())
+    if not phone:
+        return jsonify({"success": False, "message": "Please log in first."}), 403
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id FROM live_training_classes WHERE id=%s AND status='published'", (class_id,))
+    if not c.fetchone():
+        release_db(conn)
+        return jsonify({"success": False, "message": "Training class not found."}), 404
+
+    if not is_admin_phone(phone):
+        c.execute("SELECT is_paid FROM users WHERE phone=%s", (phone,))
+        row = c.fetchone()
+        if not row or not row[0]:
+            release_db(conn)
+            return jsonify({"success": False, "message": "Live Training chat is for paid students."}), 403
+
+    c.execute("""
+        SELECT id, class_id, phone, message, message_type, reply_to_id, created_at
+        FROM live_training_messages
+        WHERE class_id=%s
+        ORDER BY created_at ASC
+        LIMIT 200
+    """, (class_id,))
+    rows = c.fetchall()
+    release_db(conn)
+
+    messages = []
+    for row in rows:
+        msg_id, row_class_id, sender_phone, message, message_type, reply_to_id, created_at = row
+        messages.append({
+            "id": msg_id,
+            "class_id": str(row_class_id),
+            "sender_label": "Arachis Admin" if is_admin_phone(sender_phone) else "Student " + sender_phone[-4:],
+            "message": message,
+            "message_type": message_type or "comment",
+            "reply_to_id": reply_to_id,
+            "is_admin": is_admin_phone(sender_phone),
+            "created_at": created_at.strftime("%d %b %H:%M") if created_at else ""
+        })
+
+    return jsonify({"success": True, "messages": messages})
+
+
+@app.route("/api/mobile/live-training/chat/admin", methods=["GET"])
+def mobile_live_training_chat_admin():
+    phone = normalize_phone(request.args.get("phone", "").strip())
+    if not phone or not is_admin_phone(phone):
+        return jsonify({"success": False, "message": "Admin access required."}), 403
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, class_id, phone, message, message_type, reply_to_id, created_at
+        FROM live_training_messages
+        ORDER BY created_at DESC
+        LIMIT 500
+    """)
+    rows = c.fetchall()
+    release_db(conn)
+
+    messages = []
+    for row in reversed(rows):
+        msg_id, row_class_id, sender_phone, message, message_type, reply_to_id, created_at = row
+        messages.append({
+            "id": msg_id,
+            "class_id": str(row_class_id),
+            "sender_label": "Arachis Admin" if is_admin_phone(sender_phone) else "Student " + sender_phone[-4:],
+            "message": message,
+            "message_type": message_type or "comment",
+            "reply_to_id": reply_to_id,
+            "is_admin": is_admin_phone(sender_phone),
+            "created_at": created_at.strftime("%d %b %H:%M") if created_at else ""
+        })
+
+    return jsonify({"success": True, "messages": messages})
+
+
+@app.route("/api/mobile/live-training/<int:class_id>/chat", methods=["POST"])
+def mobile_live_training_chat_post(class_id):
+    data = request.get_json() or {}
+    phone = normalize_phone(data.get("phone", "").strip())
+    message = str(data.get("message", "")).strip()
+    message_type = str(data.get("message_type", "comment")).strip().lower()
+    reply_to_id = data.get("reply_to_id")
+
+    if not phone:
+        return jsonify({"success": False, "message": "Please log in first."}), 403
+    if not message:
+        return jsonify({"success": False, "message": "Message cannot be empty."}), 400
+    if len(message) > 1000:
+        return jsonify({"success": False, "message": "Message is too long. Maximum 1000 characters."}), 400
+    if message_type not in ("comment", "question", "answer"):
+        message_type = "comment"
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id FROM live_training_classes WHERE id=%s AND status='published'", (class_id,))
+    if not c.fetchone():
+        release_db(conn)
+        return jsonify({"success": False, "message": "Training class not found."}), 404
+
+    admin = is_admin_phone(phone)
+    if not admin:
+        c.execute("SELECT is_paid FROM users WHERE phone=%s", (phone,))
+        row = c.fetchone()
+        if not row or not row[0]:
+            release_db(conn)
+            return jsonify({"success": False, "message": "Live Training chat is for paid students."}), 403
+        if message_type == "answer":
+            message_type = "comment"
+
+    if reply_to_id:
+        c.execute("SELECT id FROM live_training_messages WHERE id=%s AND class_id=%s", (reply_to_id, class_id))
+        if not c.fetchone():
+            reply_to_id = None
+
+    c.execute("""
+        INSERT INTO live_training_messages
+            (class_id, phone, message, message_type, reply_to_id)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id
+    """, (class_id, phone, message, message_type, reply_to_id))
+    new_id = c.fetchone()[0]
+    conn.commit()
+    release_db(conn)
+
+    return jsonify({"success": True, "id": new_id})
         
 @app.route("/api/mobile/login", methods=["POST"])
 def mobile_login():
