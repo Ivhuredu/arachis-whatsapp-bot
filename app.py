@@ -2541,6 +2541,8 @@ def webhook():
 
         else:
             incoming = ""
+            
+        text = incoming.lower().strip()
 
         if already_processed_message(message_id, phone, incoming):
             print("⚠️ DUPLICATE MESSAGE IGNORED:", message_id)
