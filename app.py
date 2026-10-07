@@ -708,79 +708,81 @@ def apply_paynow_payment(reference):
         return True
 
     # ==========================================
-# LIVE TRAINING PAYMENT
-# ==========================================
+    # LIVE TRAINING PAYMENT
+    # ==========================================
 
-if package.startswith("live_training_class_"):
+    if package.startswith("live_training_class_"):
 
-    try:
-        class_id = int(
-            package.replace(
-                "live_training_class_",
-                ""
+        try:
+            class_id = int(
+                package.replace(
+                    "live_training_class_",
+                    ""
+                )
             )
+        except ValueError:
+
+            print(
+                "INVALID LIVE TRAINING PACKAGE:",
+                package
+            )
+
+            return False
+
+        conn = get_db()
+        c = conn.cursor()
+
+        c.execute("""
+            INSERT INTO live_training_access
+                (
+                    phone,
+                    class_id,
+                    payment_reference
+                )
+            VALUES (%s, %s, %s)
+            ON CONFLICT (phone, class_id)
+            DO NOTHING
+        """, (
+            student_phone,
+            class_id,
+            reference
+        ))
+
+        conn.commit()
+        release_db(conn)
+
+        send_message(
+            student_phone,
+            "🎉 *LIVE TRAINING PAYMENT SUCCESSFUL!*\n\n"
+            "💵 Amount Paid: $12\n"
+            "✅ Your Live Training access is now active.\n\n"
+            "Open the Arachis App and join the training."
         )
-    except ValueError:
+
+        log_activity(
+            student_phone,
+            "live_training_payment",
+            f"Class {class_id} | {reference}"
+        )
 
         print(
-            "INVALID LIVE TRAINING PACKAGE:",
-            package
+            "LIVE TRAINING ACCESS GRANTED:",
+            student_phone,
+            "class:",
+            class_id,
+            "reference:",
+            reference
         )
 
-        return False
-
-    conn = get_db()
-    c = conn.cursor()
-
-    c.execute("""
-        INSERT INTO live_training_access
-            (
-                phone,
-                class_id,
-                payment_reference
-            )
-        VALUES (%s, %s, %s)
-        ON CONFLICT (phone, class_id)
-        DO NOTHING
-    """, (
-        student_phone,
-        class_id,
-        reference
-    ))
-
-    conn.commit()
-    release_db(conn)
-
-    send_message(
-        student_phone,
-        "🎉 *LIVE TRAINING PAYMENT SUCCESSFUL!*\n\n"
-        "💵 Amount Paid: $12\n"
-        "✅ Your Live Training access is now active.\n\n"
-        "Open the Arachis App and join the training."
-    )
-
-    log_activity(
-        student_phone,
-        "live_training_payment",
-        f"Class {class_id} | {reference}"
-    )
-
-    print(
-        "LIVE TRAINING ACCESS GRANTED:",
-        student_phone,
-        "class:",
-        class_id,
-        "reference:",
-        reference
-    )
-
-    return True
+        return True
 
     # ------------------------------------------
     # NEW FORMULA PACKAGES
     # ------------------------------------------
 
-    if package in [
+    base_package = package.split("|", 1)[0].strip().lower()
+
+    if base_package in [
         "formula_custom",
         "formula_2",
         "formula_10",
@@ -789,16 +791,19 @@ if package.startswith("live_training_class_"):
 
         conn = get_db()
         c = conn.cursor()
+        selected_modules = []
 
-        # Get selected formulas
-        selected_modules = get_custom_modules(student_phone)
+        if "|" in package:
+            encoded_modules = package.split("|", 1)[1].strip()
+            if encoded_modules:
+                selected_modules = [
+                    item.strip() for item in encoded_modules.split(",") if item.strip()
+                ]
 
-        # --------------------------------------
-        # ALL FORMULAS
-        # --------------------------------------
+        if not selected_modules and base_package != "formula_all":
+            selected_modules = get_custom_modules(student_phone)
 
-        if package == "formula_all":
-
+        if base_package == "formula_all":
             selected_modules = (
                 DETERGENT_MODULES +
                 BEVERAGE_MODULES +
@@ -806,41 +811,31 @@ if package.startswith("live_training_class_"):
                 ADVANCED_MODULES
             )
 
-        # --------------------------------------
-        # Validate selected formula count
-        # --------------------------------------
+        selected_modules = list(dict.fromkeys(selected_modules))
 
-        if package == "formula_custom" and len(selected_modules) != 1:
+        required_count = {
+            "formula_custom": 1,
+            "formula_2": 2,
+            "formula_10": 10
+        }.get(base_package)
+
+        if required_count is not None and len(selected_modules) != required_count:
             release_db(conn)
-            print("FORMULA PAYMENT ERROR: custom package requires 1 formula")
+            print(
+                "FORMULA PAYMENT ERROR:",
+                base_package,
+                "expected", required_count,
+                "received", len(selected_modules)
+            )
             return False
-
-        if package == "formula_2" and len(selected_modules) != 2:
-            release_db(conn)
-            print("FORMULA PAYMENT ERROR: 2-formula package requires 2 formulas")
-            return False
-
-        if package == "formula_10" and len(selected_modules) != 10:
-            release_db(conn)
-            print("FORMULA PAYMENT ERROR: 10-formula package requires 10 formulas")
-            return False
-
-        # --------------------------------------
-        # Give module access
-        # --------------------------------------
 
         for module in selected_modules:
-
             c.execute("""
                 INSERT INTO module_access (phone, module)
                 VALUES (%s, %s)
                 ON CONFLICT (phone, module) DO NOTHING
-            """, (
-                student_phone,
-                module
-            ))
+            """, (student_phone, module))
 
-        # Make account a custom formula account
         c.execute("""
             UPDATE users
             SET
@@ -854,21 +849,23 @@ if package.startswith("live_training_class_"):
         conn.commit()
         release_db(conn)
 
+        formula_amount = {
+            "formula_custom": 3.0,
+            "formula_2": 5.0,
+            "formula_10": 10.0,
+            "formula_all": 20.0
+        }[base_package]
+
         send_message(
             student_phone,
             "🎉 *PAYMENT SUCCESSFUL!*\n\n"
-            f"📚 Formula Package: {package.replace('_', ' ').title()}\n"
-            f"💵 Paid: ${amount:.2f}\n\n"
-            "✅ Your selected formulas are now unlocked.\n"
+            f"📚 Formula Package: {base_package.replace('_', ' ').title()}\n"
+            f"💵 Paid: ${formula_amount:.2f}\n\n"
+            f"✅ {len(selected_modules)} formula(s) unlocked.\n"
             "📱 Open the Arachis App to access your lessons."
         )
 
-        log_activity(
-            student_phone,
-            "formula_package_payment",
-            reference
-        )
-
+        log_activity(student_phone, "formula_package_payment", reference)
         return True
 
     # ------------------------------------------
@@ -6086,25 +6083,6 @@ def webhook():
 
             return jsonify({"status": "ok"})
 
-
-        # ==========================================
-        # INVALID OPTION
-        # ==========================================
-
-        else:
-
-            send_message(
-                phone,
-                "Please choose:\n\n"
-                "1️⃣ Basic\n"
-                "2️⃣ Premium\n"
-                "3️⃣ Custom\n"
-                "4️⃣ Advanced\n"
-                "5️⃣ Spices"
-            )
-
-            return jsonify({"status":"ok"})
-
     # =====================================================
     # CUSTOM PACKAGE SELECTION
     # =====================================================
@@ -9325,12 +9303,14 @@ def paynow_initiate():
     # Package prices
     # ------------------------------------------
 
+    base_package = package.split("|", 1)[0].strip().lower()
+
     amount = {
-        "basic": BASIC_PRICE,
-        "premium": PREMIUM_PRICE,
-        "advanced": ADVANCED_PRICE,
-        "spices": SPICES_PRICE
-    }.get(package)
+        "formula_custom": 3.0,
+        "formula_2": 5.0,
+        "formula_10": 10.0,
+        "formula_all": 20.0
+    }.get(base_package)
 
 
     if amount is None:
@@ -12570,7 +12550,6 @@ if __name__ == "__main__":
 
       
            
-
 
 
 
