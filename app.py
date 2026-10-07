@@ -9741,9 +9741,10 @@ def get_training_state(scheduled_at, duration_minutes=120):
     # PostgreSQL timestamptz normally returns an aware datetime.
     # This also protects us if a naive datetime somehow comes back.
     if scheduled_at.tzinfo is None:
-        scheduled_at = scheduled_at.replace(tzinfo=HARARE_TZ)
+        # PostgreSQL connection returned a naive timestamp.
+        # Treat it as UTC because Live Training times are stored in UTC.
+        scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
 
-    # Convert to UTC for reliable comparison.
     scheduled_at_utc = scheduled_at.astimezone(timezone.utc)
 
     now_utc = datetime.now(timezone.utc)
@@ -10189,6 +10190,63 @@ def mobile_live_training_chat_post(class_id):
     release_db(conn)
 
     return jsonify({"success": True, "id": new_id})
+
+@app.route("/api/mobile/live-training/<int:class_id>/chat/<int:message_id>", methods=["DELETE"])
+def mobile_live_training_chat_delete(class_id, message_id):
+
+    data = request.get_json(silent=True) or {}
+
+    phone = normalize_phone(
+        str(data.get("phone", "")).strip()
+    )
+
+    if not phone:
+        return jsonify({
+            "success": False,
+            "message": "Please log in first."
+        }), 403
+
+    # ONLY ADMIN CAN DELETE
+    if not is_admin_phone(phone):
+        return jsonify({
+            "success": False,
+            "message": "Only Admin can delete comments or questions."
+        }), 403
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # Make sure the message belongs to this class
+    c.execute("""
+        SELECT id
+        FROM live_training_messages
+        WHERE id=%s
+          AND class_id=%s
+    """, (message_id, class_id))
+
+    row = c.fetchone()
+
+    if not row:
+        release_db(conn)
+
+        return jsonify({
+            "success": False,
+            "message": "Message not found."
+        }), 404
+
+    c.execute("""
+        DELETE FROM live_training_messages
+        WHERE id=%s
+          AND class_id=%s
+    """, (message_id, class_id))
+
+    conn.commit()
+    release_db(conn)
+
+    return jsonify({
+        "success": True,
+        "message": "Message deleted."
+    })
         
 @app.route("/api/mobile/login", methods=["POST"])
 def mobile_login():
@@ -10604,6 +10662,16 @@ def mobile_marketplace_products():
             """)
 
         rows = c.fetchall()
+
+        print(
+            "MARKETPLACE PRODUCTS FOUND:",
+            len(rows),
+            "category=",
+            category,
+            "search=",
+            search
+        )
+
         release_db(conn)
 
         products = []
