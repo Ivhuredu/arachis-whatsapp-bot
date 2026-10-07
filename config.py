@@ -23,11 +23,22 @@ STATE_ACCOUNT = "account_menu"
 STATE_OPEN_LESSONS = "open_lessons"
 STATE_PRODUCT_PHOTO = "awaiting_product_photo"
 
+# =========================
+# FORMULA PACKAGE PRICES
+# =========================
+
+CUSTOM_PRICE_PER_MODULE = 3.0
+TWO_FORMULAS_PRICE = 5.0
+TEN_FORMULAS_PRICE = 10.0
+ALL_FORMULAS_PRICE = 20.0
+
+LIVE_TRAINING_PRICE = 12.0
+
+# Keep these for existing customers / old accounts
 BASIC_PRICE = 5.0
 PREMIUM_PRICE = 10.0
 SPICES_PRICE = 10.0
 ADVANCED_PRICE = 20.0
-CUSTOM_PRICE_PER_MODULE = 2.0
 
 UPGRADE_BASIC_TO_PREMIUM = 5.0
 UPGRADE_BASIC_TO_SPICES = 5.0
