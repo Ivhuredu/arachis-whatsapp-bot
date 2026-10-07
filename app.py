@@ -707,6 +707,170 @@ def apply_paynow_payment(reference):
     if not won_race:
         return True
 
+    # ==========================================
+# LIVE TRAINING PAYMENT
+# ==========================================
+
+if package.startswith("live_training_class_"):
+
+    try:
+        class_id = int(
+            package.replace(
+                "live_training_class_",
+                ""
+            )
+        )
+    except ValueError:
+
+        print(
+            "INVALID LIVE TRAINING PACKAGE:",
+            package
+        )
+
+        return False
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO live_training_access
+            (
+                phone,
+                class_id,
+                payment_reference
+            )
+        VALUES (%s, %s, %s)
+        ON CONFLICT (phone, class_id)
+        DO NOTHING
+    """, (
+        student_phone,
+        class_id,
+        reference
+    ))
+
+    conn.commit()
+    release_db(conn)
+
+    send_message(
+        student_phone,
+        "🎉 *LIVE TRAINING PAYMENT SUCCESSFUL!*\n\n"
+        "💵 Amount Paid: $12\n"
+        "✅ Your Live Training access is now active.\n\n"
+        "Open the Arachis App and join the training."
+    )
+
+    log_activity(
+        student_phone,
+        "live_training_payment",
+        f"Class {class_id} | {reference}"
+    )
+
+    print(
+        "LIVE TRAINING ACCESS GRANTED:",
+        student_phone,
+        "class:",
+        class_id,
+        "reference:",
+        reference
+    )
+
+    return True
+
+    # ------------------------------------------
+    # NEW FORMULA PACKAGES
+    # ------------------------------------------
+
+    if package in [
+        "formula_custom",
+        "formula_2",
+        "formula_10",
+        "formula_all"
+    ]:
+
+        conn = get_db()
+        c = conn.cursor()
+
+        # Get selected formulas
+        selected_modules = get_custom_modules(student_phone)
+
+        # --------------------------------------
+        # ALL FORMULAS
+        # --------------------------------------
+
+        if package == "formula_all":
+
+            selected_modules = (
+                DETERGENT_MODULES +
+                BEVERAGE_MODULES +
+                SPICES_MODULES +
+                ADVANCED_MODULES
+            )
+
+        # --------------------------------------
+        # Validate selected formula count
+        # --------------------------------------
+
+        if package == "formula_custom" and len(selected_modules) != 1:
+            release_db(conn)
+            print("FORMULA PAYMENT ERROR: custom package requires 1 formula")
+            return False
+
+        if package == "formula_2" and len(selected_modules) != 2:
+            release_db(conn)
+            print("FORMULA PAYMENT ERROR: 2-formula package requires 2 formulas")
+            return False
+
+        if package == "formula_10" and len(selected_modules) != 10:
+            release_db(conn)
+            print("FORMULA PAYMENT ERROR: 10-formula package requires 10 formulas")
+            return False
+
+        # --------------------------------------
+        # Give module access
+        # --------------------------------------
+
+        for module in selected_modules:
+
+            c.execute("""
+                INSERT INTO module_access (phone, module)
+                VALUES (%s, %s)
+                ON CONFLICT (phone, module) DO NOTHING
+            """, (
+                student_phone,
+                module
+            ))
+
+        # Make account a custom formula account
+        c.execute("""
+            UPDATE users
+            SET
+                is_paid=1,
+                payment_status='approved',
+                package='custom',
+                pending_purchase=NULL
+            WHERE phone=%s
+        """, (student_phone,))
+
+        conn.commit()
+        release_db(conn)
+
+        send_message(
+            student_phone,
+            "🎉 *PAYMENT SUCCESSFUL!*\n\n"
+            f"📚 Formula Package: {package.replace('_', ' ').title()}\n"
+            f"💵 Paid: ${amount:.2f}\n\n"
+            "✅ Your selected formulas are now unlocked.\n"
+            "📱 Open the Arachis App to access your lessons."
+        )
+
+        log_activity(
+            student_phone,
+            "formula_package_payment",
+            reference
+        )
+
+        return True
+
     # ------------------------------------------
     # Determine package access
     # ------------------------------------------
@@ -5734,103 +5898,154 @@ def webhook():
 
 
         # ==========================================
-        # BASIC PACKAGE
+        # 1 — CUSTOM: 1 FORMULA
         # ==========================================
 
         if incoming == "1":
 
-            conn = get_db()
-            c = conn.cursor()
-
-            c.execute("""
-                UPDATE users
-                SET pending_purchase='basic'
-                WHERE phone=%s
-            """, (phone,))
-
-            conn.commit()
-            release_db(conn)
-
-            set_state(phone, "awaiting_payment")
-
-            send_payment_instructions(
-                phone,
-                "BASIC TRAINING PACKAGE",
-                BASIC_PRICE
-            )
-
-            return jsonify({"status":"ok"})
-
-
-        # ==========================================
-        # PREMIUM PACKAGE
-        # ==========================================
-
-        elif incoming == "2":
-
-            conn = get_db()
-            c = conn.cursor()
-
-            c.execute("""
-                UPDATE users
-                SET pending_purchase='premium'
-                WHERE phone=%s
-            """, (phone,))
-
-            conn.commit()
-            release_db(conn)
-
-            set_state(phone, "awaiting_payment")
-
-            send_payment_instructions(
-                phone,
-                "PREMIUM TRAINING PACKAGE",
-                PREMIUM_PRICE
-            )
-
-            return jsonify({"status":"ok"})
-
-
-        # ==========================================
-        # CUSTOM PACKAGE
-        # ==========================================
-
-        elif incoming == "3":
-
             clear_custom_modules(phone)
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='formula_custom'
+                WHERE phone=%s
+            """, (phone,))
+
+            conn.commit()
+            release_db(conn)
 
             set_state(phone, "custom_selecting")
 
             all_modules = (
                 DETERGENT_MODULES +
                 BEVERAGE_MODULES +
-                SPICES_MODULES
+                SPICES_MODULES +
+                ADVANCED_MODULES
             )
 
             menu = (
-                "🧩 *CUSTOM TRAINING PACKAGE*\n\n"
-                f"Price: ${CUSTOM_PRICE_PER_MODULE} per formula.\n\n"
-                "Choose the formulas you want.\n\n"
+                "🧩 *CUSTOM FORMULA*\n\n"
+                "Choose *1 formula*.\n"
+                "Price: *$3*\n\n"
             )
 
             for i, module in enumerate(all_modules, start=1):
-
                 menu += f"{i}. {module.replace('_',' ').title()}\n"
 
             menu += (
-                "\nReply with numbers separated by commas.\n"
-                "Example:\n"
-                "1,4,9\n\n"
+                "\nReply with the formula number.\n"
+                "Example: 5\n\n"
                 "Type *DONE* when finished."
             )
 
             send_message(phone, menu)
 
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
 
         # ==========================================
-        # ADVANCED PACKAGE
+        # 2 — 2 FORMULAS
+        # ==========================================
+
+        elif incoming == "2":
+
+            clear_custom_modules(phone)
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='formula_2'
+                WHERE phone=%s
+            """, (phone,))
+
+            conn.commit()
+            release_db(conn)
+
+            set_state(phone, "custom_selecting")
+
+            all_modules = (
+                DETERGENT_MODULES +
+                BEVERAGE_MODULES +
+                SPICES_MODULES +
+                ADVANCED_MODULES
+            )
+
+            menu = (
+                "📚 *2 FORMULA PACKAGE*\n\n"
+                "Choose exactly *2 formulas*.\n"
+                "Price: *$5*\n\n"
+            )
+
+            for i, module in enumerate(all_modules, start=1):
+                menu += f"{i}. {module.replace('_',' ').title()}\n"
+
+            menu += (
+                "\nReply with numbers separated by commas.\n"
+                "Example: 1,7\n\n"
+                "Type *DONE* when finished."
+            )
+
+            send_message(phone, menu)
+
+            return jsonify({"status": "ok"})
+
+
+        # ==========================================
+        # 3 — 10 FORMULAS
+        # ==========================================
+
+        elif incoming == "3":
+
+            clear_custom_modules(phone)
+
+            conn = get_db()
+            c = conn.cursor()
+
+            c.execute("""
+                UPDATE users
+                SET pending_purchase='formula_10'
+                WHERE phone=%s
+            """, (phone,))
+
+            conn.commit()
+            release_db(conn)
+
+            set_state(phone, "custom_selecting")
+
+            all_modules = (
+                DETERGENT_MODULES +
+                BEVERAGE_MODULES +
+                SPICES_MODULES +
+                ADVANCED_MODULES
+            )
+
+            menu = (
+                "📚 *10 FORMULA PACKAGE*\n\n"
+                "Choose exactly *10 formulas*.\n"
+                "Price: *$10*\n\n"
+            )
+
+            for i, module in enumerate(all_modules, start=1):
+                menu += f"{i}. {module.replace('_',' ').title()}\n"
+
+            menu += (
+                "\nReply with numbers separated by commas.\n"
+                "Example: 1,4,7,9,12,15,18,20,25,30\n\n"
+                "Type *DONE* when finished."
+            )
+
+            send_message(phone, menu)
+
+            return jsonify({"status": "ok"})
+
+
+        # ==========================================
+        # 4 — ALL FORMULAS
         # ==========================================
 
         elif incoming == "4":
@@ -5840,7 +6055,7 @@ def webhook():
 
             c.execute("""
                 UPDATE users
-                SET pending_purchase='advanced_full'
+                SET pending_purchase='formula_all'
                 WHERE phone=%s
             """, (phone,))
 
@@ -5851,40 +6066,25 @@ def webhook():
 
             send_payment_instructions(
                 phone,
-                "ADVANCED MANUFACTURING PACKAGE",
-                ADVANCED_PRICE
+                "ALL FORMULAS PACKAGE",
+                ALL_FORMULAS_PRICE
             )
 
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
 
-        # ==========================================
-        # SPICES PACKAGE
-        # ==========================================
+        else:
 
-        elif incoming == "5":
-
-            conn = get_db()
-            c = conn.cursor()
-
-            c.execute("""
-                UPDATE users
-                SET pending_purchase='spices_full'
-                WHERE phone=%s
-            """, (phone,))
-
-            conn.commit()
-            release_db(conn)
-
-            set_state(phone, "awaiting_payment")
-
-            send_payment_instructions(
+            send_message(
                 phone,
-                "SPICES & SEASONINGS PACKAGE",
-                SPICES_PRICE
+                "Please choose:\n\n"
+                "1️⃣ Custom — $3 for 1 formula\n"
+                "2️⃣ 2 Formulas — $5\n"
+                "3️⃣ 10 Formulas — $10\n"
+                "4️⃣ All Formulas — $20"
             )
 
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
 
         # ==========================================
@@ -5939,190 +6139,91 @@ def webhook():
             selected = get_custom_modules(phone)
 
             if not selected:
-
                 send_message(
                     phone,
-                    "❌ You haven't selected any formulas yet.\n\n"
-                    "Reply with numbers like:\n"
-                    "1,3,7"
+                    "❌ You haven't selected any formulas yet."
                 )
+                return jsonify({"status": "ok"})
 
-                return jsonify({"status":"ok"})
+            purchase_type = get_user(phone).get("pending_purchase")
 
+            count = len(selected)
 
-            total = len(selected) * CUSTOM_PRICE_PER_MODULE
+            # ------------------------------------------
+            # VALIDATE PACKAGE SIZE
+            # ------------------------------------------
 
+            if purchase_type == "formula_custom":
 
-            conn = get_db()
+                if count != 1:
+                    send_message(
+                        phone,
+                        "❌ Custom package allows exactly 1 formula.\n\n"
+                        "Please select only 1 formula."
+                    )
+                    return jsonify({"status": "ok"})
 
-            c = conn.cursor()
+                total = CUSTOM_PRICE_PER_MODULE
 
-            c.execute("""
-                UPDATE users
-                SET pending_purchase='custom'
-                WHERE phone=%s
-            """, (phone,))
+            elif purchase_type == "formula_2":
 
-            conn.commit()
+                if count != 2:
+                    send_message(
+                        phone,
+                        f"❌ You selected {count} formulas.\n\n"
+                        "This package requires exactly 2 formulas."
+                    )
+                    return jsonify({"status": "ok"})
 
-            release_db(conn)
+                total = TWO_FORMULAS_PRICE
 
+            elif purchase_type == "formula_10":
+
+                if count != 10:
+                    send_message(
+                        phone,
+                        f"❌ You selected {count} formulas.\n\n"
+                        "This package requires exactly 10 formulas."
+                    )
+                    return jsonify({"status": "ok"})
+
+                total = TEN_FORMULAS_PRICE
+
+            else:
+                send_message(
+                    phone,
+                    "❌ Invalid package selection."
+                )
+                return jsonify({"status": "ok"})
 
             set_state(phone, "awaiting_payment")
 
-
             selected_names = "\n".join(
-
                 f"✔ {m.replace('_',' ').title()}"
-
                 for m in selected
-
             )
-
-
-        send_message(
-
-            phone,
-
-            f"""🧩 *CUSTOM PACKAGE SUMMARY*
-
-    {selected_names}
-
-    ━━━━━━━━━━━━━━━━━━
-
-    📚 Total Formulae: {len(selected)}
-
-    💵 Total: ${total:.2f}
-
-    ━━━━━━━━━━━━━━━━━━
-
-    Now complete payment.
-
-    After paying,
-    forward the EcoCash confirmation SMS here."""
-            )
-
-
-        send_payment_instructions(
-
-            phone,
-
-            "CUSTOM TRAINING PACKAGE",
-
-                total
-
-        )
-
-        return jsonify({"status":"ok"})
-
-
-        # ==========================================
-        # ADD MORE MODULES
-        # ==========================================
-
-        try:
-
-            numbers = incoming.replace(" ", "").split(",")
-
-            added = []
-
-            already = []
-
-            for n in numbers:
-
-                if not n.isdigit():
-                    continue
-
-                index = int(n) - 1
-
-                if index < 0 or index >= len(all_modules):
-                    continue
-
-                module = all_modules[index]
-
-                current = get_custom_modules(phone)
-
-                if module in current:
-
-                    already.append(module)
-
-                    continue
-
-                add_custom_module(phone, module)
-
-                added.append(module)
-
-
-            if not added and not already:
-
-                send_message(
-                    phone,
-                    "❌ Invalid selection.\n\n"
-                    "Example:\n"
-                    "1,3,7"
-                )
-
-                return jsonify({"status":"ok"})
-
-
-            selected = get_custom_modules(phone)
-
-            total = len(selected) * CUSTOM_PRICE_PER_MODULE
-
-
-            reply = "✅ *CUSTOM PACKAGE UPDATED*\n\n"
-
-
-            if added:
-
-                reply += "Added:\n"
-
-                for module in added:
-
-                    reply += f"✔ {module.replace('_',' ').title()}\n"
-
-
-            if already:
-
-                reply += "\nAlready Selected:\n"
-
-                for module in already:
-
-                    reply += f"• {module.replace('_',' ').title()}\n"
-
-
-            reply += (
-
-                f"\n━━━━━━━━━━━━━━━━━━"
-
-                f"\n📚 Total Formulae: {len(selected)}"
-
-                f"\n💵 Current Total: ${total:.2f}"
-
-                "\n\nReply with more numbers"
-
-                "\nor type *DONE*."
-
-            )
-
-
-            send_message(phone, reply)
-
-            return jsonify({"status":"ok"})
-
-
-        except Exception as e:
-
-            print("CUSTOM PACKAGE ERROR:", e)
 
             send_message(
                 phone,
-                "❌ Invalid format.\n\n"
-                "Example:\n"
-                "1,3,7"
+                f"""📚 *FORMULA PACKAGE SUMMARY*
+
+        {selected_names}
+
+        ━━━━━━━━━━━━━━━━━━
+        📚 Total Formulae: {count}
+        💵 Total: ${total:.2f}
+        ━━━━━━━━━━━━━━━━━━
+
+        Now complete payment."""
             )
 
-            return jsonify({"status":"ok"})
+            send_payment_instructions(
+                phone,
+                "FORMULA PACKAGE",
+                total
+            )
+
+            return jsonify({"status": "ok"})
 
     # =====================================================
     # AWAITING PAYMENT
@@ -9259,6 +9360,147 @@ def paynow_initiate():
         "reference": reference
     }), (200 if ok else 400)
 
+@app.route("/api/mobile/live-training/pay", methods=["POST"])
+def live_training_pay():
+
+    data = request.get_json(silent=True) or {}
+
+    student_phone_raw = str(
+        data.get("phone", "")
+    ).strip()
+
+    payment_phone_raw = str(
+        data.get("payment_phone", "")
+    ).strip()
+
+    class_id = data.get("class_id")
+
+    method = str(
+        data.get("method", "ecocash")
+    ).strip().lower()
+
+    # ------------------------------------------
+    # Validate phone
+    # ------------------------------------------
+
+    if not student_phone_raw:
+        return jsonify({
+            "success": False,
+            "message": "Phone number is required."
+        }), 400
+
+    if not payment_phone_raw:
+        return jsonify({
+            "success": False,
+            "message": "Payment phone number is required."
+        }), 400
+
+    # ------------------------------------------
+    # Validate class
+    # ------------------------------------------
+
+    try:
+        class_id = int(class_id)
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "message": "Invalid Live Training class."
+        }), 400
+
+    # ------------------------------------------
+    # Validate payment method
+    # ------------------------------------------
+
+    if method not in ("ecocash", "onemoney"):
+        return jsonify({
+            "success": False,
+            "message": "Unsupported payment method."
+        }), 400
+
+    student_phone = normalize_phone(student_phone_raw)
+
+    # ------------------------------------------
+    # Check class exists
+    # ------------------------------------------
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT id, title
+        FROM live_training_classes
+        WHERE id=%s
+          AND status='published'
+    """, (class_id,))
+
+    class_row = c.fetchone()
+
+    release_db(conn)
+
+    if not class_row:
+        return jsonify({
+            "success": False,
+            "message": "Live Training class not found."
+        }), 404
+
+    # ------------------------------------------
+    # Check whether already paid
+    # ------------------------------------------
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT id
+        FROM live_training_access
+        WHERE phone=%s
+          AND class_id=%s
+    """, (
+        student_phone,
+        class_id
+    ))
+
+    existing_access = c.fetchone()
+
+    release_db(conn)
+
+    if existing_access:
+
+        return jsonify({
+            "success": True,
+            "already_paid": True,
+            "message": "You already have access to this Live Training."
+        })
+
+    # ------------------------------------------
+    # LIVE TRAINING PRICE IS CONTROLLED
+    # BY THE SERVER
+    # ------------------------------------------
+
+    amount = LIVE_TRAINING_PRICE
+
+    package = f"live_training_class_{class_id}"
+
+    # ------------------------------------------
+    # Start Paynow
+    # ------------------------------------------
+
+    ok, message, reference = initiate_paynow_mobile_payment(
+        student_phone=student_phone,
+        payment_phone=payment_phone_raw,
+        package=package,
+        amount=amount,
+        method=method
+    )
+
+    return jsonify({
+        "success": ok,
+        "message": message,
+        "reference": reference,
+        "amount": amount,
+        "class_id": class_id
+    }), (200 if ok else 400)
+
 
 @app.route("/api/mobile/paynow/status")
 def paynow_status():
@@ -9845,20 +10087,6 @@ def mobile_live_training():
             "message": "Please log in with your WhatsApp number in the app first."
         }), 403
 
-    if not is_admin_phone(phone):
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT is_paid FROM users WHERE phone=%s", (phone,))
-        row = c.fetchone()
-        release_db(conn)
-
-        if not row or not row[0]:
-            return jsonify({
-                "success": False,
-                "locked": True,
-                "message": "Live Training is part of our paid packages. Nyora PAY mu app kana paWhatsApp kuti uwane access."
-            }), 403
-
     conn = None
 
     try:
@@ -9926,12 +10154,62 @@ def mobile_live_training():
                 continue
 
             # ------------------------------------------------
+            # CHECK LIVE TRAINING ACCESS
+            # ------------------------------------------------
+
+            has_access = False
+
+            if is_admin_phone(phone):
+
+                has_access = True
+
+            else:
+
+                access_conn = None
+
+                try:
+
+                    access_conn = get_db()
+                    access_cursor = access_conn.cursor()
+
+                    access_cursor.execute("""
+                        SELECT id
+                        FROM live_training_access
+                        WHERE phone=%s
+                          AND class_id=%s
+                        LIMIT 1
+                    """, (
+                        phone,
+                        class_id
+                    ))
+
+                    access_row = access_cursor.fetchone()
+
+                    has_access = bool(access_row)
+
+                except Exception as access_error:
+
+                    print(
+                        "LIVE TRAINING ACCESS CHECK ERROR:",
+                        repr(access_error)
+                    )
+
+                    has_access = False
+
+                finally:
+
+                    if access_conn:
+
+                        release_db(access_conn)
+
+            # ------------------------------------------------
             # GENERATE PRIVATE BACKBLAZE VIDEO URL
+            # ONLY FOR USERS WHO HAVE PAID
             # ------------------------------------------------
 
             private_video_url = ""
 
-            if video_url:
+            if has_access and video_url:
 
                 try:
 
@@ -9949,8 +10227,6 @@ def mobile_live_training():
                         repr(video_error)
                     )
 
-                    # Do not expose the raw private
-                    # storage URL or credentials.
                     private_video_url = ""
 
             # ------------------------------------------------
@@ -9975,6 +10251,12 @@ def mobile_live_training():
                 # Android receives the temporary signed URL,
                 # NOT the permanent Backblaze object URL.
                 "video_url": private_video_url,
+
+                "has_access": has_access,
+
+                "payment_required": not has_access,
+
+                "live_training_price": LIVE_TRAINING_PRICE,
 
                 "thumbnail_url": thumbnail_url or "",
 
