@@ -2994,6 +2994,70 @@ def webhook():
 
         target = parts[1].strip()
 
+        # ==========================================
+        # LIVE TRAINING CLASS APPROVAL
+        # ==========================================
+        # Example: approve live +263773208904 12
+        if target.lower() == "live":
+            if len(parts) < 4:
+                send_message(
+                    phone,
+                    "❌ Live Training approval needs the student number and class ID.\n\n"
+                    "Use:\n"
+                    "approve live +2637xxxx CLASS_ID\n\n"
+                    "Example:\n"
+                    "approve live +263773208904 12"
+                )
+                return jsonify({"status": "ok"})
+
+            live_student = normalize_phone(parts[2])
+            try:
+                live_class_id = int(parts[3])
+            except (TypeError, ValueError):
+                send_message(phone, "❌ Invalid class ID. Use the numeric Live Training class ID from the dashboard.")
+                return jsonify({"status": "ok"})
+
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("""
+                SELECT id, title
+                FROM live_training_classes
+                WHERE id=%s
+                LIMIT 1
+            """, (live_class_id,))
+            live_class = c.fetchone()
+
+            if not live_class:
+                release_db(conn)
+                send_message(phone, f"❌ Live Training class {live_class_id} was not found.")
+                return jsonify({"status": "ok"})
+
+            c.execute("""
+                INSERT INTO live_training_access (phone, class_id, payment_reference)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (phone, class_id) DO NOTHING
+            """, (live_student, live_class_id, "manual_whatsapp"))
+            conn.commit()
+            release_db(conn)
+
+            log_activity(live_student, "manual_live_training_approved", f"Class {live_class_id}")
+
+            send_message(
+                live_student,
+                "🎉 *LIVE TRAINING ACCESS APPROVED!*\n\n"
+                f"Class: {live_class[1]}\n"
+                "✅ You can now open the Arachis App and unlock/view this class.\n"
+                "💬 Class chat is also available for questions, including after the video replay expires."
+            )
+            send_message(
+                phone,
+                "✅ *LIVE TRAINING APPROVED*\n\n"
+                f"Student: {live_student}\n"
+                f"Class ID: {live_class_id}\n"
+                f"Class: {live_class[1]}"
+            )
+            return jsonify({"status": "ok"})
+
 
     # ==========================================
     # OFFLINE PRACTICAL TRAINING APPROVAL
@@ -10052,20 +10116,59 @@ def get_training_state(scheduled_at, duration_minutes=120):
 # MOBILE LIVE TRAINING API
 # ============================================================
 
+def has_legacy_live_training_access(phone, class_id):
+    """Grandfather students who already had normal paid access before the
+    separate $12 Live Training Pass was introduced. New formula packages
+    are intentionally excluded because Live Training is now separate.
+    """
+    if is_admin_phone(phone):
+        return True
+
+    conn = None
+    try:
+        conn = get_db()
+        c = conn.cursor()
+
+        # Explicit class access always wins.
+        c.execute("""
+            SELECT 1
+            FROM live_training_access
+            WHERE phone=%s AND class_id=%s
+            LIMIT 1
+        """, (phone, class_id))
+        if c.fetchone():
+            return True
+
+        # Grandfather old paid packages.
+        c.execute("""
+            SELECT is_paid, package
+            FROM users
+            WHERE phone=%s
+            LIMIT 1
+        """, (phone,))
+        row = c.fetchone()
+        if not row:
+            return False
+
+        is_paid, package = row
+        return bool(is_paid) and str(package or '').lower() in {
+            'basic', 'premium', 'advanced', 'spices'
+        }
+    except Exception as e:
+        print("LEGACY LIVE ACCESS CHECK ERROR:", repr(e))
+        return False
+    finally:
+        if conn:
+            release_db(conn)
+
+
 @app.route("/api/mobile/live-training", methods=["GET"])
 def mobile_live_training():
 
-    # Live Training is part of the paid program, exactly like the lessons —
-    # the app always sends the logged-in phone (see MobileApiClient.getLiveTraining).
+    # The catalogue is public. A phone number is optional and is used only
+    # to mark which individual classes this student has unlocked.
     phone = request.args.get("phone", "").strip()
     phone = normalize_phone(phone) if phone else ""
-
-    if not phone:
-        return jsonify({
-            "success": False,
-            "locked": True,
-            "message": "Please log in with your WhatsApp number in the app first."
-        }), 403
 
     conn = None
 
@@ -10130,57 +10233,15 @@ def mobile_live_training():
                 scheduled_at,
                 duration_minutes
             )
-            if training_state["state"] == "expired":
-                continue
+            # Keep expired classes in the catalogue so students who bought
+            # that class can continue using its discussion/chat. The video
+            # itself remains unavailable after its replay window expires.
 
             # ------------------------------------------------
             # CHECK LIVE TRAINING ACCESS
             # ------------------------------------------------
-
-            has_access = False
-
-            if is_admin_phone(phone):
-
-                has_access = True
-
-            else:
-
-                access_conn = None
-
-                try:
-
-                    access_conn = get_db()
-                    access_cursor = access_conn.cursor()
-
-                    access_cursor.execute("""
-                        SELECT id
-                        FROM live_training_access
-                        WHERE phone=%s
-                          AND class_id=%s
-                        LIMIT 1
-                    """, (
-                        phone,
-                        class_id
-                    ))
-
-                    access_row = access_cursor.fetchone()
-
-                    has_access = bool(access_row)
-
-                except Exception as access_error:
-
-                    print(
-                        "LIVE TRAINING ACCESS CHECK ERROR:",
-                        repr(access_error)
-                    )
-
-                    has_access = False
-
-                finally:
-
-                    if access_conn:
-
-                        release_db(access_conn)
+            # Explicit $12 class access OR grandfathered legacy package.
+            has_access = has_legacy_live_training_access(phone, class_id)
 
             # ------------------------------------------------
             # GENERATE PRIVATE BACKBLAZE VIDEO URL
@@ -10189,7 +10250,7 @@ def mobile_live_training():
 
             private_video_url = ""
 
-            if has_access and video_url:
+            if has_access and video_url and training_state["state"] != "expired":
 
                 try:
 
@@ -10325,7 +10386,7 @@ def mobile_live_training():
 def mobile_live_training_chat(class_id):
     phone = normalize_phone(request.args.get("phone", "").strip())
     if not phone:
-        return jsonify({"success": False, "message": "Please log in first."}), 403
+        return jsonify({"success": False, "message": "Enter your WhatsApp number to use class chat."}), 403
 
     conn = get_db()
     c = conn.cursor()
@@ -10334,12 +10395,9 @@ def mobile_live_training_chat(class_id):
         release_db(conn)
         return jsonify({"success": False, "message": "Training class not found."}), 404
 
-    if not is_admin_phone(phone):
-        c.execute("SELECT is_paid FROM users WHERE phone=%s", (phone,))
-        row = c.fetchone()
-        if not row or not row[0]:
-            release_db(conn)
-            return jsonify({"success": False, "message": "Live Training chat is for paid students."}), 403
+    if not has_legacy_live_training_access(phone, class_id):
+        release_db(conn)
+        return jsonify({"success": False, "message": "Unlock this Live Training class to use its chat."}), 403
 
     c.execute("""
         SELECT id, class_id, phone, message, message_type, reply_to_id, created_at
@@ -10428,11 +10486,16 @@ def mobile_live_training_chat_post(class_id):
 
     admin = is_admin_phone(phone)
     if not admin:
-        c.execute("SELECT is_paid FROM users WHERE phone=%s", (phone,))
+        c.execute("""
+            SELECT id
+            FROM live_training_access
+            WHERE phone=%s AND class_id=%s
+            LIMIT 1
+        """, (phone, class_id))
         row = c.fetchone()
-        if not row or not row[0]:
+        if not row:
             release_db(conn)
-            return jsonify({"success": False, "message": "Live Training chat is for paid students."}), 403
+            return jsonify({"success": False, "message": "Unlock this Live Training class to use its chat."}), 403
         if message_type == "answer":
             message_type = "comment"
 
