@@ -68,7 +68,7 @@ openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 PAYNOW_INTEGRATION_ID = os.getenv("PAYNOW_INTEGRATION_ID", "").strip()
 PAYNOW_INTEGRATION_KEY = os.getenv("PAYNOW_INTEGRATION_KEY", "").strip()
-PAYNOW_PAID_STATUSES = {"paid", "awaiting delivery", "delivered"}
+PAYNOW_PAID_STATUSES = {"paid"}
     
 # =========================
 # HELPERS
@@ -9592,13 +9592,34 @@ def paynow_status():
     if not parsed:
         return jsonify({"success": True, "status": "pending"})
 
-    status_word = parsed.get("status", "").lower()
+    status_word = parsed.get("status", "").strip().lower()
+    status_message = str(
+        parsed.get("error")
+        or parsed.get("message")
+        or ""
+    ).strip()
+
+    # NEVER unlock from the app merely because a payment request was created.
+    # Only an authoritative Paynow "Paid" status can fulfil the purchase.
     if status_word in PAYNOW_PAID_STATUSES:
-        apply_paynow_payment(reference)
-        return jsonify({"success": True, "status": "paid"})
-    if status_word in ("cancelled", "disputed"):
-        return jsonify({"success": True, "status": "failed"})
-    return jsonify({"success": True, "status": "pending"})
+        applied = apply_paynow_payment(reference)
+        if applied:
+            return jsonify({"success": True, "status": "paid", "message": "Payment confirmed."})
+        return jsonify({"success": True, "status": "pending", "message": "Payment was reported as paid, but access is still being processed."})
+
+    failed_words = {
+        "cancelled", "cancelled by user", "disputed", "failed", "declined",
+        "insufficient credit", "insufficient funds", "insufficient balance",
+        "insufficient balance in wallet"
+    }
+    if status_word in failed_words or any(word in status_word for word in ("insufficient", "declined", "failed", "cancelled")):
+        return jsonify({
+            "success": True,
+            "status": "failed",
+            "message": status_message or "Payment failed. No money was received and no access was unlocked."
+        })
+
+    return jsonify({"success": True, "status": "pending", "message": status_message})
 
 
 @app.route("/paynow/result", methods=["POST"])
