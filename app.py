@@ -713,6 +713,18 @@ def apply_paynow_payment(reference):
 
     if package.startswith("live_training_class_"):
 
+        # A student can purchase Live Training before logging in.
+        # Ensure the WhatsApp number exists in users so later login can succeed.
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO users (phone, state, payment_status, is_paid)
+            VALUES (%s, 'main', 'approved', 1)
+            ON CONFLICT (phone) DO NOTHING
+        """, (student_phone,))
+        conn.commit()
+        release_db(conn)
+
         try:
             class_id = int(
                 package.replace(
@@ -791,6 +803,16 @@ def apply_paynow_payment(reference):
 
         conn = get_db()
         c = conn.cursor()
+
+        # New students are allowed to pay before logging in. Create the
+        # account row now so the successful payment can unlock it.
+        c.execute("""
+            INSERT INTO users (phone, state, payment_status, is_paid)
+            VALUES (%s, 'main', 'approved', 1)
+            ON CONFLICT (phone) DO NOTHING
+        """, (student_phone,))
+        conn.commit()
+
         selected_modules = []
 
         if "|" in package:
