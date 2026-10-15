@@ -3054,11 +3054,23 @@ def webhook():
                 send_message(phone, f"❌ Live Training class {live_class_id} was not found.")
                 return jsonify({"status": "ok"})
 
+            
+            # Give each manual approval a unique payment reference.
+            manual_reference = (
+                f"manual_whatsapp_{live_student}_{live_class_id}"
+            )
+
             c.execute("""
-                INSERT INTO live_training_access (phone, class_id, payment_reference)
+                INSERT INTO live_training_access
+                    (phone, class_id, payment_reference)
                 VALUES (%s, %s, %s)
-                ON CONFLICT (phone, class_id) DO NOTHING
-            """, (live_student, live_class_id, "manual_whatsapp"))
+                ON CONFLICT DO NOTHING
+            """, (
+                live_student,
+                live_class_id,
+                manual_reference
+            ))
+
             conn.commit()
             release_db(conn)
 
