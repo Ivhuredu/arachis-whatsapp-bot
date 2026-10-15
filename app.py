@@ -10219,6 +10219,7 @@ def mobile_live_training():
 
         conn = get_db()
         c = conn.cursor()
+        ensure_live_training_view_tables(c)
 
         c.execute("""
             SELECT
@@ -10279,6 +10280,38 @@ def mobile_live_training():
             # Keep expired classes in the catalogue so students who bought
             # that class can continue using its discussion/chat. The video
             # itself remains unavailable after its replay window expires.
+
+            # ------------------------------------------------
+            # PUBLIC VIEWER COUNTS (identity is never exposed here)
+            # ------------------------------------------------
+            current_viewers = 0
+            total_unique_viewers = 0
+            total_view_sessions = 0
+            try:
+                analytics_conn = get_db()
+                analytics_cursor = analytics_conn.cursor()
+                analytics_cursor.execute("""
+                    SELECT
+                        COUNT(DISTINCT phone) FILTER (
+                            WHERE ended_at IS NULL AND last_seen_at >= CURRENT_TIMESTAMP - INTERVAL '90 seconds'
+                        ),
+                        COUNT(DISTINCT phone),
+                        COUNT(*)
+                    FROM live_training_view_sessions
+                    WHERE class_id=%s
+                """, (class_id,))
+                analytics_row = analytics_cursor.fetchone()
+                if analytics_row:
+                    current_viewers = int(analytics_row[0] or 0)
+                    total_unique_viewers = int(analytics_row[1] or 0)
+                    total_view_sessions = int(analytics_row[2] or 0)
+                release_db(analytics_conn)
+            except Exception as analytics_error:
+                print("LIVE VIEW CATALOGUE COUNTS ERROR:", repr(analytics_error))
+                try:
+                    release_db(analytics_conn)
+                except Exception:
+                    pass
 
             # ------------------------------------------------
             # CHECK LIVE TRAINING ACCESS
@@ -10358,6 +10391,10 @@ def mobile_live_training():
 
                 "is_live": training_state["is_live"],
 
+                "current_viewers": current_viewers,
+                "total_unique_viewers": total_unique_viewers,
+                "total_view_sessions": total_view_sessions,
+
                 "seconds_until_start": training_state.get(
                     "seconds_until_start",
                     0
@@ -10425,22 +10462,238 @@ def mobile_live_training():
             "classes": []
         }), 500
 
+# ============================================================
+# LIVE TRAINING VIEWER ANALYTICS
+# ============================================================
+
+def ensure_live_training_view_tables(cursor):
+    """Create viewer analytics tables safely if they are not present yet."""
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS live_training_view_sessions (
+            id BIGSERIAL PRIMARY KEY,
+            class_id INTEGER NOT NULL,
+            phone TEXT NOT NULL,
+            session_token VARCHAR(120) NOT NULL,
+            started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_seen_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            ended_at TIMESTAMPTZ,
+            UNIQUE (class_id, session_token)
+        )
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_live_training_views_class_last_seen
+        ON live_training_view_sessions (class_id, last_seen_at DESC)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_live_training_views_phone
+        ON live_training_view_sessions (phone)
+    """)
+
+
+@app.route("/api/mobile/live-training/<int:class_id>/viewer/start", methods=["POST"])
+def mobile_live_training_viewer_start(class_id):
+    data = request.get_json(silent=True) or {}
+    phone_raw = str(data.get("phone", "")).strip()
+    session_token = str(data.get("session_id", "")).strip()
+    if not phone_raw or not session_token:
+        return jsonify({"success": False, "message": "Phone and session_id are required."}), 400
+    if len(session_token) > 120:
+        return jsonify({"success": False, "message": "Invalid session_id."}), 400
+    phone = normalize_phone(phone_raw)
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        ensure_live_training_view_tables(c)
+        c.execute("SELECT id FROM live_training_classes WHERE id=%s", (class_id,))
+        if not c.fetchone():
+            conn.rollback()
+            release_db(conn)
+            return jsonify({"success": False, "message": "Training class not found."}), 404
+        c.execute("""
+            INSERT INTO live_training_view_sessions
+                (class_id, phone, session_token, started_at, last_seen_at, ended_at)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL)
+            ON CONFLICT (class_id, session_token) DO UPDATE SET
+                phone=EXCLUDED.phone,
+                last_seen_at=CURRENT_TIMESTAMP,
+                ended_at=NULL
+        """, (class_id, phone, session_token))
+        conn.commit()
+        release_db(conn)
+        return jsonify({"success": True, "message": "Viewing session started."})
+    except Exception as e:
+        print("LIVE VIEW START ERROR:", repr(e))
+        try:
+            conn.rollback()
+            release_db(conn)
+        except Exception:
+            pass
+        return jsonify({"success": False, "message": "Could not start viewer tracking."}), 500
+
+
+@app.route("/api/mobile/live-training/<int:class_id>/viewer/heartbeat", methods=["POST"])
+def mobile_live_training_viewer_heartbeat(class_id):
+    data = request.get_json(silent=True) or {}
+    phone_raw = str(data.get("phone", "")).strip()
+    session_token = str(data.get("session_id", "")).strip()
+    if not phone_raw or not session_token:
+        return jsonify({"success": False, "message": "Phone and session_id are required."}), 400
+    phone = normalize_phone(phone_raw)
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        ensure_live_training_view_tables(c)
+        c.execute("""
+            UPDATE live_training_view_sessions
+            SET last_seen_at=CURRENT_TIMESTAMP, ended_at=NULL
+            WHERE class_id=%s AND phone=%s AND session_token=%s
+            RETURNING id
+        """, (class_id, phone, session_token))
+        updated = c.fetchone()
+        conn.commit()
+        release_db(conn)
+        if not updated:
+            return jsonify({"success": False, "message": "Viewing session not found; start it again."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        print("LIVE VIEW HEARTBEAT ERROR:", repr(e))
+        try:
+            conn.rollback()
+            release_db(conn)
+        except Exception:
+            pass
+        return jsonify({"success": False, "message": "Could not update viewer tracking."}), 500
+
+
+@app.route("/api/mobile/live-training/<int:class_id>/viewer/stop", methods=["POST"])
+def mobile_live_training_viewer_stop(class_id):
+    data = request.get_json(silent=True) or {}
+    phone_raw = str(data.get("phone", "")).strip()
+    session_token = str(data.get("session_id", "")).strip()
+    if not phone_raw or not session_token:
+        return jsonify({"success": False, "message": "Phone and session_id are required."}), 400
+    phone = normalize_phone(phone_raw)
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        ensure_live_training_view_tables(c)
+        c.execute("""
+            UPDATE live_training_view_sessions
+            SET ended_at=COALESCE(ended_at, CURRENT_TIMESTAMP),
+                last_seen_at=CURRENT_TIMESTAMP
+            WHERE class_id=%s AND phone=%s AND session_token=%s
+        """, (class_id, phone, session_token))
+        conn.commit()
+        release_db(conn)
+        return jsonify({"success": True})
+    except Exception as e:
+        print("LIVE VIEW STOP ERROR:", repr(e))
+        try:
+            conn.rollback()
+            release_db(conn)
+        except Exception:
+            pass
+        return jsonify({"success": False, "message": "Could not stop viewer tracking."}), 500
+
+
+@app.route("/api/mobile/live-training/<int:class_id>/viewers", methods=["GET"])
+def mobile_live_training_viewer_summary(class_id):
+    """Public aggregate counts; viewer identities/history are admin-only."""
+    phone_raw = request.args.get("phone", "").strip()
+    phone = normalize_phone(phone_raw) if phone_raw else ""
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        ensure_live_training_view_tables(c)
+        c.execute("SELECT id FROM live_training_classes WHERE id=%s", (class_id,))
+        if not c.fetchone():
+            release_db(conn)
+            return jsonify({"success": False, "message": "Training class not found."}), 404
+        c.execute("""
+            SELECT
+                COUNT(DISTINCT phone) FILTER (
+                    WHERE ended_at IS NULL AND last_seen_at >= CURRENT_TIMESTAMP - INTERVAL '90 seconds'
+                ) AS current_viewers,
+                COUNT(DISTINCT phone) AS total_unique_viewers,
+                COUNT(*) AS total_sessions
+            FROM live_training_view_sessions
+            WHERE class_id=%s
+        """, (class_id,))
+        row = c.fetchone()
+        release_db(conn)
+        return jsonify({
+            "success": True,
+            "class_id": class_id,
+            "current_viewers": int(row[0] or 0),
+            "total_unique_viewers": int(row[1] or 0),
+            "total_sessions": int(row[2] or 0)
+        })
+    except Exception as e:
+        print("LIVE VIEW SUMMARY ERROR:", repr(e))
+        try:
+            conn.rollback()
+            release_db(conn)
+        except Exception:
+            pass
+        return jsonify({"success": False, "message": "Could not load viewer counts."}), 500
+
+
+@app.route("/api/mobile/live-training/<int:class_id>/viewers/admin", methods=["GET"])
+def mobile_live_training_viewer_history_admin(class_id):
+    phone_raw = request.args.get("phone", "").strip()
+    phone = normalize_phone(phone_raw) if phone_raw else ""
+    if not phone or not is_admin_phone(phone):
+        return jsonify({"success": False, "message": "Admin access required."}), 403
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        ensure_live_training_view_tables(c)
+        c.execute("SELECT id FROM live_training_classes WHERE id=%s", (class_id,))
+        if not c.fetchone():
+            release_db(conn)
+            return jsonify({"success": False, "message": "Training class not found."}), 404
+        c.execute("""
+            SELECT phone, MIN(started_at), MAX(last_seen_at), COUNT(*),
+                   BOOL_OR(ended_at IS NULL AND last_seen_at >= CURRENT_TIMESTAMP - INTERVAL '90 seconds')
+            FROM live_training_view_sessions
+            WHERE class_id=%s
+            GROUP BY phone
+            ORDER BY MAX(last_seen_at) DESC
+            LIMIT 1000
+        """, (class_id,))
+        rows = c.fetchall()
+        release_db(conn)
+        viewers = [{
+            "phone": r[0],
+            "first_watched_at": r[1].isoformat() if r[1] else None,
+            "last_watched_at": r[2].isoformat() if r[2] else None,
+            "sessions": int(r[3] or 0),
+            "watching_now": bool(r[4])
+        } for r in rows]
+        return jsonify({"success": True, "class_id": class_id, "viewers": viewers})
+    except Exception as e:
+        print("LIVE VIEW HISTORY ERROR:", repr(e))
+        try:
+            conn.rollback()
+            release_db(conn)
+        except Exception:
+            pass
+        return jsonify({"success": False, "message": "Could not load viewer history."}), 500
+
+
 @app.route("/api/mobile/live-training/<int:class_id>/chat", methods=["GET"])
 def mobile_live_training_chat(class_id):
-    phone = normalize_phone(request.args.get("phone", "").strip())
-    if not phone:
-        return jsonify({"success": False, "message": "Enter your WhatsApp number to use class chat."}), 403
+    # Reading class discussions is public. A phone number is optional and is
+    # used only to label the current user; replay expiry does not affect chat.
+    phone_raw = request.args.get("phone", "").strip()
+    phone = normalize_phone(phone_raw) if phone_raw else ""
 
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id FROM live_training_classes WHERE id=%s AND status='published'", (class_id,))
+    c.execute("SELECT id FROM live_training_classes WHERE id=%s", (class_id,))
     if not c.fetchone():
         release_db(conn)
         return jsonify({"success": False, "message": "Training class not found."}), 404
-
-    if not has_legacy_live_training_access(phone, class_id):
-        release_db(conn)
-        return jsonify({"success": False, "message": "Unlock this Live Training class to use its chat."}), 403
 
     c.execute("""
         SELECT id, class_id, phone, message, message_type, reply_to_id, created_at
@@ -10458,7 +10711,7 @@ def mobile_live_training_chat(class_id):
         messages.append({
             "id": msg_id,
             "class_id": str(row_class_id),
-            "sender_label": "Arachis Admin" if is_admin_phone(sender_phone) else "Student " + sender_phone[-4:],
+            "sender_label": "Arachis Admin" if is_admin_phone(sender_phone) else "Student " + str(sender_phone or "")[-4:],
             "message": message,
             "message_type": message_type or "comment",
             "reply_to_id": reply_to_id,
@@ -10466,8 +10719,7 @@ def mobile_live_training_chat(class_id):
             "created_at": created_at.strftime("%d %b %H:%M") if created_at else ""
         })
 
-    return jsonify({"success": True, "messages": messages})
-
+    return jsonify({"success": True, "class_id": class_id, "messages": messages})
 
 @app.route("/api/mobile/live-training/chat/admin", methods=["GET"])
 def mobile_live_training_chat_admin():
@@ -10505,14 +10757,15 @@ def mobile_live_training_chat_admin():
 
 @app.route("/api/mobile/live-training/<int:class_id>/chat", methods=["POST"])
 def mobile_live_training_chat_post(class_id):
-    data = request.get_json() or {}
-    phone = normalize_phone(data.get("phone", "").strip())
+    data = request.get_json(silent=True) or {}
+    phone_raw = str(data.get("phone", "")).strip()
+    phone = normalize_phone(phone_raw) if phone_raw else ""
     message = str(data.get("message", "")).strip()
     message_type = str(data.get("message_type", "comment")).strip().lower()
     reply_to_id = data.get("reply_to_id")
 
     if not phone:
-        return jsonify({"success": False, "message": "Please log in first."}), 403
+        return jsonify({"success": False, "message": "Please log in before posting."}), 403
     if not message:
         return jsonify({"success": False, "message": "Message cannot be empty."}), 400
     if len(message) > 1000:
@@ -10522,25 +10775,15 @@ def mobile_live_training_chat_post(class_id):
 
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id FROM live_training_classes WHERE id=%s AND status='published'", (class_id,))
+    # Chat belongs to the class ID and remains open after the video/replay expires.
+    # Do not require published status or a paid video pass to participate.
+    c.execute("SELECT id FROM live_training_classes WHERE id=%s", (class_id,))
     if not c.fetchone():
         release_db(conn)
         return jsonify({"success": False, "message": "Training class not found."}), 404
 
-    admin = is_admin_phone(phone)
-    if not admin:
-        c.execute("""
-            SELECT id
-            FROM live_training_access
-            WHERE phone=%s AND class_id=%s
-            LIMIT 1
-        """, (phone, class_id))
-        row = c.fetchone()
-        if not row:
-            release_db(conn)
-            return jsonify({"success": False, "message": "Unlock this Live Training class to use its chat."}), 403
-        if message_type == "answer":
-            message_type = "comment"
+    if not is_admin_phone(phone) and message_type == "answer":
+        message_type = "comment"
 
     if reply_to_id:
         c.execute("SELECT id FROM live_training_messages WHERE id=%s AND class_id=%s", (reply_to_id, class_id))
@@ -10557,7 +10800,7 @@ def mobile_live_training_chat_post(class_id):
     conn.commit()
     release_db(conn)
 
-    return jsonify({"success": True, "id": new_id})
+    return jsonify({"success": True, "id": new_id, "class_id": class_id})
 
 @app.route("/api/mobile/live-training/<int:class_id>/chat/<int:message_id>", methods=["DELETE"])
 def mobile_live_training_chat_delete(class_id, message_id):
@@ -12656,7 +12899,6 @@ if __name__ == "__main__":
 
       
            
-
 
 
 
